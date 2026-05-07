@@ -1,0 +1,14 @@
+html, body {
+  height: 100%vh;
+  width: 100%vw;
+  margin: 0;
+}
+
+canvas {
+  display: block;
+} 
+
+canvas {
+  cursor: none;
+}
+
