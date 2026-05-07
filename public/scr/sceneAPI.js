@@ -4,6 +4,7 @@ export class SceneAPI {
   constructor(scene) {
     this.scene = scene;
     this.spriteManager = new SpriteManager(scene);
+    console.log('SceneAPI initiated')
   }
 
   applyState(state) {

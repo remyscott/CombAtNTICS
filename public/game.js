@@ -1,5 +1,6 @@
 console.log('You tryna cheat or smth? *smhing*');
 
+import { attachRuntimeLogger } from './scr/attachRuntimeLogger.js'
 import { Client } from './scr/client.js'
 import { SceneAPI } from './scr/sceneAPI.js';
 import { InputManager } from './scr/inputManager.js'
@@ -17,16 +18,25 @@ function preload() {
 }
 
 function create() {
+  this.playerName = null;
   this.gameConsole = new GameConsole(this);
 
-  client = new Client(this);
+  this._detachRuntimeLogger = attachRuntimeLogger(this.gameConsole, {
+    forwardConsole: true,        // intercept console.* and forward
+    captureErrors: true,         // window.onerror
+    captureRejections: true      // unhandledrejection
+  });
+  
+  this.sys.events.on('shutdown', () => {
+    if (this._detachRuntimeLogger) this._detachRuntimeLogger();
+  });
+
   sceneAPI = new SceneAPI(this); //this is the scene
   inputManager = new InputManager(this);
-
-  
-  
-
   inputManager.setUpInputs();
+
+  client = new Client(this);
+
 
   
 }

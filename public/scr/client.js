@@ -1,6 +1,6 @@
 export class Client{
   constructor(scene) {
-    
+
     this.scene = scene;
     this.playerStatesByServerTime = new Map(); //name -> [{time, state}]
     this.currentPlayerNames = new Set();
@@ -21,25 +21,26 @@ export class Client{
     );
 
     this.ws.addEventListener('close', () => {
-      this.scene.gameConsole.error('Websocket Closed');
+      console.error('Websocket Closed');
     })
 
     this.ws.addEventListener('open', () => {
-      this.scene.gameConsole.log('WebSocket opened');
+      console.info('WebSocket opened');
       
       this.startTimeSync();
     });
 
     this.ws.addEventListener('message', (ev) => this.handleMessage(this.parseMessage(ev)));
   }
+
   startTimeSync() {
-    this.scene.gameConsole.log('Calibrating buffer ...');
+    console.log('Calibrating buffer ...');
 
     const calibPromise = this.timeSyncAI(
-      { count: 50, interval: 1, timeout: 500 },
+      {},
       (prog) => {
         if (prog && typeof prog.index === 'number') {
-          this.scene.gameConsole.log(`Calib ${prog.index + 1}/${prog.count}: ${prog.ok ? prog.rtt + 'ms' : 'timeout'}`);
+          console.log(`ping ${prog.index + 1}/${prog.count}: ${prog.ok ? prog.rtt + 'ms' : 'timeout'}`);
         }
       }
     );
@@ -47,16 +48,16 @@ export class Client{
     calibPromise.then(stats => {
       let ext = '';
       if (stats.networkBuffer === 50) ext = ' (This is the minimum buffer)';
-      this.scene.gameConsole.info(`Calibrated: buffer ${stats.networkBuffer}ms${ext}`);
+      console.info(`Calibrated: buffer ${stats.networkBuffer}ms${ext}`);
       
     }).catch(err => {
       console.warn('calibration failed', err);
-      this.scene.gameConsole.error('Calibration failed — using defaults');
+      console.warn('Calibration failed — using defaults');
     });
   }
 
   // this AI function is deadass so fucking long, I'll rewrite it by hand sometime.
-  timeSyncAI({ count = 6, interval = 80, timeout = 1000 } = {}, onProgress) {
+  timeSyncAI({ count = 8, interval = 50, timeout = 500 } = {}, onProgress) {
     console.log('startTimeSyncAI called', { count, interval, timeout, wsReady: this.ws && this.ws.readyState });
   
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
@@ -227,7 +228,10 @@ export class Client{
       if (!this.recievedInit) {
         this.clientId = msg.clientId;
         this.name = msg.name;
+        this.scene.playerName = this.name;
         this.recievedInit = true;
+        console.log(`Server init recieved at ${Date.now()}`)
+        console.info(`Joined as: ${this.name} with clientID ${this.clientId}`)
       }
     }
 

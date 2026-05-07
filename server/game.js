@@ -13,7 +13,7 @@ export class Game {
   addPlayer(clientId, name, socket) {
     const existingNames = new Set([...this.players.values()].map(n => n.name));
     while (existingNames.has(name)) {
-        name = "_" + name;
+        name = name + '.' + String(Math.floor(Math.random()*1000));
     }
   
     this.players.set(clientId, { socket, name, state: structuredClone(TEST_DEFAULT_PLAYER_STATE)});

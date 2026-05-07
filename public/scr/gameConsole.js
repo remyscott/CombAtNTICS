@@ -1,7 +1,7 @@
 export class GameConsole {
   constructor(scene, opts = {}) {
     this.scene = scene;
-    this.maxMessages = opts.maxMessages || 10;
+    this.maxMessages = opts.maxMessages || 30;
     this.ttl = typeof opts.ttl === 'number' ? opts.ttl : 5000;
     this.spacing = opts.spacing || 6;
     this.pool = []; // reusable text objects
@@ -35,6 +35,7 @@ export class GameConsole {
     }
 
     this._onResize();
+    this.log('Console initiated')
   }
 
   _onResize() {
@@ -134,21 +135,22 @@ export class GameConsole {
     // at: top = gameHeight - pad - totalHeight
     const pad = this.pad || 12;
     const spacing = this.spacing;
-
+    
+    
     // safe defaults if resize hasn't run yet
     const gh = (typeof this.gameHeight === 'number') ? this.gameHeight : (this.scene.sys.game.config.height || 600);
-
+    
     // compute total height of active messages
     let totalHeight = 0;
     for (let i = 0; i < this.active.length; i++) {
       totalHeight += this.active[i].text.height;
       if (i < this.active.length - 1) totalHeight += spacing;
     }
-
+    
     // top Y where the first (oldest) message will be placed
     let y = gh - pad - totalHeight;
     const x = (typeof this.anchorX === 'number') ? this.anchorX : pad;
-
+    
     for (let i = 0; i < this.active.length; i++) {
       const rec = this.active[i];
       const t = rec.text;
@@ -159,6 +161,7 @@ export class GameConsole {
       y += t.height + spacing;
     }
   }
+
 
   clear() {
     for (const rec of this.active) {

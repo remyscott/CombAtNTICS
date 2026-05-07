@@ -1,6 +1,7 @@
 export class SpriteManager {
   constructor(scene) {
     this.scene = scene;
+    console.log('SpriteManager initiated');
   }
 
   ensureCorrectPlayerSpritesForState(names) {
@@ -10,6 +11,7 @@ export class SpriteManager {
         const sprite = this.scene.add.sprite(startPos.x, startPos.y, 'player').setOrigin(0.5, 0.5);
         sprite.name = name;
         this.scene.sprites.set(name, sprite);
+        if (!name === this.scene.playerName) console.info(`player: ${name} joined the game`);
       }
     }
 
@@ -18,6 +20,7 @@ export class SpriteManager {
       if (!nameSet.has(existingName)) {
         sprite.destroy();
         this.scene.sceneSprites.delete(existingName);
+        console.info(`player: ${existingName} left the game`);
       }
     }
   }
