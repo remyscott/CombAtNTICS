@@ -1,0 +1,21 @@
+{
+  "name": "serversidephysics",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "vite --port 3000"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "express": "^5.2.1",
+    "http": "^0.0.1-security",
+    "phaser": "^4.1.0",
+    "planck": "^1.5.0",
+    "ws": "^8.20.0"
+  }
+}

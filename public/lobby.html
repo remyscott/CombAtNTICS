@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>idk</title>
+  <link rel="stylesheet" href="css/lobby.css" />
+</head>
+<body>
+
+  <div id="lobby-container">
+    <div id="lobby-panel">
+      <h1>idk</h1>
+
+      <div class="input-group">
+        <input id="nameInput" type="text" placeholder="Name Your Empire" maxlength="25" />
+        <button id="joinBtn">Start New Game</button>
+      </div>
+
+      <div id="games-panel">
+        <h2>Active Games</h2>
+        <ul id="gameList"></ul>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    function sanitizePlayerName(name) {
+      if (name.length > 25) {
+        return name.slice(0, 25) + "…";
+      }
+      return name;
+    }
+
+    const nameInput = document.getElementById("nameInput");
+    const joinBtn = document.getElementById("joinBtn");
+    const gameList = document.getElementById("gameList");
+
+    const savedName = localStorage.getItem("playerName");
+    if (savedName) nameInput.value = savedName;
+
+    joinBtn.addEventListener("click", () => {
+      let name = nameInput.value.trim();
+      if (!name) return alert("Enter a name");
+
+      name = sanitizePlayerName(name);
+      localStorage.setItem("playerName", name);
+
+      const gameId = "game" + Math.floor(Math.random() * 1000);
+      window.location.href =
+        `game.html?game=${encodeURIComponent(gameId)}&name=${encodeURIComponent(name)}`;
+    });
+
+    async function fetchGames() {
+      try {
+        const res = await fetch("/games");
+        const games = await res.json();
+
+        gameList.innerHTML = "";
+
+        games.forEach(game => {
+          const li = document.createElement("li");
+          li.className = "game-entry";
+          li.innerHTML = `
+            <span class="game-id">${game.id}</span>
+            <span class="game-meta">${game.players} players • ${game.map}</span>
+          `;
+
+          li.addEventListener("click", () => {
+            let name = nameInput.value.trim();
+            if (!name) return alert("Enter a name");
+
+            name = sanitizePlayerName(name);
+            localStorage.setItem("playerName", name);
+
+            window.location.href =
+              `game.html?game=${encodeURIComponent(game.id)}&name=${encodeURIComponent(name)}`;
+          });
+
+          gameList.appendChild(li);
+        });
+      } catch (e) {
+        console.error("Failed to fetch games:", e);
+      }
+    }
+
+  
+
+
+    fetchGames();
+    setInterval(fetchGames, 5000);
+    
+  </script>
+</body>
+</html>
