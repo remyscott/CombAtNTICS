@@ -8,14 +8,13 @@ export class GameConsole {
     this.active = []; // active message records
     this.container = scene.add.container(0, 0);
 
-    // anchor in top-right by default
-    const width = scene.sys.game.config.width;
     const pad = opts.padding || 12;
-    this.anchorX = (typeof opts.x === 'number') ? opts.x : width - pad;
+    this.pad = pad;
+    this.anchorX = (typeof opts.x === 'number') ? opts.x : pad;
     this.anchorY = (typeof opts.y === 'number') ? opts.y : pad;
-    this.container.setDepth(1000); // ensure on top
 
-    // default style
+    this.container.setDepth(1000);
+
     this.style = Object.assign({
       fontSize: '14px',
       color: '#ffffff',
@@ -23,12 +22,47 @@ export class GameConsole {
       stroke: null,
       strokeThickness: 0
     }, opts.style || {});
+
+    this._onResize = this._onResize.bind(this);
+    if (this.scene && this.scene.scale && typeof this.scene.scale.on === 'function') {
+      this.scene.scale.on('resize', this._onResize);
+    }
+
+    if (this.scene && this.scene.sys && this.scene.sys.events) {
+      this.scene.sys.events.once('ready', this._onResize);
+      // Some Phaser setups use 'create' instead of 'ready'
+      this.scene.sys.events.once('create', this._onResize);
+    }
+
+    this._onResize();
+  }
+
+  _onResize() {
+    const scale = this.scene && this.scene.scale;
+    let width, height;
+
+    if (scale && scale.displaySize && scale.displaySize.width && scale.displaySize.height) {
+      width = scale.displaySize.width;
+      height = scale.displaySize.height;
+    } else if (scale && typeof scale.width === 'number' && typeof scale.height === 'number') {
+      width = scale.width;
+      height = scale.height;
+    } else {
+      width = this.scene.sys.game.config.width || 800;
+      height = this.scene.sys.game.config.height || 600;
+    }
+
+    this.gameWidth = width;
+    this.gameHeight = height;
+
+    this._layoutMessages();
   }
 
   _acquireText() {
     let text = this.pool.pop();
     if (!text) {
-      text = this.scene.add.text(0, 0, '', this.style).setOrigin(1, 0); // origin right/top
+      // origin left/top so we can position with x = pad and y = computed top
+      text = this.scene.add.text(0, 0, '', this.style).setOrigin(0, 0);
     } else {
       text.setStyle(this.style).setVisible(true);
     }
@@ -56,7 +90,7 @@ export class GameConsole {
     }
 
     const text = this._acquireText();
-    const color = (level === 'error') ? '#ff6666' : (level === 'warn') ? '#ffcc66' : (level === 'info') ? '#66ccff' : '#ffffff';
+    const color = (level === 'error') ? '#ff6666' : (level === 'warn') ? '#ffcc66' : (level === 'info') ? '#3be025' : '#ffffff';
     text.setColor(color);
     text.setText(String(message));
 
@@ -91,19 +125,38 @@ export class GameConsole {
     this.active.splice(idx, 1);
     this._releaseText(rec.text);
 
-    // Re-layout remaining messages so those below shift up immediately
+    // Re-layout remaining messages so those below shift up immediately (preserves order)
     this._layoutMessages();
   }
 
   _layoutMessages() {
-    let y = this.anchorY;
+    // bottom-left layout: compute the block height, then place the first (oldest)
+    // at: top = gameHeight - pad - totalHeight
+    const pad = this.pad || 12;
+    const spacing = this.spacing;
+
+    // safe defaults if resize hasn't run yet
+    const gh = (typeof this.gameHeight === 'number') ? this.gameHeight : (this.scene.sys.game.config.height || 600);
+
+    // compute total height of active messages
+    let totalHeight = 0;
+    for (let i = 0; i < this.active.length; i++) {
+      totalHeight += this.active[i].text.height;
+      if (i < this.active.length - 1) totalHeight += spacing;
+    }
+
+    // top Y where the first (oldest) message will be placed
+    let y = gh - pad - totalHeight;
+    const x = (typeof this.anchorX === 'number') ? this.anchorX : pad;
+
     for (let i = 0; i < this.active.length; i++) {
       const rec = this.active[i];
       const t = rec.text;
-      // position top-right anchored at anchorX (x), y increasing downward
-      t.setPosition(this.anchorX, y);
+      // position left-aligned at x, y increasing downward
+      t.setOrigin(0, 0);
+      t.setPosition(x, Math.round(y));
       t.setAlpha(1);
-      y += t.height + this.spacing;
+      y += t.height + spacing;
     }
   }
 
@@ -116,6 +169,10 @@ export class GameConsole {
   }
 
   destroy() {
+    // unsubscribe resize listener
+    if (this.scene && this.scene.scale && typeof this.scene.scale.off === 'function') {
+      this.scene.scale.off('resize', this._onResize);
+    }
     this.clear();
     for (const t of this.pool) {
       t.destroy();

@@ -1,23 +1,62 @@
 export class Client{
-  constructor() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const gameId = urlParams.get('game');
-    const playerName = urlParams.get('name') || localStorage.getItem('playerName') || 'Unnamed';
-    this.ws = new WebSocket(
-      `${location.origin.replace(/^http/, "ws")}/?game=${encodeURIComponent(gameId)}&name=${encodeURIComponent(playerName)}`
-    );
-  
-    this.ws.addEventListener('message', (ev) => this.handleMessage(this.parseMessage(ev)));
+  constructor(scene) {
+    
+    this.scene = scene;
     this.playerStatesByServerTime = new Map(); //name -> [{time, state}]
     this.currentPlayerNames = new Set();
     this.DEFAULT_BUFFER = 100
     this.networkBuffer = this.DEFAULT_BUFFER;
     this.clockOffset = 100
     this.HISTORY_TIME = 1000;
+    this.setupWebSocket();
   }
 
-  // this function is deadass so fucking long, I'll rewrite it by hand sometime.
-  startTimeSyncAI({ count = 6, interval = 80, timeout = 1000 } = {}, onProgress) {
+  setupWebSocket() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const gameId = urlParams.get('game');
+    const playerName = urlParams.get('name') || localStorage.getItem('playerName') || 'Unnamed';
+
+    this.ws = new WebSocket(
+      `${location.origin.replace(/^http/, "ws")}/?game=${encodeURIComponent(gameId)}&name=${encodeURIComponent(playerName)}`
+    );
+
+    this.ws.addEventListener('close', () => {
+      this.scene.gameConsole.error('Websocket Closed');
+    })
+
+    this.ws.addEventListener('open', () => {
+      this.scene.gameConsole.log('WebSocket opened');
+      
+      this.startTimeSync();
+    });
+
+    this.ws.addEventListener('message', (ev) => this.handleMessage(this.parseMessage(ev)));
+  }
+  startTimeSync() {
+    this.scene.gameConsole.log('Calibrating buffer ...');
+
+    const calibPromise = this.timeSyncAI(
+      { count: 50, interval: 1, timeout: 500 },
+      (prog) => {
+        if (prog && typeof prog.index === 'number') {
+          this.scene.gameConsole.log(`Calib ${prog.index + 1}/${prog.count}: ${prog.ok ? prog.rtt + 'ms' : 'timeout'}`);
+        }
+      }
+    );
+    
+    calibPromise.then(stats => {
+      let ext = '';
+      if (stats.networkBuffer === 50) ext = ' (This is the minimum buffer)';
+      this.scene.gameConsole.info(`Calibrated: buffer ${stats.networkBuffer}ms${ext}`);
+      
+    }).catch(err => {
+      console.warn('calibration failed', err);
+      this.scene.gameConsole.error('Calibration failed — using defaults');
+    });
+  }
+
+  // this AI function is deadass so fucking long, I'll rewrite it by hand sometime.
+  timeSyncAI({ count = 6, interval = 80, timeout = 1000 } = {}, onProgress) {
     console.log('startTimeSyncAI called', { count, interval, timeout, wsReady: this.ws && this.ws.readyState });
   
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
