@@ -131,30 +131,38 @@ export class GameConsole {
   }
 
   _layoutMessages() {
-    // bottom-left layout: compute the block height, then place the first (oldest)
-    // at: top = gameHeight - pad - totalHeight
+    // Desired group order (top -> bottom): log, warn, info, error
+    const groupOrder = ['log', 'warn', 'info', 'error'];
+
+    const groups = {};
+    for (const level of groupOrder) groups[level] = [];
+    for (const rec of this.active) {
+      const lvl = rec.level || 'log';
+      if (!groups[lvl]) groups[lvl] = [];
+      groups[lvl].push(rec);
+    }
+
+    const ordered = [];
+    for (const level of groupOrder) {
+      ordered.push(...groups[level]);
+    }
+
     const pad = this.pad || 12;
     const spacing = this.spacing;
-    
-    
-    // safe defaults if resize hasn't run yet
     const gh = (typeof this.gameHeight === 'number') ? this.gameHeight : (this.scene.sys.game.config.height || 600);
-    
-    // compute total height of active messages
+
     let totalHeight = 0;
-    for (let i = 0; i < this.active.length; i++) {
-      totalHeight += this.active[i].text.height;
-      if (i < this.active.length - 1) totalHeight += spacing;
+    for (let i = 0; i < ordered.length; i++) {
+      totalHeight += ordered[i].text.height;
+      if (i < ordered.length - 1) totalHeight += spacing;
     }
-    
-    // top Y where the first (oldest) message will be placed
+
     let y = gh - pad - totalHeight;
     const x = (typeof this.anchorX === 'number') ? this.anchorX : pad;
-    
-    for (let i = 0; i < this.active.length; i++) {
-      const rec = this.active[i];
+
+    for (let i = 0; i < ordered.length; i++) {
+      const rec = ordered[i];
       const t = rec.text;
-      // position left-aligned at x, y increasing downward
       t.setOrigin(0, 0);
       t.setPosition(x, Math.round(y));
       t.setAlpha(1);

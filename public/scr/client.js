@@ -58,7 +58,6 @@ export class Client{
 
   // this AI function is deadass so fucking long, I'll rewrite it by hand sometime.
   timeSyncAI({ count = 8, interval = 50, timeout = 500 } = {}, onProgress) {
-    console.log('startTimeSyncAI called', { count, interval, timeout, wsReady: this.ws && this.ws.readyState });
   
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       return Promise.reject(new Error('WebSocket not open'));
