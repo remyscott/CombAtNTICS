@@ -1,8 +1,9 @@
 console.log('You tryna cheat or smth? *smhing*');
 
 import {Client} from './client.js'
+import { SceneAPI } from './sceneAPI.js';
 
-let SceneAPI = null;
+let sceneAPI = null;
 let client = null;
 
 const phaserConfig = {
@@ -19,7 +20,7 @@ const phaserConfig = {
 
 function preload() {
   this.load.image('player', 'player.png');
-  this.sceneSprites = new Map();
+  this.sprites = new Map();
 }
 
 
@@ -27,42 +28,8 @@ function preload() {
 
 
 function create() {
-  const scene = this;
-
-  SceneAPI = {
-    ensurePlayerSprites(names) {
-      for (const name of names) {
-        if (!scene.sceneSprites.has(name)) {
-          const history = client.playerStatesByServerTime.get(name);
-          let startPos = { x: phaserConfig.width / 2, y: phaserConfig.height / 2 };
-          if (history && history.length) {
-            const latest = history[history.length - 1].state;
-            if (latest && latest.pos && typeof latest.pos.x === 'number' && typeof latest.pos.y === 'number') {
-              startPos = { x: latest.pos.x, y: latest.pos.y };
-            }
-          }
-
-          const sprite = scene.add.sprite(startPos.x, startPos.y, 'player').setOrigin(0.5, 0.5);
-          sprite.name = name;
-          scene.sceneSprites.set(name, sprite);
-        }
-      }
-
-      const nameSet = new Set(names);
-      for (const [existingName, sprite] of Array.from(scene.sceneSprites.entries())) {
-        if (!nameSet.has(existingName)) {
-          sprite.destroy();
-          scene.sceneSprites.delete(existingName);
-        }
-      }
-    },
-
-    getSprite(name) {
-      return scene.sceneSprites.get(name);
-    }
-  };
-
   client = new Client();
+  sceneAPI = new SceneAPI(this); //this is the scene
 
   this.calibContainer = this.add.container(0, 0);
 
@@ -70,7 +37,7 @@ function create() {
   const w = phaserConfig.width, h = phaserConfig.height;
   const bg = this.add.rectangle(w/2, h/2, w, h, 0x000000, 0.5);
   const title = this.add.text(w/2, h/2 - 60, 'Calibrating network...', { fontSize: '24px', color: '#ffffff' }).setOrigin(0.5);
-  const progressText = this.add.text(w/2, h/2, '0 / 0 pings', { fontSize: '18px', color: '#ffffff' }).setOrigin(0.5);
+  const progressText = this.add.text(w/2, h/2, '-1 / 0 pings', { fontSize: '18px', color: '#ffffff' }).setOrigin(0.5);
   const detailText = this.add.text(w/2, h/2 + 40, '', { fontSize: '14px', color: '#cccccc' }).setOrigin(0.5);
   const spinner = this.add.text(w/2, h/2 + 80, '⏳', { fontSize: '32px', color: '#ffffff' }).setOrigin(0.5);
 
@@ -88,7 +55,7 @@ function create() {
   client.ws.addEventListener('open', () => {
     // start calibration and update UI for each ping
     const calibPromise = client.startTimeSyncAI(
-      { count: 20, interval: 1, timeout: 500 },
+      { count: 50, interval: 1, timeout: 500 },
       (prog) => {
         const index = (prog && typeof prog.index === 'number') ? prog.index : -1;
         const total = (prog && typeof prog.count === 'number') ? prog.count : 6;
@@ -141,23 +108,8 @@ function create() {
   });
 }
 
-function update(time, delta) {
-
-  const currentStates = client.getCurrentPlayerStates();
-
-  const names = currentStates.map(([name]) => name);
-  if (names.length) SceneAPI.ensurePlayerSprites(names);
-
-  for (const [name, state] of currentStates) {
-    const sprite = SceneAPI.getSprite(name);
-    if (!sprite) continue;
-
-    if (state && state.pos && typeof state.pos.x === 'number' && typeof state.pos.y === 'number') {
-      sprite.x = state.pos.x;
-      sprite.y = state.pos.y;
-    }
-  }
-
+function update() {
+  sceneAPI.applyState(client.getCurrentState());
 }
 
 new Phaser.Game(phaserConfig);

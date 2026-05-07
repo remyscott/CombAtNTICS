@@ -115,8 +115,8 @@ export class Game {
         state.vel.x -= multiplier*(state.pos.x-state.mousePos.x);
         state.vel.y -= multiplier*(state.pos.y-state.mousePos.y);
 
-        state.vel.x *= 1- multiplier/10;
-        state.vel.y *= 1- multiplier/10;
+        state.vel.x *= Math.max(0,1- multiplier/10);
+        state.vel.y *= Math.max(0,1- multiplier/10);
       }
       
       

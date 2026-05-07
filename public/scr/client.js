@@ -230,6 +230,10 @@ export class Client{
     return a.time - b.time;
   }
 
+  getCurrentState() {
+    return({players: this.getCurrentPlayerStates()});
+  }
+
   getCurrentPlayerStates() {
     const renderServerTime = Date.now() + (this.clockOffset || 0) - this.networkBuffer;
     const result = [];
