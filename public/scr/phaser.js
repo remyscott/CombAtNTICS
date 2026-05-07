@@ -2,11 +2,11 @@ console.log('You tryna cheat or smth? *smhing*');
 
 import {Client} from './client.js'
 import { SceneAPI } from './sceneAPI.js';
+import {InputManager} from './inputManager.js'
 
 let sceneAPI = null;
 let client = null;
-
-
+let inputManager = null;
 
 
 
@@ -19,12 +19,12 @@ function preload() {
 
 
 
-
+let mousePos = {x: 0, y: 0};
 
 function create() {
   client = new Client();
   sceneAPI = new SceneAPI(this); //this is the scene
-
+  inputManager = new InputManager(this);
 
   client.ws.addEventListener('open', () => {
     sceneAPI.gameConsole.log('WebSocket opened');
@@ -53,13 +53,24 @@ function create() {
 
   });
 
-  this.input.on('pointermove', (pointer) => {
-    client.ws.send(JSON.stringify({type : 'mousePos', pos: {x: pointer.worldX, y: pointer.worldY}}));
-  });
+  inputManager.setUpInputs();
+
+  client.ws.addEventListener('close', () => {
+    sceneAPI.gameConsole.warn('Websocket Closed');
+  })
 }
 
-function update() {
+let msSinceLastInputsSent = 0;
+let inputInterval = 1000/60;
+
+function update(delta, time) {
   sceneAPI.applyState(client.getCurrentState());
+  
+  
+  const inputs = inputManager.tick(delta);
+  if (inputs) {
+    client.sendMessage({type: 'input', inputs})
+  }
 }
 
 const phaserConfig = {

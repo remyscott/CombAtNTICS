@@ -166,6 +166,12 @@ export class Client{
     return run();
   }
 
+  sendMessage(msg) {
+    if (this.ws.readyState === this.ws.OPEN) {
+      this.ws.send(JSON.stringify(msg));
+    }
+  }
+
   parseMessage(ev) {
     if (!ev) return null;
     try {

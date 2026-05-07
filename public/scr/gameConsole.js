@@ -1,7 +1,7 @@
 export class GameConsole {
   constructor(scene, opts = {}) {
     this.scene = scene;
-    this.maxMessages = opts.maxMessages || 6;
+    this.maxMessages = opts.maxMessages || 10;
     this.ttl = typeof opts.ttl === 'number' ? opts.ttl : 5000;
     this.spacing = opts.spacing || 6;
     this.pool = []; // reusable text objects

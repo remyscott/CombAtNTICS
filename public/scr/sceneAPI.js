@@ -5,12 +5,7 @@ export class SceneAPI {
   constructor(scene) {
     this.scene = scene;
     this.spriteManager = new SpriteManager(scene);
-    this.gameConsole = new GameConsole(scene, {
-      padding: 12,
-      maxMessages: 6,
-      ttl: 5000,
-      style: { fontSize: '14px', color: '#fff' }
-    });
+    this.gameConsole = new GameConsole(scene);
   }
 
   applyState(state) {

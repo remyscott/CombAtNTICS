@@ -61,8 +61,8 @@ wss.on('connection', (ws, req) => {
     if (data.type === 'timeSync') {
       game.miserableBroadcastAI({type: 'timeSyncResp', serverTime: Date.now(), id: data.id});
     }
-    if (data.type === 'mousePos') {
-      game.players.get(clientId).state.mousePos = data.pos;
+    if (data.type === 'input') {
+      game.players.get(clientId).state.mousePos = data.inputs.mousePos;
     }    
 
   });
