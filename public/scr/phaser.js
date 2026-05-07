@@ -88,7 +88,7 @@ function create() {
   client.ws.addEventListener('open', () => {
     // start calibration and update UI for each ping
     const calibPromise = client.startTimeSyncAI(
-      { count: 20, intervalMs: 1, timeoutMs: 500 },
+      { count: 20, interval: 1, timeout: 500 },
       (prog) => {
         const index = (prog && typeof prog.index === 'number') ? prog.index : -1;
         const total = (prog && typeof prog.count === 'number') ? prog.count : 6;
@@ -117,11 +117,11 @@ function create() {
       this.calib.container.setVisible(false);
 
       let ext = ''
-      if (stats.networkBufferMs === 50) {
+      if (stats.networkBuffer === 50) {
         ext = ' (This is the minimum buffer)'
       }
       const summary = this.add.text(phaserConfig.width/2, phaserConfig.height/2,
-        `Calibrated: buffer ${stats.networkBufferMs}ms` + ext, { fontSize: '18px', color: '#00ff00' }).setOrigin(0.5);
+        `Calibrated: buffer ${stats.networkBuffer}ms` + ext, { fontSize: '18px', color: '#00ff00' }).setOrigin(0.5);
       this.time.delayedCall(2500, () => summary.destroy());
     }).catch(err => {
       console.warn('calibration failed', err);
@@ -142,9 +142,8 @@ function create() {
 }
 
 function update(time, delta) {
-  const renderServerTimeMs = Date.now() + (client.clockOffsetMs || 0) - client.networkBufferMs;
 
-  const currentStates = client.getCurrentPlayerStates(renderServerTimeMs);
+  const currentStates = client.getCurrentPlayerStates();
 
   const names = currentStates.map(([name]) => name);
   if (names.length) SceneAPI.ensurePlayerSprites(names);

@@ -10,23 +10,22 @@ export class Client{
     this.ws.addEventListener('message', (ev) => this.handleMessage(this.parseMessage(ev)));
     this.playerStatesByServerTime = new Map(); //name -> [{time, state}]
     this.currentPlayerNames = new Set();
-    this.DEFAULT_BUFFER_MS = 100
-    this.networkBufferMs = this.DEFAULT_BUFFER_MS;
-    this.clockoffsetMS = 100
-    this.HISTORY_MS = 1000;
+    this.DEFAULT_BUFFER = 100
+    this.networkBuffer = this.DEFAULT_BUFFER;
+    this.clockOffset = 100
+    this.HISTORY_TIME = 1000;
   }
 
-  startTimeSyncAI({ count = 6, intervalMs = 80, timeoutMs = 1000 } = {}, onProgress) {
-    console.log('startTimeSyncAI called', { count, intervalMs, timeoutMs, wsReady: this.ws && this.ws.readyState });
-
+  // this function is deadass so fucking long, I'll rewrite it by hand sometime.
+  startTimeSyncAI({ count = 6, interval = 80, timeout = 1000 } = {}, onProgress) {
+    console.log('startTimeSyncAI called', { count, interval, timeout, wsReady: this.ws && this.ws.readyState });
+  
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       return Promise.reject(new Error('WebSocket not open'));
     }
-
-    // ensure the pending map
+  
     this._timeSyncPending = this._timeSyncPending || new Map();
-
-    // listener for server replies
+  
     const onMessage = (ev) => {
       let msg;
       try {
@@ -35,63 +34,49 @@ export class Client{
         console.warn('parse error in onMessage', e, ev && ev.data);
         return;
       }
-      // expect numeric id (keep same contract as your renderer)
       if (!msg || msg.type !== 'timeSyncResp' || typeof msg.id !== 'number') return;
-
+  
       const id = msg.id;
       const pending = this._timeSyncPending.get(id);
-      if (!pending) {
-        // late/dangling reply — ignore
-        return;
-      }
-
-      // compute RTT with the t0 stored in pending
+      if (!pending) return;
+  
       const t1 = Date.now();
       const t0 = pending.t0;
-      // cleanup before resolving to avoid re-entrancy issues
       clearTimeout(pending.timer);
       this._timeSyncPending.delete(id);
-
+  
       const rtt = t1 - t0;
       const serverTime = (typeof msg.serverTime === 'number') ? msg.serverTime : null;
       const offset = (serverTime != null) ? (serverTime - (t0 + rtt / 2)) : null;
-
-      // inform renderer/UI
+  
       if (typeof onProgress === 'function') {
         try { onProgress({ index: pending.index, count, rtt, offset, ok: true }); } catch (e) { /* ignore UI errors */ }
       }
-
-      // resolve the Promise associated with this ping
+  
       pending.resolve({ id, rtt, serverTime, offset });
     };
-
+  
     this.ws.addEventListener('message', onMessage);
-
+  
     const rtts = [];
     const offsets = [];
-
-    // local numeric id generator (starts from 0 each run like your original)
     let nextId = 0;
-
+  
     const pingOnce = (id, index) => {
       return new Promise((resolve, reject) => {
         const t0 = Date.now();
         let settled = false;
-
-        // timeout handler — stored so we can clear it if reply arrives
+  
         const timer = setTimeout(() => {
           if (settled) return;
           settled = true;
-          // remove pending entry
           this._timeSyncPending.delete(id);
-          // report UI timeout
           if (typeof onProgress === 'function') {
-            try { onProgress({ index, count, rtt: timeoutMs, offset: null, ok: false }); } catch (e) {}
+            try { onProgress({ index, count, rtt: timeout, offset: null, ok: false }); } catch (e) {}
           }
           reject(new Error('timeSync timeout'));
-        }, timeoutMs);
-
-        // create pending entry *before* sending
+        }, timeout);
+  
         this._timeSyncPending.set(id, {
           t0,
           timer,
@@ -109,7 +94,7 @@ export class Client{
             reject(err);
           }
         });
-
+  
         try {
           const payload = { type: 'timeSync', id };
           this.ws.send(JSON.stringify(payload));
@@ -120,14 +105,27 @@ export class Client{
             this._timeSyncPending.delete(id);
           }
           if (typeof onProgress === 'function') {
-            try { onProgress({ index, count, rtt: timeoutMs, offset: null, ok: false }); } catch (e) {}
+            try { onProgress({ index, count, rtt: timeout, offset: null, ok: false }); } catch (e) {}
           }
           reject(e);
         }
       });
     };
-
-    // run pings sequentially with the requested interval
+  
+    // helper: compute quantile (R-7 style). sorts the array internally.
+    const quantile = (arr, p) => {
+      if (!arr || arr.length === 0) return undefined;
+      const a = arr.slice().sort((x, y) => x - y);
+      const n = a.length;
+      if (p <= 0 || n < 2) return +a[0];
+      if (p >= 1) return +a[n - 1];
+      const i = (n - 1) * p;
+      const i0 = Math.floor(i);
+      const v0 = +a[i0];
+      const v1 = +a[i0 + 1];
+      return v0 + (v1 - v0) * (i - i0);
+    };
+  
     const run = async () => {
       for (let i = 0; i < count; i++) {
         const id = nextId++;
@@ -136,29 +134,35 @@ export class Client{
           rtts.push(res.rtt);
           if (typeof res.offset === 'number') offsets.push(res.offset);
         } catch (e) {
-          rtts.push(timeoutMs);
+          // treat this ping as a timeout sample; push the timeout sentinel
+          rtts.push(timeout);
         }
-        if (i < count - 1) await new Promise(r => setTimeout(r, intervalMs));
+        if (i < count - 1) await new Promise(r => setTimeout(r, interval));
       }
-
+  
       this.ws.removeEventListener('message', onMessage);
-
-      // stats
-      const avgRtt = rtts.length ? (rtts.reduce((a, b) => a + b, 0) / rtts.length) : 0;
+  
+      // Filter out timeout sentinel values so they don't skew the percentile
+      const validRtts = rtts.filter(x => typeof x === 'number' && x < timeout);
+  
+      // If no valid RTTs, fall back to the timeout value (conservative)
+      const p90 = (validRtts.length > 0) ? quantile(validRtts, 0.9) : timeout;
+  
       const medianOffset = (offsets.length === 0) ? 0 : (() => {
         const arr = offsets.slice().sort((a, b) => a - b);
         const mid = Math.floor(arr.length / 2);
         return (arr.length % 2 === 1) ? arr[mid] : (arr[mid - 1] + arr[mid]) / 2;
       })();
-
-      this.networkBufferMs = Math.max(Math.ceil(avgRtt), 1000 / 20);
-      this.clockOffsetMs = medianOffset;
-
-      console.log('timeSync done', { rtts, offsets, avgRtt, medianOffset, networkBufferMs: this.networkBufferMs, clockOffsetMs: this.clockOffsetMs });
-
-      return { rtts, offsets, avgRtt, medianOffset, networkBufferMs: this.networkBufferMs, clockOffsetMs: this.clockOffsetMs };
+  
+      // use p90 (scaled) as the network buffer, keep a minimum floor
+      this.networkBuffer = Math.max(Math.ceil(p90), 1000 / 20);
+      this.clockOffset = medianOffset;
+  
+      console.log('timeSync done', { rtts, offsets, validRtts, p90, medianOffset, networkBuffer: this.networkBuffer, clockOffset: this.clockOffset });
+  
+      return { rtts, offsets, validRtts, p90, medianOffset, networkBuffer: this.networkBuffer, clockOffset: this.clockOffset };
     };
-
+  
     return run();
   }
 
@@ -174,6 +178,14 @@ export class Client{
 
 
   handleMessage(msg) {
+    if (msg.type === 'init') {
+      if (!this.recievedInit) {
+        this.clientId = msg.clientId;
+        this.name = msg.name;
+        this.recievedInit = true;
+      }
+    }
+
     if (msg.type === 'playerSnapshot') {
       this.currentPlayerNames = new Set(msg.players.map(e => e.name).filter(Boolean));
 
@@ -187,7 +199,7 @@ export class Client{
     }
   }
 
-  findBinaryInsertPoint(sortedArr, val, comparator) {
+  findIdxBinarySearch(sortedArr, val, comparator) {
     let low = 0, high = sortedArr.length;
     while (low < high) {
       const mid = (low + high) >>> 1;
@@ -200,7 +212,7 @@ export class Client{
   }
 
   insertStateIntoHistory(history, timeStatePair) {
-    const idx = this.findBinaryInsertPoint(history, timeStatePair, this.timeComparator.bind(this));
+    const idx = this.findIdxBinarySearch(history, timeStatePair, this.timeComparator.bind(this));
     // If identical timestamp exists, replace with new one
     if (idx < history.length && history[idx].time === timeStatePair.time) {
       history[idx] = timeStatePair;
@@ -210,7 +222,7 @@ export class Client{
 
 
     // delete old states
-    const cutoff = timeStatePair.time - this.HISTORY_MS;
+    const cutoff = timeStatePair.time - this.HISTORY_TIME;
     while (history.length && history[0].time < cutoff) history.shift();
   }
 
@@ -218,47 +230,34 @@ export class Client{
     return a.time - b.time;
   }
 
-  getCurrentPlayerStates(renderServerTimeMs) {
+  getCurrentPlayerStates() {
+    const renderServerTime = Date.now() + (this.clockOffset || 0) - this.networkBuffer;
     const result = [];
 
     for (const name of this.currentPlayerNames) {
       const history = this.playerStatesByServerTime.get(name);
       if (!history || history.length === 0) continue;
 
-      // If requested time is before the earliest sample -> clamp to earliest
-      if (renderServerTimeMs <= history[0].time) {
+      if (renderServerTime <= history[0].time) {
         result.push([name, deepClone(history[0].state)]);
         continue;
       }
 
-      // If requested time is after the latest sample -> clamp to latest (preferred)
       const lastIdx = history.length - 1;
-      if (renderServerTimeMs >= history[lastIdx].time) {
+      if (renderServerTime >= history[lastIdx].time) {
         result.push([name, deepClone(history[lastIdx].state)]);
         continue;
       }
 
-      // find first index with time >= renderServerTimeMs
-      let idxLo = 0, idxHi = history.length - 1, idx = -1;
-      // simple binary search to find lower/upper samples efficiently
-      while (idxLo <= idxHi) {
-        const mid = (idxLo + idxHi) >>> 1;
-        if (history[mid].time < renderServerTimeMs) idxLo = mid + 1;
-        else {
-          idx = mid;
-          idxHi = mid - 1;
-        }
-      }
-      // idx is index of s1 (first with time >= renderServerTimeMs)
+      const idx = this.findIdxBinarySearch(history, {time: renderServerTime}, this.timeComparator.bind(this));
+
       const s1 = history[idx];
       const s0 = history[idx - 1];
 
-      // compute alpha between s0.time and s1.time
       const span = s1.time - s0.time;
-      const alpha = span > 0 ? (renderServerTimeMs - s0.time) / span : 0;
+      const alpha = span > 0 ? (renderServerTime - s0.time) / span : 0;
 
-      const interpState = this.lerpStates(s0.state, s1.state, alpha);
-      result.push([name, interpState]);
+      result.push([name, this.lerpStates(s0.state, s1.state, alpha)]);
     }
 
     return result;

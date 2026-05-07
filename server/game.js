@@ -1,4 +1,4 @@
-import {IDEAL_TICK_RATE, TEST_DROP_CHANCE, TEST_JITTER, TEST_LAG} from './settings.js'
+import {IDEAL_TICK_RATE, TEST_DROP_CHANCE, TEST_JITTER, TEST_LAG, TEST_DEFAULT_PLAYER_STATE} from './settings.js'
 export class Game {
   constructor() {
     this.players = new Map();
@@ -16,7 +16,7 @@ export class Game {
         name = "_" + name;
     }
   
-    this.players.set(clientId, { socket, name, state: {pos: {x: 500, y:250}, vel: {x:0, y: 0}}});
+    this.players.set(clientId, { socket, name, state: structuredClone(TEST_DEFAULT_PLAYER_STATE)});
   
     // ⬅ Full colors sent to this client only
     this.sendInit(clientId);
@@ -107,20 +107,29 @@ export class Game {
     const dtSec = dtMs / 1000; // convert ms -> seconds
   
     for (const [clientId, player] of this.players.entries()) {
-      const state = player && player.state;
+      const state = player.state;
       if (!state) continue;
-  
+
+      if (!(state.mousePos.x === state.pos.x && state.mousePos.y === state.pos.y)) {
+        const multiplier = 10/Math.sqrt((state.pos.x-state.mousePos.x)**2+(state.pos.y-state.mousePos.y)**2); 
+        state.vel.x -= multiplier*(state.pos.x-state.mousePos.x);
+        state.vel.y -= multiplier*(state.pos.y-state.mousePos.y);
+
+        state.vel.x *= 1- multiplier/10;
+        state.vel.y *= 1- multiplier/10;
+      }
+      
+      
+
       const pos = state.pos;
       const vel = state.vel;
       if (!pos || !vel) continue;
   
       // ensure numeric values exist (fallback to 0)
-      const vx = Number(vel.x) || 0;
-      const vy = Number(vel.y) || 0;
   
-      pos.x += vx * dtSec;
-      pos.y += vy * dtSec;
-  
+      pos.x += vel.x * dtSec;
+      pos.y += vel.y * dtSec;
+      
       // Optionally clamp or keep inside world bounds:
       // pos.x = Math.max(0, Math.min(pos.x, WORLD_WIDTH));
       // pos.y = Math.max(0, Math.min(pos.y, WORLD_HEIGHT));

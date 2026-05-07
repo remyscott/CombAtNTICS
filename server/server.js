@@ -62,11 +62,7 @@ wss.on('connection', (ws, req) => {
       game.miserableBroadcastAI({type: 'timeSyncResp', serverTime: Date.now(), id: data.id});
     }
     if (data.type === 'mousePos') {
-      // const state = game.players.get(clientId).state
-      // const multiplier = 100/Math.sqrt((state.x-data.pos.x)**2+(state.y-data.pos.y)**2); 
-      // game.players.get(clientId).state.vel.x += multiplier*(state.x-data.pos.x);
-      // game.players.get(clientId).state.vel.y += multiplier*(state.x-data.pos.x);
-      game.players.get(clientId).state.pos = data.pos;
+      game.players.get(clientId).state.mousePos = data.pos;
     }    
 
   });
