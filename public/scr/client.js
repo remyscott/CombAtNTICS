@@ -44,7 +44,7 @@ export class Client{
       }
     });
     
-    const calibRec =this.scene.gameConsole.log('Calibrating: 0 / 0 pings', { level: 'info', ttl: 0 });
+    const calibRec =this.scene.gameConsole.log('Calibrating: 0 / 0 pings', { level: 'info', ttl: 5000 });
     
     const promise = result && result.promise ? result.promise : result;
     promise.then(stats => {
