@@ -33,18 +33,18 @@ export class Client{
     this.ws.addEventListener('message', (ev) => this.handleMessage(this.parseMessage(ev)));
   }
 
-  startTimeSync() {
+  startTimeSync({count = 25, interval = 1, timeout = 1000 } = {}) {
     console.log('Calibrating buffer ...');
 
-    const result = this.timeSyncAI({ count: 25, interval: 1, timeout: 500 }, (prog) => {
+    const result = this.timeSyncAI({ count, interval, timeout}, (prog) => {
       if (prog && typeof prog.index === 'number') {
         const completed = Math.min(prog.index + 1, prog.count);
         const text = `Calib ${completed}/${prog.count}: ${prog.ok ? prog.rtt + 'ms' : 'timeout'}`;
-        this.scene.gameConsole.updateRecord(calibRec, text, { level: prog.ok ? 'info' : 'warn' });
+        this.scene.gameConsole.updateRecord(calibRec, text, { level: prog.ok ? 'info' : 'warn', ttl: timeout*2 });
       }
     });
     
-    const calibRec =this.scene.gameConsole.log('Calibrating: 0 / 0 pings', { level: 'info', ttl: 5000 });
+    const calibRec = this.scene.gameConsole.log('Calibrating: 0 / 0 pings', { level: 'info', ttl: timeout*2 });
     
     const promise = result && result.promise ? result.promise : result;
     promise.then(stats => {

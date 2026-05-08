@@ -11,13 +11,13 @@ export class SpriteManager {
         const sprite = this.scene.add.sprite(startPos.x, startPos.y, 'player').setOrigin(0.5, 0.5);
         sprite.name = name;
         this.scene.sprites.set(name, sprite);
-        if (!name === this.scene.playerName) console.info(`player: ${name} joined the game`);
+        if (!(name === this.scene.playerName)) console.info(`player: ${name} in the game`);
       }
     }
 
     const nameSet = new Set(names);
     for (const [existingName, sprite] of Array.from(this.scene.sprites.entries())) {
-      if (!nameSet.has(existingName)) {
+      if (!(nameSet.has(existingName))) {
         sprite.destroy();
         this.scene.sceneSprites.delete(existingName);
         console.info(`player: ${existingName} left the game`);
