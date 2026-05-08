@@ -25,7 +25,7 @@ export class Client{
     })
 
     this.ws.addEventListener('open', () => {
-      console.info('WebSocket opened');
+      console.log('WebSocket opened');
       
       this.startTimeSync();
     });
@@ -36,23 +36,22 @@ export class Client{
   startTimeSync() {
     console.log('Calibrating buffer ...');
 
-    const calibPromise = this.timeSyncAI(
-      {},
-      (prog) => {
-        if (prog && typeof prog.index === 'number') {
-          console.log(`ping ${prog.index + 1}/${prog.count}: ${prog.ok ? prog.rtt + 'ms' : 'timeout'}`);
-        }
+    const result = this.timeSyncAI({ count: 25, interval: 1, timeout: 500 }, (prog) => {
+      if (prog && typeof prog.index === 'number') {
+        const completed = Math.min(prog.index + 1, prog.count);
+        const text = `Calib ${completed}/${prog.count}: ${prog.ok ? prog.rtt + 'ms' : 'timeout'}`;
+        this.scene.gameConsole.updateRecord(calibRec, text, { level: prog.ok ? 'info' : 'warn' });
       }
-    );
+    });
     
-    calibPromise.then(stats => {
-      let ext = '';
-      if (stats.networkBuffer === 50) ext = ' (This is the minimum buffer)';
-      console.info(`Calibrated: buffer ${stats.networkBuffer}ms${ext}`);
-      
+    const calibRec =this.scene.gameConsole.log('Calibrating: 0 / 0 pings', { level: 'info', ttl: 0 });
+    
+    const promise = result && result.promise ? result.promise : result;
+    promise.then(stats => {
+      let ext = stats.networkBuffer === 50 ? ' (minimum buffer)' : '';
+      this.scene.gameConsole.updateRecord(calibRec, `Calibrated: buffer ${stats.networkBuffer}ms${ext}`, { level: 'info', ttl: 5000 });
     }).catch(err => {
-      console.warn('calibration failed', err);
-      console.warn('Calibration failed — using defaults');
+      this.scene.gameConsole.updateRecord(calibRec, 'Calibration failed — using defaults', { level: 'error', ttl: 5000 });
     });
   }
 
@@ -195,10 +194,7 @@ export class Client{
   
       // use p90 (scaled) as the network buffer, keep a minimum floor
       this.networkBuffer = Math.max(Math.ceil(p90), 1000 / 20);
-      this.clockOffset = medianOffset;
-  
-      console.log('timeSync done', { rtts, offsets, validRtts, p90, medianOffset, networkBuffer: this.networkBuffer, clockOffset: this.clockOffset });
-  
+      this.clockOffset = medianOffset;  
       return { rtts, offsets, validRtts, p90, medianOffset, networkBuffer: this.networkBuffer, clockOffset: this.clockOffset };
     };
   
@@ -230,7 +226,7 @@ export class Client{
         this.scene.playerName = this.name;
         this.recievedInit = true;
         console.log(`Server init recieved at ${Date.now()}`)
-        console.info(`Joined as: ${this.name} with clientID ${this.clientId}`)
+        console.info(`Joined game as: ${this.name} with clientID ${this.clientId}`)
       }
     }
 

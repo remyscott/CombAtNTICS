@@ -130,38 +130,54 @@ export class GameConsole {
     this._layoutMessages();
   }
 
+  updateRecord(rec, text, { level, ttl } = {}) {
+    if (!rec || !rec.text) return;
+    // update text content
+    rec.text.setText(String(text));
+  
+    // update color/level if requested
+    if (level) {
+      rec.level = level;
+      const color = (level === 'error') ? '#ff6666' : (level === 'warn') ? '#ffcc66' : (level === 'info') ? '#3be025' : '#ffffff';
+      rec.text.setColor(color);
+    }
+  
+    // if caller passed a ttl, reset its timer
+    if (typeof ttl === 'number') {
+      if (rec.timer) {
+        clearTimeout(rec.timer);
+      }
+      if (ttl > 0) {
+        rec.expiresAt = Date.now() + ttl;
+        rec.timer = setTimeout(() => this._removeRecord(rec), ttl);
+      } else {
+        // ttl <= 0 -> leave message indefinitely (clear timer)
+        rec.expiresAt = Infinity;
+        rec.timer = null;
+      }
+    }
+    
+    // reposition if size might have changed (text wrap/height)
+    this._layoutMessages();
+  }
+
   _layoutMessages() {
-    // Desired group order (top -> bottom): log, warn, info, error
-    const groupOrder = ['log', 'warn', 'info', 'error'];
-
-    const groups = {};
-    for (const level of groupOrder) groups[level] = [];
-    for (const rec of this.active) {
-      const lvl = rec.level || 'log';
-      if (!groups[lvl]) groups[lvl] = [];
-      groups[lvl].push(rec);
-    }
-
-    const ordered = [];
-    for (const level of groupOrder) {
-      ordered.push(...groups[level]);
-    }
-
     const pad = this.pad || 12;
     const spacing = this.spacing;
+
     const gh = (typeof this.gameHeight === 'number') ? this.gameHeight : (this.scene.sys.game.config.height || 600);
 
     let totalHeight = 0;
-    for (let i = 0; i < ordered.length; i++) {
-      totalHeight += ordered[i].text.height;
-      if (i < ordered.length - 1) totalHeight += spacing;
+    for (let i = 0; i < this.active.length; i++) {
+      totalHeight += this.active[i].text.height;
+      if (i < this.active.length - 1) totalHeight += spacing;
     }
 
     let y = gh - pad - totalHeight;
     const x = (typeof this.anchorX === 'number') ? this.anchorX : pad;
 
-    for (let i = 0; i < ordered.length; i++) {
-      const rec = ordered[i];
+    for (let i = 0; i < this.active.length; i++) {
+      const rec = this.active[i];
       const t = rec.text;
       t.setOrigin(0, 0);
       t.setPosition(x, Math.round(y));
@@ -169,7 +185,6 @@ export class GameConsole {
       y += t.height + spacing;
     }
   }
-
 
   clear() {
     for (const rec of this.active) {
