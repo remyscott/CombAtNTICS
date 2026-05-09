@@ -3,7 +3,7 @@ console.log('You tryna cheat or smth? *smhing*');
 import { attachRuntimeLogger } from './scr/attachRuntimeLogger.js'
 import { Client } from './scr/client.js'
 import { SceneAPI } from './scr/sceneAPI.js';
-import { InputManager } from './scr/inputManager.js'
+import { InputManager } from './scr/inputGetter.js'
 import { GameConsole } from './scr/gameConsole.js'
 let sceneAPI = null;
 let client = null;
