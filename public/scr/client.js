@@ -252,7 +252,8 @@ export class Client{
         this.game.playerName = this.name;
         this.recievedInit = true;
         console.log(`Server init recieved at ${Date.now()}`)
-        console.info(`Joined game as: ${this.name} with clientID ${this.clientId}`)
+        console.log(`clientId: ${this.clientId}`)
+        console.info(`Joined game as: ${this.name}`)
       }
     }
 

@@ -1,6 +1,6 @@
 import { Client } from "./client.js";
-import { InWorldObjects } from "./InWorldObjects.js"
-import { UI } from "./UI.js"
+import { InWorldObjects } from "./scene/InWorldObjects.js"
+import { UI } from "./scene/UI.js"
 
 const config = {
   type: Phaser.AUTO,

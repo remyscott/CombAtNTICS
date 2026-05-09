@@ -288,7 +288,7 @@ function attachRuntimeLogger(consoleSink, opts = {}) {
           if (level === 'error') consoleSink.error(wrapper.text, { level: 'error' });
           else if (level === 'warn') consoleSink.warn(wrapper.text, { level: 'warn' });
           else if (level === 'info') consoleSink.info(wrapper.text, { level: 'info' });
-          else consoleSink.log(wrapper.text, { level: 'log' });
+          else pass; //dont copy logs //consoleSink.log(wrapper.text, { level: 'log' });
         } catch (e) {
           try { originals.error && originals.error('attachRuntimeLogger: sink error', e); } catch (ee) {}
         }
