@@ -11,7 +11,7 @@ export class SpriteManager {
         const sprite = this.scene.add.sprite(startPos.x, startPos.y, 'player').setOrigin(0.5, 0.5);
         sprite.name = name;
         this.scene.sprites.set(name, sprite);
-        if (!(name === this.scene.playerName)) console.info(`player: ${name} in the game`);
+        if (!(name === this.scene.game.playerName)) console.info(`player: ${name} in the game`);
       }
     }
 

@@ -1,14 +1,52 @@
-export class Client{
-  constructor(scene) {
+const DEFAULT_BUFFER = 100;
+const inputInterval = 1000/60;
 
-    this.scene = scene;
+export class Client{
+  constructor(game) {
+    this.game = game;
+
     this.playerStatesByServerTime = new Map(); //name -> [{time, state}]
     this.currentPlayerNames = new Set();
-    this.DEFAULT_BUFFER = 100
-    this.networkBuffer = this.DEFAULT_BUFFER;
+    this.networkBuffer = Number(DEFAULT_BUFFER);
     this.clockOffset = 100
     this.HISTORY_TIME = 1000;
+    this.timeSinceInputs = 0;
+    this.lastInputsSent = null;
+
+    this.start();
+
+    this.game.events.on('step', (time, delta) => this._onStep(time, delta));
+  }
+
+  _onStep(time, delta) {
+    this.game.currentState = this.getCurrentState();
+    this.sendInputsIfItsTimeTo(delta);
+  }
+
+  sendInputsIfItsTimeTo(delta) {
+    this.timeSinceInputs += delta;
+    const inputs = this.game.inputs;
+    if (inputs && (this.timeSinceInputs >= inputInterval) && (inputs !== this.lastInputsSent)) {
+      this.sendMessage({type: 'input', inputs})
+      this.timeSinceInputs -= inputInterval;
+      this.lastInputsSent = structuredClone(inputs);
+    }
+  }
+
+  start() {
     this.setupWebSocket();
+    
+    this.ws.addEventListener('open', () => {
+      console.log('WebSocket opened');
+      this.startTimeSync();
+    });
+
+    this.ws.addEventListener('close', () => {
+      console.error('Websocket Closed');
+    })
+
+
+    this.ws.addEventListener('message', (ev) => this.handleMessage(this.parseMessage(ev)));
   }
 
   setupWebSocket() {
@@ -19,18 +57,6 @@ export class Client{
     this.ws = new WebSocket(
       `${location.origin.replace(/^http/, "ws")}/?game=${encodeURIComponent(gameId)}&name=${encodeURIComponent(playerName)}`
     );
-
-    this.ws.addEventListener('close', () => {
-      console.error('Websocket Closed');
-    })
-
-    this.ws.addEventListener('open', () => {
-      console.log('WebSocket opened');
-      
-      this.startTimeSync();
-    });
-
-    this.ws.addEventListener('message', (ev) => this.handleMessage(this.parseMessage(ev)));
   }
 
   startTimeSync({count = 25, interval = 1, timeout = 1000 } = {}) {
@@ -40,18 +66,18 @@ export class Client{
       if (prog && typeof prog.index === 'number') {
         const completed = Math.min(prog.index + 1, prog.count);
         const text = `Calib ${completed}/${prog.count}: ${prog.ok ? prog.rtt + 'ms' : 'timeout'}`;
-        this.scene.gameConsole.updateRecord(calibRec, text, { level: prog.ok ? 'info' : 'warn', ttl: timeout*2 });
+        this.game.console.updateRecord(calibRec, text, { level: prog.ok ? 'info' : 'warn', ttl: timeout*2 });
       }
     });
     
-    const calibRec = this.scene.gameConsole.log('Calibrating: 0 / 0 pings', { level: 'info', ttl: timeout*2 });
+    const calibRec = this.game.console.log('Calibrating: 0 / 0 pings', { level: 'info', ttl: timeout*2 });
     
     const promise = result && result.promise ? result.promise : result;
     promise.then(stats => {
       let ext = stats.networkBuffer === 50 ? ' (minimum buffer)' : '';
-      this.scene.gameConsole.updateRecord(calibRec, `Calibrated: buffer ${stats.networkBuffer}ms${ext}`, { level: 'info', ttl: 5000 });
+      this.game.console.updateRecord(calibRec, `Calibrated: buffer ${stats.networkBuffer}ms${ext}`, { level: 'info', ttl: 5000 });
     }).catch(err => {
-      this.scene.gameConsole.updateRecord(calibRec, 'Calibration failed — using defaults', { level: 'error', ttl: 5000 });
+      this.game.console.updateRecord(calibRec, 'Calibration failed — using defaults', { level: 'error', ttl: 5000 });
     });
   }
 
@@ -223,7 +249,7 @@ export class Client{
       if (!this.recievedInit) {
         this.clientId = msg.clientId;
         this.name = msg.name;
-        this.scene.playerName = this.name;
+        this.game.playerName = this.name;
         this.recievedInit = true;
         console.log(`Server init recieved at ${Date.now()}`)
         console.info(`Joined game as: ${this.name} with clientID ${this.clientId}`)
