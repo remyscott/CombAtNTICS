@@ -58,11 +58,9 @@ wss.on('connection', (ws, req) => {
       return;
     }
     
-    if (data.type === 'timeSync') {
-      game.miserableBroadcastAI({type: 'timeSyncResp', serverTime: Date.now(), id: data.id});
-    }
+    
     if (data.type === 'input') {
-      game.players.get(clientId).state.mousePos = data.inputs.mousePos;
+      game.players.get(clientId).inputs = data.inputs;
     }    
 
   });

@@ -5,6 +5,7 @@ export class InWorldObjects extends Phaser.Scene {
   constructor() {
     super({key: 'InWorldObjects', active: true});
     console.log('InWorldObjects initiated')
+    this.metersToPixel = 50;
   }
 
   preload() {
@@ -15,10 +16,11 @@ export class InWorldObjects extends Phaser.Scene {
   create() {
     this.inputGettter = new InputGetter(this);
     this.spriteManager = new SpriteManager(this);
+    
   }
 
   applyState(state) {
-    if (state.players) this.spriteManager.applyPlayerStates(state.players);
+    if (state.objects) this.spriteManager.applyObjectStates(state.objects);
   }
 
   update() {

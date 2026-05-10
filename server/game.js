@@ -1,60 +1,95 @@
-import {IDEAL_TICK_RATE, TEST_DROP_CHANCE, TEST_JITTER, TEST_LAG, TEST_DEFAULT_PLAYER_STATE} from './settings.js'
+import {IDEAL_TICK_RATE, TEST_DROP_CHANCE, TEST_JITTER, TEST_LAG, TEST_DEFAULT_PLAYER_STATE, TIMESTEP} from './settings.js'
+import { World, Circle, Vec2, Edge } from 'planck';
+import { Player } from './player.js';
+
 export class Game {
   constructor() {
-    this.players = new Map();
+    this.world = new World({
+      gravity: {x: 0, y: 10}
+    });
 
+    let platform = this.world.createBody({
+      type: "static",
+      position: {x: 0, y: 15},
+      angle: 0
+    });
+    
+    platform.createFixture({
+      shape: new Edge({x: -50, y: 0}, {x: +50, y: 0}),
+      friction: .3,
+      restitution: 0.2
+    });
+    platform.createFixture({
+      shape: new Edge({x: 0, y: -50}, {x: 0, y: +50}),
+      friction: .3,
+      restitution: 0.2
+    });
+    platform.createFixture({
+      shape: new Edge({x: +25, y: -50}, {x:+25, y: +50}),
+      friction: .3,
+      restitution: 0.2
+    });
+    
+    this._id = 0;
+    this.idToBody = new Map();
+
+    this.players = new Map();
     this._tickTimeout = null;
-    this.age = 0
-    this.doneFirstTick = false;
+
     this.startTickLoop();
     this.startTickRateTracker();
+
+    
   }
 
   addPlayer(clientId, name, socket) {
-    const existingNames = new Set([...this.players.values()].map(n => n.name));
+    const existingNames = new Set([...this.players.values()].map(p => p.name));
     while (existingNames.has(name)) {
         name = name + '.' + String(Math.floor(Math.random()*1000));
     }
+    
+    const newPlayer = new Player(socket, name, clientId);
+    newPlayer.body = this.world.createBody({
+      type: "dynamic",
+      position: {x:Math.random()*10, y:1},
+      userData: {id: this.newBodyId(), owner: newPlayer, type: 'player'}
+    })
+
+    newPlayer.body.createFixture({
+      shape: new Circle(new Vec2(0, 0), 0.5),
+      density: 1.0,
+      friction: .5,
+      angularDamping: 0.3,
+      restitution: 0.5,
+    })
+    
+    this.players.set(clientId, newPlayer);
   
-    this.players.set(clientId, { socket, name, state: structuredClone(TEST_DEFAULT_PLAYER_STATE)});
-  
-    // ⬅ Full colors sent to this client only
-    this.sendInit(clientId);
+    newPlayer.sendInit();
+  }
+
+  newBodyId() {
+    return this._id++;
   }
 
   removePlayer(clientId) {
     this.players.delete(clientId);
   }
 
-  broadcastPlayerStates() {
-    const currentServerTime = Date.now();
-
-    const playerStatesForClient = Array.from(this.players.values()).map(({ socket, ...rest }) => {
-      return {
-        ...rest,
-        time: currentServerTime
-      };
-    });
-    
-    this.miserableBroadcastAI({type: 'playerSnapshot', serverTime: currentServerTime, players: playerStatesForClient});
-  }
-
   broadcast(msg) {
     const data = JSON.stringify(msg);
     for (const client of this.players.values()) {
-      client.socket.send(data);
+      client.ws.send(data);
     }
   }
 
-  miserableBroadcastAI(msg) {
+  miserableBroadcast(msg) {
     const data = JSON.stringify(msg);
   
     for (const client of this.players.values()) {
-      // decide whether to drop this frame
       if (Math.random() < TEST_DROP_CHANCE) continue;
   
-      // compute randomized delay
-      const jitter = (Math.random() * 2 - 1) * TEST_JITTER; // between -jitterMs and +jitterMs
+      const jitter = (Math.random() * 2 - 1) * TEST_JITTER;
       const delay = Math.max(0, Math.round(TEST_LAG + jitter));
   
       setTimeout(() => {
@@ -62,78 +97,52 @@ export class Game {
           try {
             client.socket.send(data);
           } catch (err) {
-            // ignore send errors for testing; optionally log them
-            // console.warn('send failed', err);
+            // ignore send errors for testing
           }
         }
       }, delay);
     }
   }
 
-  sendInit(clientId) {
-    const player = this.players.get(clientId);
-    if (!player) return;
   
-    const payload = {
-      type: "init",
-      clientId,
-      name: player.name,
-    };
-    
-    this.players.get(clientId).socket.send(JSON.stringify(payload));
-  }
 
   tick() {
-    if (!this.doneFirstTick) {
-      this.doneFirstTick = true;
-      this.age = 0;
+    this.world.step(TIMESTEP, 8, 4);
+    for (let b = this.world.getBodyList(); b; b = b.getNext()) {
+      const meta = b.getUserData() || {};      
+      if (meta.owner) {
+        meta.owner.applyForceTowardsMouse();
+      }
     }
-
-    const now = Date.now();
-
-    if (!this._lastTickTime) this._lastTickTime = now;
-    this.dt = now - this._lastTickTime;
-    this.age += this.dt;
-    this._lastTickTime = now;
-    this.applyVelocities(this.dt);
-    this.broadcastPlayerStates();
-    
-    
-
+    this.broadcastStateSnapshot();
   }
 
-  applyVelocities(dtMs) {
-    if (!dtMs || dtMs <= 0) return;
-    const dtSec = dtMs / 1000; // convert ms -> seconds
+  broadcastStateSnapshot() {
+    const objectSnapshots = {}; 
   
-    for (const [clientId, player] of this.players.entries()) {
-      const state = player.state;
-      if (!state) continue;
-
-      if (!(state.mousePos.x === state.pos.x && state.mousePos.y === state.pos.y)) {
-        const multiplier = 10/Math.sqrt((state.pos.x-state.mousePos.x)**2+(state.pos.y-state.mousePos.y)**2); 
-        state.vel.x -= multiplier*(state.pos.x-state.mousePos.x);
-        state.vel.y -= multiplier*(state.pos.y-state.mousePos.y);
-
-        state.vel.x *= Math.max(0,1- multiplier/10);
-        state.vel.y *= Math.max(0,1- multiplier/10);
-      }
-      
-      
-
-      const pos = state.pos;
-      const vel = state.vel;
-      if (!pos || !vel) continue;
+    for (let b = this.world.getBodyList(); b; b = b.getNext()) {
+      const meta = b.getUserData() || {};      
+      const id = meta.id;
+      if (id == null) continue; 
   
-      // ensure numeric values exist (fallback to 0)
-  
-      pos.x += vel.x * dtSec;
-      pos.y += vel.y * dtSec;
-      
-      // Optionally clamp or keep inside world bounds:
-      // pos.x = Math.max(0, Math.min(pos.x, WORLD_WIDTH));
-      // pos.y = Math.max(0, Math.min(pos.y, WORLD_HEIGHT));
+      objectSnapshots[id] = this.getSnapshotOf(b);
     }
+  
+    this.broadcast({ type: 'snapshot', objects: objectSnapshots });
+  }
+
+  getSnapshotOf(body) {
+    const meta = body.getUserData() || {};
+    const pos = body.getPosition();  
+    return {
+      id: meta.id,
+      type: meta.type,
+      state: {
+        pos: { x: pos.x, y: pos.y },         
+        angle: body.getAngle()
+      },
+      time: Date.now()
+    };
   }
 
   stop() {
@@ -172,22 +181,40 @@ export class Game {
 
   startTickLoop() {
     const IDEAL_DT = 1000 / IDEAL_TICK_RATE;
-    let nextTick = performance.now();
+    let lastTickTime = performance.now();
+    let accumulator = 0;
+  
+    // cancel any existing loop
+    if (this._tickTimeout) {
+      clearTimeout(this._tickTimeout);
+      this._tickTimeout = null;
+    }
+  
+    const loop = () => {
+      const now = performance.now();
+      let frameTime = now - lastTickTime;
+      lastTickTime = now;
 
-    const tickLoop = () => {
-        const now = performance.now();
+      if (frameTime > 250) frameTime = 250;
 
-        this.tick();
-
-        const smoothTPS = this.world?.actualTPS || IDEAL_TICK_RATE;
-        const currentDt = 1000 / smoothTPS;
-
-        nextTick += IDEAL_DT;
-        const delay = Math.max(0, nextTick - performance.now() - (IDEAL_DT - currentDt));
-
-        this._tickTimeout = setTimeout(tickLoop, delay);
+      accumulator += frameTime;
+  
+      while (accumulator >= IDEAL_DT) {
+        try {
+          this.tick();
+        } catch (err) {
+          console.error('tick() threw:', err);
+        }
+        accumulator -= IDEAL_DT;
+      }
+  
+      const nextDelay = Math.max(0, IDEAL_DT - ( performance.now() + lastTickTime ));
+      const safeDelay = Number.isFinite(nextDelay) && nextDelay <= 1000 ? Math.round(nextDelay) : Math.round(IDEAL_DT);
+  
+      this._tickTimeout = setTimeout(loop, safeDelay);
     };
-
-    this._tickTimeout = setTimeout(tickLoop, IDEAL_DT);
+  
+    // kick off
+    this._tickTimeout = setTimeout(loop, Math.round(IDEAL_DT));
   }
 }

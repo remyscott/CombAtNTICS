@@ -9,8 +9,8 @@ export class InputGetter{
 
   setUpInputs() {
     this.scene.input.on('pointermove', (pointer) => {
-      this.inputs.mousePos.x = pointer.x;
-      this.inputs.mousePos.y = pointer.y;
+      this.inputs.mousePos.x = pointer.x / this.scene.metersToPixel;
+      this.inputs.mousePos.y = pointer.y / this.scene.metersToPixel;
     });
     console.log('Inputs Setup')
 

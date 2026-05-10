@@ -4,42 +4,44 @@ export class SpriteManager {
     console.log('SpriteManager initiated');
   }
 
-  ensureCorrectPlayerSpritesForState(names) {
-    for (const name of names) {
-      if (!this.scene.sprites.has(name)) {
+  ensureSpritesForObjectStates(states) {
+    for (const [id, state] of states) {
+      if (!this.scene.sprites.has(id)) {
         let startPos = { x: 0 , y: 0 };
         const sprite = this.scene.add.sprite(startPos.x, startPos.y, 'player').setOrigin(0.5, 0.5);
-        sprite.name = name;
-        this.scene.sprites.set(name, sprite);
-        if (!(name === this.scene.game.playerName)) console.info(`player: ${name} in the game`);
+        sprite.id = id;
+        this.scene.sprites.set(id, sprite);
+        console.info(`created sprite with id: ${id}`);
       }
     }
 
-    const nameSet = new Set(names);
-    for (const [existingName, sprite] of Array.from(this.scene.sprites.entries())) {
-      if (!(nameSet.has(existingName))) {
+    const ids = states.map(([id]) => id);
+    const idSet = new Set(ids);
+    for (const [existingid, sprite] of Array.from(this.scene.sprites.entries())) {
+      if (!(idSet.has(existingid))) {
         sprite.destroy();
-        this.scene.sceneSprites.delete(existingName);
-        console.info(`player: ${existingName} left the game`);
+        this.scene.sceneSprites.delete(existingid);
+        console.info(`deleted sprite ${existingid}`);
       }
     }
   }
 
-  getSprite(name) {
-    return this.scene.sprites.get(name);
+  getSprite(id) {
+    return this.scene.sprites.get(id);
   }
 
-  applyPlayerStates(currentPlayerStates) {
-    const names = currentPlayerStates.map(([name]) => name);
-    if (names.length) this.ensureCorrectPlayerSpritesForState(names);
+  applyObjectStates(ObjectStates) {
+    const ids = ObjectStates.map(([id]) => id);
+    if (ids.length) this.ensureSpritesForObjectStates(ObjectStates);
 
-    for (const [name, state] of currentPlayerStates) {
-      const sprite = this.getSprite(name);
+    for (const  [id, state] of ObjectStates) {
+      const sprite = this.getSprite(id);
       if (!sprite) continue;
   
       if (state && state.pos && typeof state.pos.x === 'number' && typeof state.pos.y === 'number') {
-        sprite.x = state.pos.x;
-        sprite.y = state.pos.y;
+        sprite.x = state.pos.x * this.scene.metersToPixel;
+        sprite.y = state.pos.y * this.scene.metersToPixel;
+        sprite.setRotation(state.angle)
       }
     }
   }

@@ -5,8 +5,8 @@ export class Client{
   constructor(game) {
     this.game = game;
 
-    this.playerStatesByServerTime = new Map(); //name -> [{time, state}]
-    this.currentPlayerNames = new Set();
+    this.objectStatesByServerTime = new Map(); //name -> [{time, state}]
+    this.currentObjectIds = new Set();
     this.networkBuffer = Number(DEFAULT_BUFFER);
     this.clockOffset = 100
     this.HISTORY_TIME = 1000;
@@ -38,7 +38,6 @@ export class Client{
     
     this.ws.addEventListener('open', () => {
       console.log('WebSocket opened');
-      this.startTimeSync();
     });
 
     this.ws.addEventListener('close', () => {
@@ -83,11 +82,6 @@ export class Client{
 
   // this AI function is deadass so fucking long, I'll rewrite it by hand sometime.
   timeSyncAI({ count = 8, interval = 50, timeout = 500 } = {}, onProgress) {
-  
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      return Promise.reject(new Error('WebSocket not open'));
-    }
-  
     this._timeSyncPending = this._timeSyncPending || new Map();
   
     const onMessage = (ev) => {
@@ -99,8 +93,8 @@ export class Client{
         return;
       }
       if (!msg || msg.type !== 'timeSyncResp' || typeof msg.id !== 'number') return;
-  
-      const id = msg.id;
+
+      const id = msg.id
       const pending = this._timeSyncPending.get(id);
       if (!pending) return;
   
@@ -243,30 +237,39 @@ export class Client{
     }
   }
 
+  init(msg) {
+    this.clientId = msg.clientId;
+    this.name = msg.name;
+    this.game.playerName = this.name;
+    console.log(`Server init recieved at ${Date.now()}`)
+    console.log(`clientId: ${this.clientId}`)
+    console.info(`Joined game as: ${this.name}`)
+    this.startTimeSync();
+  }
 
   handleMessage(msg) {
     if (msg.type === 'init') {
-      if (!this.recievedInit) {
-        this.clientId = msg.clientId;
-        this.name = msg.name;
-        this.game.playerName = this.name;
-        this.recievedInit = true;
-        console.log(`Server init recieved at ${Date.now()}`)
-        console.log(`clientId: ${this.clientId}`)
-        console.info(`Joined game as: ${this.name}`)
-      }
+      this.init(msg)
     }
 
-    if (msg.type === 'playerSnapshot') {
-      this.currentPlayerNames = new Set(msg.players.map(e => e.name).filter(Boolean));
+    if (msg.type === 'snapshot') {
+      this.handleSnapshot(msg)
+    }
+  }
 
-      for (const {name, state, time} of msg.players) {
-        const history = this.playerStatesByServerTime.get(name) || [];
-        const stateTimePair = {state, time};
-        this.insertStateIntoHistory(history, stateTimePair);
-
-        this.playerStatesByServerTime.set(name, history);
-      }
+  handleSnapshot(msg) {
+    const objectsArray = Array.isArray(msg.objects)
+      ? msg.objects
+      : Object.values(msg.objects || {});
+  
+    this.currentObjectIds = new Set(objectsArray.map(o => o.id));
+  
+    for (const { id, type, state, time } of objectsArray) {
+      const history = this.objectStatesByServerTime.get(id) || [];
+      const stateTimePair = { state, time, type };
+  
+      this.insertStateIntoHistory(history, stateTimePair);
+      this.objectStatesByServerTime.set(id, history);
     }
   }
 
@@ -284,15 +287,12 @@ export class Client{
 
   insertStateIntoHistory(history, timeStatePair) {
     const idx = this.findIdxBinarySearch(history, timeStatePair, this.timeComparator.bind(this));
-    // If identical timestamp exists, replace with new one
     if (idx < history.length && history[idx].time === timeStatePair.time) {
       history[idx] = timeStatePair;
     } else {
       history.splice(idx, 0, timeStatePair);
     }
 
-
-    // delete old states
     const cutoff = timeStatePair.time - this.HISTORY_TIME;
     while (history.length && history[0].time < cutoff) history.shift();
   }
@@ -302,25 +302,25 @@ export class Client{
   }
 
   getCurrentState() {
-    return({players: this.getCurrentPlayerStates()});
+    return({objects: this.getCurrentObjectStates()});
   }
 
-  getCurrentPlayerStates() {
+  getCurrentObjectStates() {
     const renderServerTime = Date.now() + (this.clockOffset || 0) - this.networkBuffer;
     const result = [];
 
-    for (const name of this.currentPlayerNames) {
-      const history = this.playerStatesByServerTime.get(name);
+    for (const id of this.currentObjectIds) {
+      const history = this.objectStatesByServerTime.get(id);
       if (!history || history.length === 0) continue;
 
       if (renderServerTime <= history[0].time) {
-        result.push([name, deepClone(history[0].state)]);
+        result.push([id, deepClone(history[0].state)]);
         continue;
       }
 
       const lastIdx = history.length - 1;
       if (renderServerTime >= history[lastIdx].time) {
-        result.push([name, deepClone(history[lastIdx].state)]);
+        result.push([id, deepClone(history[lastIdx].state)]);
         continue;
       }
 
@@ -332,7 +332,7 @@ export class Client{
       const span = s1.time - s0.time;
       const alpha = span > 0 ? (renderServerTime - s0.time) / span : 0;
 
-      result.push([name, this.lerpStates(s0.state, s1.state, alpha)]);
+      result.push([id, this.lerpStates(s0.state, s1.state, alpha)]);
     }
 
     return result;
@@ -343,7 +343,6 @@ export class Client{
   }
 
   lerpStates(s0, s1, alpha) { //Recursively searches downward through state tree, once it finds numbers with matching key it lerps them
-    // If either is missing, return clone of the one that exists
     if (s0 == null) return deepClone(s1);
     if (s1 == null) return deepClone(s0);
 
