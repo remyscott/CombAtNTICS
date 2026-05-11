@@ -1,4 +1,4 @@
-import parseMsg from "./parseMessage.js";
+import tryHandleMessage from "./tryHandleMessage.js";
 import { Vec2 } from 'planck';
 import { normalize, mulScalar, length } from './vec2helpers.js'
 
@@ -8,7 +8,7 @@ export class Player{
     this.name = name;
     this.clientId = clientId;
     this.inputs = {};
-    this.ws.on('message', (msg) => this.handleMessage(parseMsg(msg)));
+    this.ws.on('message', (msg) => tryHandleMessage(msg, this.handleMessage.bind(this)));
     this.body = null;
   }
 

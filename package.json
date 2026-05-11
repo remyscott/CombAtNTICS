@@ -5,17 +5,23 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "node ./server/server.js"
+    "dev": "node ./server/server.js",
+    "online": "cross-env ENABLE_AUTH=true node ./server/server.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "basic-auth": "^2.0.1",
     "express": "^5.2.1",
+    "express-basic-auth": "^1.2.1",
     "http": "^0.0.1-security",
     "phaser": "^4.1.0",
     "planck": "^1.5.0",
     "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3"
   }
 }

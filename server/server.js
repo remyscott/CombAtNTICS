@@ -1,11 +1,20 @@
+// server.js
 import express from "express";
 import http from "http";
 import { WebSocketServer } from "ws";
+import crypto from "crypto";
 import { Game } from './game.js';
-
+import { httpAuthMiddleware, upgradeAuthHandler } from './auth.js';
+import { authorizedUsers } from './authorizedusers.js';
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
+
+
+const ENABLE_AUTH = process.env.ENABLE_AUTH === 'true';
+
+app.use(httpAuthMiddleware(authorizedUsers, { realm: 'Game Demo' }));
+
+const wss = new WebSocketServer({ noServer: true });
 
 const games = new Map();
 
@@ -18,22 +27,24 @@ function getOrCreateGame(gameId) {
   return games.get(gameId);
 }
 
+/* your routes unchanged */
 app.get("/games", (req, res) => {
   const list = [...games.entries()].map(([gameId, game]) => ({
     id: gameId,
     players: game.players.size,
     map: game.MAP_NAME
   }));
-
   res.json(list);
 });
 
 app.use(express.static("public"));
 app.use('/shared', express.static('shared'));
-
 app.get("/", (req, res) => {
   res.sendFile("lobby.html", { root: "public" });
 });
+
+const upgradeHandler = upgradeAuthHandler(authorizedUsers, wss, { realm: 'Game Demo' });
+server.on('upgrade', upgradeHandler);
 
 wss.on('connection', (ws, req) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
@@ -57,19 +68,17 @@ wss.on('connection', (ws, req) => {
       console.warn('⚠️ Bad WS message:', raw);
       return;
     }
-    
-    
+
     if (data.type === 'input') {
-      if (data.inputs.buildAFuckingBoxIWantToTest) {
+      if (data.inputs && data.inputs.buildAFuckingBoxIWantToTest) {
         game.buildAFuckingBoxIWantToTest();
       }
-    }    
-
+    }
   });
 
   ws.on('close', () => {
     console.log(`👋 ${name} left ${gameId}`);
-    game.removePlayer(clientId)
+    game.removePlayer(clientId);
     if (game.players.size === 0) {
       game.stop();
       games.delete(gameId);
@@ -78,4 +87,4 @@ wss.on('connection', (ws, req) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`🌍 Server running on http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`🌍 Server running on http://localhost:${PORT} (auth ${ENABLE_AUTH ? 'enabled' : 'disabled'})`));

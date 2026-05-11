@@ -1,4 +1,4 @@
-export default function parseMsg(raw) {
+export default function tryHandleMessage(raw, onMessage) {
   let msg;
   try {
     msg = JSON.parse(raw);
@@ -6,5 +6,6 @@ export default function parseMsg(raw) {
     console.warn('⚠️ Bad WS message:', raw);
     return;
   }
-  return msg;
+  if (msg.type) onMessage(msg);
+  
 }
