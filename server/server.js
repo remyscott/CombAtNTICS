@@ -11,8 +11,9 @@ const server = http.createServer(app);
 
 
 const ENABLE_AUTH = process.env.ENABLE_AUTH === 'true';
+const usersObj = ENABLE_AUTH ? authorizedUsers : null;
 
-app.use(httpAuthMiddleware(authorizedUsers, { realm: 'Game Demo' }));
+app.use(httpAuthMiddleware(usersObj, { realm: 'Game Demo' }));
 
 const wss = new WebSocketServer({ noServer: true });
 
@@ -43,7 +44,7 @@ app.get("/", (req, res) => {
   res.sendFile("lobby.html", { root: "public" });
 });
 
-const upgradeHandler = upgradeAuthHandler(authorizedUsers, wss, { realm: 'Game Demo' });
+const upgradeHandler = upgradeAuthHandler(usersObj, wss, { realm: 'Game Demo' });
 server.on('upgrade', upgradeHandler);
 
 wss.on('connection', (ws, req) => {
