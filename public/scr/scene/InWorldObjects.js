@@ -28,5 +28,7 @@ export class InWorldObjects extends Phaser.Scene {
 
   update() {
     this.applyState(this.game.currentState);
+    this.cameras.main.centerOn(this.game.currentState.objects[this.game.playerBodyId]?.state.pos.x * this.metersToPixel, this.game.currentState.objects[this.game.playerBodyId]?.state.pos.y * this.metersToPixel);
+    this.inputGettter.tick();
   }
 }

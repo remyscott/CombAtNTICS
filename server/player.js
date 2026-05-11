@@ -25,9 +25,9 @@ export class Player{
   sendInit() {
     const payload = {
       type: "init",
-      clientOd: this.clientId,
+      clientId: this.clientId,
       name: this.name,
-
+      bodyId: this.body.getUserData().id
     };
     
     this.send(payload);

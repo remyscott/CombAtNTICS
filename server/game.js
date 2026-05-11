@@ -43,7 +43,8 @@ export class Game {
 
     this.startTickLoop();
     this.startTickRateTracker();
-
+    
+    for (let i=0; i<10; i++) this.buildAFuckingBoxIWantToTest();
     
   }
 

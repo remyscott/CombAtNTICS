@@ -243,6 +243,7 @@ export class Client{
     this.clientId = msg.clientId;
     this.name = msg.name;
     this.game.playerName = this.name;
+    this.game.playerBodyId = msg.bodyId;
     console.log(`Server init recieved at ${Date.now()}`)
     console.log(`clientId: ${this.clientId}`)
     console.info(`Joined game as: ${this.name}`)
