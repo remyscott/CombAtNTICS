@@ -1,4 +1,4 @@
-import {IDEAL_TICK_RATE, TEST_DROP_CHANCE, TEST_JITTER, TEST_LAG, TEST_DEFAULT_PLAYER_STATE, TIMESTEP} from './settings.js'
+import {IDEAL_TICK_RATE, TEST_DROP_CHANCE, TEST_JITTER, TEST_LAG, TIMESTEP} from './settings.js'
 import { World, Circle, Vec2, Edge } from 'planck';
 import { Player } from './player.js';
 
@@ -107,42 +107,34 @@ export class Game {
   
 
   tick() {
-    this.world.step(TIMESTEP, 8, 4);
     for (let b = this.world.getBodyList(); b; b = b.getNext()) {
       const meta = b.getUserData() || {};      
-      if (meta.owner) {
+      if (meta.owner) { 
         meta.owner.applyForceTowardsMouse();
       }
     }
-    this.broadcastStateSnapshot();
+
+    this.world.step(TIMESTEP, 8, 4);
+    this.broadcastSnapshot();
   }
 
-  broadcastStateSnapshot() {
-    const objectSnapshots = {}; 
-  
+  broadcastSnapshot() {
+
+    const overallState = [];
+    const metadatas = [];
+
     for (let b = this.world.getBodyList(); b; b = b.getNext()) {
       const meta = b.getUserData() || {};      
       const id = meta.id;
       if (id == null) continue; 
-  
-      objectSnapshots[id] = this.getSnapshotOf(b);
+      if (meta.owner) {
+        const {state, metadata} = meta.owner.getSnapshot();
+        overallState[id] = state;
+        metadatas[id] = metadata;
+      }
     }
   
-    this.broadcast({ type: 'snapshot', objects: objectSnapshots });
-  }
-
-  getSnapshotOf(body) {
-    const meta = body.getUserData() || {};
-    const pos = body.getPosition();  
-    return {
-      id: meta.id,
-      type: meta.type,
-      state: {
-        pos: { x: pos.x, y: pos.y },         
-        angle: body.getAngle()
-      },
-      time: Date.now()
-    };
+    this.broadcast({ type: 'snapshot', state: overallState, metadata: metadatas, time: Date.now() });
   }
 
   stop() {

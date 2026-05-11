@@ -5,23 +5,26 @@ export class SpriteManager {
   }
 
   ensureSpritesForObjectStates(states) {
-    for (const [id, state] of states) {
+    const idSet = new Set();
+    for (const { id } of states) {
+      idSet.add(id);
       if (!this.scene.sprites.has(id)) {
-        let startPos = { x: 0 , y: 0 };
-        const sprite = this.scene.add.sprite(startPos.x, startPos.y, 'player').setOrigin(0.5, 0.5);
+        const startPos = { x: 0, y: 0 };
+        const sprite = this.scene.add.sprite(startPos.x, startPos.y, this.scene.game.currentMetadata.objects[id]?.type || 'missing').setOrigin(0.5, 0.5);
         sprite.id = id;
         this.scene.sprites.set(id, sprite);
         console.info(`created sprite with id: ${id}`);
       }
     }
 
-    const ids = states.map(([id]) => id);
-    const idSet = new Set(ids);
-    for (const [existingid, sprite] of Array.from(this.scene.sprites.entries())) {
-      if (!(idSet.has(existingid))) {
+    for (const [existingId, sprite] of this.scene.sprites.entries()) {
+      if (!idSet.has(existingId)) {
         sprite.destroy();
-        this.scene.sceneSprites.delete(existingid);
-        console.info(`deleted sprite ${existingid}`);
+        this.scene.sprites.delete(existingId);
+        if (this.scene.sceneSprites) {
+          this.scene.sceneSprites.delete(existingId);
+        }
+        console.info(`deleted sprite ${existingId}`);
       }
     }
   }
@@ -30,11 +33,10 @@ export class SpriteManager {
     return this.scene.sprites.get(id);
   }
 
-  applyObjectStates(ObjectStates) {
-    const ids = ObjectStates.map(([id]) => id);
-    if (ids.length) this.ensureSpritesForObjectStates(ObjectStates);
+  applyObjectStates(objectStates) {
+    this.ensureSpritesForObjectStates(objectStates);
 
-    for (const  [id, state] of ObjectStates) {
+    for (const {id, state} of objectStates) {
       const sprite = this.getSprite(id);
       if (!sprite) continue;
   

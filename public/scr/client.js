@@ -5,7 +5,7 @@ export class Client{
   constructor(game) {
     this.game = game;
 
-    this.objectStatesByServerTime = new Map(); //name -> [{time, state}]
+    this.history = []; //time -> [id -> {state, id}]
     this.currentObjectIds = new Set();
     this.networkBuffer = Number(DEFAULT_BUFFER);
     this.clockOffset = 100
@@ -19,6 +19,7 @@ export class Client{
   }
 
   _onStep(time, delta) {
+    this.game.currentMetadata = {objects: this.objectMetadata};
     this.game.currentState = this.getCurrentState();
     this.sendInputsIfItsTimeTo(delta);
   }
@@ -258,19 +259,8 @@ export class Client{
   }
 
   handleSnapshot(msg) {
-    const objectsArray = Array.isArray(msg.objects)
-      ? msg.objects
-      : Object.values(msg.objects || {});
-  
-    this.currentObjectIds = new Set(objectsArray.map(o => o.id));
-  
-    for (const { id, type, state, time } of objectsArray) {
-      const history = this.objectStatesByServerTime.get(id) || [];
-      const stateTimePair = { state, time, type };
-  
-      this.insertStateIntoHistory(history, stateTimePair);
-      this.objectStatesByServerTime.set(id, history);
-    }
+    this.objectMetadata = msg.metadata;
+    this.insertStateIntoHistory({state: msg.state, time: msg.time});
   }
 
   findIdxBinarySearch(sortedArr, val, comparator) {
@@ -285,16 +275,20 @@ export class Client{
     return low;
   }
 
-  insertStateIntoHistory(history, timeStatePair) {
-    const idx = this.findIdxBinarySearch(history, timeStatePair, this.timeComparator.bind(this));
-    if (idx < history.length && history[idx].time === timeStatePair.time) {
-      history[idx] = timeStatePair;
+  insertStateIntoHistory(timeStatePair) {
+    const idx = this.findIdxBinarySearch(this.history, timeStatePair, this.timeComparator.bind(this));
+    if (idx < this.history.length && this.history[idx].time === timeStatePair.time) {
+      this.history[idx] = timeStatePair;
     } else {
-      history.splice(idx, 0, timeStatePair);
+      this.history.splice(idx, 0, timeStatePair);
     }
 
     const cutoff = timeStatePair.time - this.HISTORY_TIME;
-    while (history.length && history[0].time < cutoff) history.shift();
+    while (this.history.length && this.history[0].time < cutoff) this.history.shift();
+  }
+
+  cutoffHistory() {
+    
   }
 
   timeComparator(a, b) {
@@ -309,32 +303,29 @@ export class Client{
     const renderServerTime = Date.now() + (this.clockOffset || 0) - this.networkBuffer;
     const result = [];
 
-    for (const id of this.currentObjectIds) {
-      const history = this.objectStatesByServerTime.get(id);
-      if (!history || history.length === 0) continue;
+    if (this.history.length === 0) return result;
 
-      if (renderServerTime <= history[0].time) {
-        result.push([id, deepClone(history[0].state)]);
-        continue;
-      }
+    const idx = this.findIdxBinarySearch(this.history, {time: renderServerTime}, this.timeComparator.bind(this));
 
-      const lastIdx = history.length - 1;
-      if (renderServerTime >= history[lastIdx].time) {
-        result.push([id, deepClone(history[lastIdx].state)]);
-        continue;
-      }
-
-      const idx = this.findIdxBinarySearch(history, {time: renderServerTime}, this.timeComparator.bind(this));
-
-      const s1 = history[idx];
-      const s0 = history[idx - 1];
-
-      const span = s1.time - s0.time;
-      const alpha = span > 0 ? (renderServerTime - s0.time) / span : 0;
-
-      result.push([id, this.lerpStates(s0.state, s1.state, alpha)]);
+    let s0, s1;
+    if (idx <= 0) {
+      s1 = this.history[0];
+      s0 = null;
+    } else if (idx >= this.history.length) {
+      s0 = this.history[this.history.length - 1];
+      s1 = null;
+    } else {
+      s1 = this.history[idx];
+      s0 = this.history[idx - 1];
     }
 
+    const span = s1 && s0 ? s1.time - s0.time : 0;
+    const alpha = span > 0 ? (renderServerTime - s0.time) / span : 0;
+
+    const interpolatedState = this.lerpStates(s0 ? s0.state : null, s1 ? s1.state : null, alpha);
+    for (const [id, state] of Object.entries(interpolatedState)) {
+      result.push(state);
+    }
     return result;
   }
 

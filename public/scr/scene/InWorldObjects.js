@@ -10,6 +10,7 @@ export class InWorldObjects extends Phaser.Scene {
 
   preload() {
     this.load.image('player', '../assets/img/player.png');
+    this.load.image('missing', '../assets/img/missing.png');
     this.sprites = new Map();
   }
 

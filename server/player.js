@@ -39,6 +39,23 @@ export class Player{
     }
   }
 
+  getSnapshot() {
+    const meta = this.body.getUserData();
+    const pos = this.body.getPosition();
+    const angle = this.body.getAngle();
+    const { owner, ...withoutOwner } = meta;
+    return {
+      state: {
+        id: meta.id,
+        state: {
+          pos,
+          angle
+        },
+      },
+      metadata: {name: this.name, ...withoutOwner}
+    }
+  }
+
   applyForceTowardsMouse() {
     if (!this.inputs.mousePos || !this.body) return;
     const mousePos = this.inputs.mousePos;
