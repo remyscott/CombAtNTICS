@@ -8,6 +8,3 @@ clone it
 > npm inst
 > 
 > npm run dev
-
-
-Make sure that you dont have extra lag enabled in settings.js by mistake
