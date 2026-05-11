@@ -31,6 +31,7 @@ export class Client{
       this.sendMessage({type: 'input', inputs})
       this.timeSinceInputs -= inputInterval;
       this.lastInputsSent = structuredClone(inputs);
+      inputs.buildAFuckingBoxIWantToTest = false;
     }
   }
 
@@ -300,34 +301,36 @@ export class Client{
   }
 
   getCurrentObjectStates() {
-    const renderServerTime = Date.now() + (this.clockOffset || 0) - this.networkBuffer;
-    const result = [];
+  const renderServerTime = Date.now() + (this.clockOffset || 0) - this.networkBuffer;
+  const result = [];
 
-    if (this.history.length === 0) return result;
+  if (!this.history || this.history.length === 0) return result;
 
-    const idx = this.findIdxBinarySearch(this.history, {time: renderServerTime}, this.timeComparator.bind(this));
+  const idx = this.findIdxBinarySearch(this.history, { time: renderServerTime }, this.timeComparator.bind(this));
 
-    let s0, s1;
-    if (idx <= 0) {
-      s1 = this.history[0];
-      s0 = null;
-    } else if (idx >= this.history.length) {
-      s0 = this.history[this.history.length - 1];
-      s1 = null;
-    } else {
-      s1 = this.history[idx];
-      s0 = this.history[idx - 1];
-    }
-
-    const span = s1 && s0 ? s1.time - s0.time : 0;
-    const alpha = span > 0 ? (renderServerTime - s0.time) / span : 0;
-
-    const interpolatedState = this.lerpStates(s0 ? s0.state : null, s1 ? s1.state : null, alpha);
-    for (const [id, state] of Object.entries(interpolatedState)) {
-      result.push(state);
-    }
-    return result;
+  let s0 = null, s1 = null;
+  if (idx <= 0) {
+    s1 = this.history[0];
+  } else if (idx >= this.history.length) {
+    s0 = this.history[this.history.length - 1];
+  } else {
+    s1 = this.history[idx];
+    s0 = this.history[idx - 1];
   }
+
+  const span = (s1 && s0) ? (s1.time - s0.time) : 0;
+  const alpha = span > 0 && s0 ? (renderServerTime - s0.time) / span : 0;
+
+  const interpolatedState = this.lerpStates(s0 ? s0.state : null, s1 ? s1.state : null, alpha) || {};
+
+  for (const [id, state] of Object.entries(interpolatedState)) {
+    if (state != null) {                
+      result.push(state);               
+    }
+  }
+
+  return result;
+}
 
   lerp(a, b, alpha) {
     return a + (b - a) * alpha;

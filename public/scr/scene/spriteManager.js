@@ -6,6 +6,7 @@ export class SpriteManager {
 
   ensureSpritesForObjectStates(states) {
     const idSet = new Set();
+    console.log(states);
     for (const { id } of states) {
       idSet.add(id);
       if (!this.scene.sprites.has(id)) {
@@ -13,7 +14,7 @@ export class SpriteManager {
         const sprite = this.scene.add.sprite(startPos.x, startPos.y, this.scene.game.currentMetadata.objects[id]?.type || 'missing').setOrigin(0.5, 0.5);
         sprite.id = id;
         this.scene.sprites.set(id, sprite);
-        console.info(`created sprite with id: ${id}`);
+        console.log(`created sprite with id: ${id}`);
       }
     }
 
@@ -24,7 +25,7 @@ export class SpriteManager {
         if (this.scene.sceneSprites) {
           this.scene.sceneSprites.delete(existingId);
         }
-        console.info(`deleted sprite ${existingId}`);
+        console.log(`deleted sprite ${existingId}`);
       }
     }
   }

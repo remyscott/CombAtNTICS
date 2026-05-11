@@ -1,7 +1,8 @@
 import express from "express";
 import http from "http";
 import { WebSocketServer } from "ws";
-import { Game } from './game.js'
+import { Game } from './game.js';
+
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
@@ -42,7 +43,6 @@ wss.on('connection', (ws, req) => {
   const clientId = crypto.randomUUID();
   const game = getOrCreateGame(gameId);
 
-
   game.addPlayer(clientId, name, ws);
 
   console.log(`🆕 Player joined: ${name} in ${gameId}`);
@@ -60,7 +60,9 @@ wss.on('connection', (ws, req) => {
     
     
     if (data.type === 'input') {
-      game.players.get(clientId).inputs = data.inputs;
+      if (data.inputs.buildAFuckingBoxIWantToTest) {
+        game.buildAFuckingBoxIWantToTest();
+      }
     }    
 
   });

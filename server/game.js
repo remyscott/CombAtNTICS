@@ -1,11 +1,11 @@
 import {IDEAL_TICK_RATE, TEST_DROP_CHANCE, TEST_JITTER, TEST_LAG, TIMESTEP} from './settings.js'
-import { World, Circle, Vec2, Edge } from 'planck';
+import { World, Circle, Vec2, Edge, Box } from 'planck';
 import { Player } from './player.js';
 
 export class Game {
   constructor() {
     this.world = new World({
-      gravity: {x: 0, y: 10}
+      gravity: {x: 0, y: 0}
     });
 
     let platform = this.world.createBody({
@@ -14,6 +14,11 @@ export class Game {
       angle: 0
     });
     
+    platform.createFixture({
+      shape: new Edge({x: -50, y: -15}, {x: +50, y: -15}),
+      friction: .3,
+      restitution: 0.2
+    });
     platform.createFixture({
       shape: new Edge({x: -50, y: 0}, {x: +50, y: 0}),
       friction: .3,
@@ -68,12 +73,31 @@ export class Game {
     newPlayer.sendInit();
   }
 
+  buildAFuckingBoxIWantToTest() {
+    let newBox = this.world.createBody({
+      type: "dynamic",
+      position: {x: Math.random()*25, y: Math.random()*15},
+      angle: 0,
+      userData: {id: this.newBodyId(), type: 'box'}
+    });
+
+    newBox.createFixture({
+      shape: new Box(0.5, 0.5),
+      density: 1,
+      friction: .5,
+      restitution: 0.2,
+    });
+  }
+
+
   newBodyId() {
     return this._id++;
   }
 
   removePlayer(clientId) {
+    this.world.destroyBody(this.players.get(clientId).body);
     this.players.delete(clientId);
+
   }
 
   broadcast(msg) {
@@ -126,15 +150,37 @@ export class Game {
     for (let b = this.world.getBodyList(); b; b = b.getNext()) {
       const meta = b.getUserData() || {};      
       const id = meta.id;
-      if (id == null) continue; 
+      if (id == null) continue;
+
       if (meta.owner) {
         const {state, metadata} = meta.owner.getSnapshot();
+        overallState[id] = state;
+        metadatas[id] = metadata;
+      }
+      else {
+        const {state, metadata} = this.getSnapshotOf(b);
         overallState[id] = state;
         metadatas[id] = metadata;
       }
     }
   
     this.broadcast({ type: 'snapshot', state: overallState, metadata: metadatas, time: Date.now() });
+  }
+
+  getSnapshotOf(b) {
+    const meta = b.getUserData();
+    const pos = b.getPosition();
+    const angle = b.getAngle();
+    return {
+      state: {
+        id: meta.id,
+        state: {
+          pos,
+          angle
+        },
+      },
+      metadata: meta
+    }
   }
 
   stop() {
