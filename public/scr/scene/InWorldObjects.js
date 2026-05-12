@@ -1,5 +1,5 @@
 import { InputGetter } from "./inputGetter.js";
-import { SpriteManager } from "./spriteManager.js";
+import { ImageManager } from "./ImageManager.js";
 
 export class InWorldObjects extends Phaser.Scene {
   constructor() {
@@ -13,22 +13,22 @@ export class InWorldObjects extends Phaser.Scene {
     this.load.image('missing', '../assets/img/missing.png');
     this.load.image('box', '../assets/img/box.png');
 
-    this.sprites = new Map();
+    this.images = new Map();
   }
 
   create() {
     this.inputGettter = new InputGetter(this);
-    this.spriteManager = new SpriteManager(this);
+    this.imageManager = new ImageManager(this);
     
   }
 
   applyState(state) {
-    if (state.objects) this.spriteManager.applyObjectStates(state.objects);
+    if (state.objects) this.imageManager.applyObjectStates(state.objects);
   }
 
   update() {
     this.applyState(this.game.currentState);
-    this.cameras.main.centerOn(this.game.currentState.objects[this.game.playerBodyId]?.state.pos.x * this.metersToPixel, this.game.currentState.objects[this.game.playerBodyId]?.state.pos.y * this.metersToPixel);
+    this.cameras.main.centerOn(this.imageManager.getImage(this.game.playerBodyId)?.x|| 0, this.imageManager.getImage(this.game.playerBodyId)?.y || 0);
     this.inputGettter.tick();
   }
 }
