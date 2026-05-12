@@ -3,4 +3,5 @@ export const authorizedUsers = {
   // Example:
   // "Alice": "password123",
   // "Bob": "hunter2"
+  'User': 'abc123'
 };

@@ -10,7 +10,7 @@ export class ImageManager {
       idSet.add(id);
       if (!this.scene.images.has(id)) {
         const startPos = { x: 0, y: 0 };
-        const image = this.scene.add.image(startPos.x, startPos.y, this.scene.game.currentMetadata.objects[id]?.type || 'missing').setOrigin(0.5, 0.5);
+        const image = this.scene.add.image(startPos.x, startPos.y, this.scene.game.currentMetadata.objects[id]?.type || 'missing').setOrigin(0.5, 0.5).setScale(this.scene.game.currentMetadata.objects[id]?.scale || 1);
         image.id = id;
         this.scene.images.set(id, image);
         //console.log(`created image with id: ${id}`);

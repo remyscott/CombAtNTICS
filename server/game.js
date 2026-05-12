@@ -15,7 +15,7 @@ export class Game {
     });
     
     platform.createFixture({
-      shape: new Edge({x: -50, y: -15}, {x: +50, y: -15}),
+      shape: new Edge({x: -50, y: -50}, {x: +50, y: -50}),
       friction: .3,
       restitution: 0.2
     });
@@ -30,7 +30,7 @@ export class Game {
       restitution: 0.2
     });
     platform.createFixture({
-      shape: new Edge({x: +25, y: -50}, {x:+25, y: +50}),
+      shape: new Edge({x: +50, y: -50}, {x:+50, y: +50}),
       friction: .3,
       restitution: 0.2
     });
@@ -44,7 +44,7 @@ export class Game {
     this.startTickLoop();
     this.startTickRateTracker();
     
-    for (let i=0; i<10; i++) this.buildAFuckingBoxIWantToTest();
+    for (let i=0; i<10; i++) {this.buildAFuckingBoxIWantToTest(); this.buildACircle();}
     
   }
 
@@ -75,21 +75,38 @@ export class Game {
   }
 
   buildAFuckingBoxIWantToTest() {
+    const scale = Math.random()*1.8 + 0.2;
     let newBox = this.world.createBody({
       type: "dynamic",
       position: {x: Math.random()*25, y: Math.random()*15},
       angle: 0,
-      userData: {id: this.newBodyId(), type: 'box'}
+      userData: {id: this.newBodyId(), type: 'box', scale}
     });
 
     newBox.createFixture({
-      shape: new Box(0.5, 0.5),
+      shape: new Box(scale*.5, scale*.5),
       density: 1,
       friction: .5,
-      restitution: 0.2,
+      restitution: .3,
     });
   }
 
+  buildACircle() {
+    const scale = Math.random()*1.8 + 0.2;
+    let newCircle = this.world.createBody({
+      type: "dynamic",
+      position: {x: Math.random()*25, y: Math.random()*15},
+      angle: 0,
+      userData: {id: this.newBodyId(), type: 'circle', scale}
+    });
+
+    newCircle.createFixture({
+      shape: new Circle(new Vec2(0, 0), scale*.5),
+      density: 1,
+      friction: .5,
+      restitution: 1,
+    });
+  }
 
   newBodyId() {
     return this._id++;
