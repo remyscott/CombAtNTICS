@@ -26,6 +26,9 @@ export class Player {
     if (msg.type === 'timeSync') {
       this.send({type: 'timeSyncResp', serverTime: Date.now(), id: msg.id});
     }
+    if (msg.type === 'metadataRequest') {
+      this.send({type: 'metadataResponse', metadata: this.world.objectMetadata});
+    }
   }
 
   sendInit() {

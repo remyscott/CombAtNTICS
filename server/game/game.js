@@ -12,6 +12,7 @@ export class Game {
 
     this.players = new Map();
     this._tickTimeout = null;
+    this.lastTickMetadata = {};
 
     this.startTickLoop();
     this.startTickRateTracker();
@@ -52,20 +53,27 @@ export class Game {
   }
 
   broadcastSnapshot() {
-    const overallState = [];
-    const metadatas = [];
+    const overallState = {};
+    const newMetadata = {};
 
-    for (let b = this.world.getBodyList(); b; b = b.getNext()) {
-      const meta = b.getUserData() || {};      
-      const id = meta.id;
-      if (id == null) {console.warn('⚠️ Body without ID:', b); continue;}
+    for (const id of this.world.idToBody.keys()) {
+      const b = this.world.getBody(id);
+      const meta = this.world.objectMetadata[id];
+      if (!b) {
+        console.warn('⚠️ Body not found for ID:', id);
+        continue;
+      }
       else {
         const state = this.getSnapshotOf(b);
         overallState[id] = state;
+        if (!this.lastTickMetadata[id]) {
+          newMetadata[id] = meta;
+        }
       }
     }
-  
-    this.broadcast({ type: 'snapshot', state: overallState, metadata: this.world.objectMetadata, time: Date.now() });
+    
+    this.lastTickMetadata = structuredClone(this.world.objectMetadata);
+    this.broadcast({ type: 'snapshot', state: overallState, metadata: newMetadata, time: Date.now() });
   }
 
   getSnapshotOf(b) {

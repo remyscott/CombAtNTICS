@@ -9,11 +9,15 @@ export class ImageManager {
     for (const { id } of states) {
       idSet.add(id);
       if (!this.scene.images.has(id)) {
+        if (!this.scene.game.metadata[id]) {
+          this.scene.game.client.requestMetadata(id);
+          continue;
+        }
+
         const startPos = { x: 0, y: 0 };
-        const image = this.scene.add.image(startPos.x, startPos.y, this.scene.game.currentMetadata.objects[id]?.type || 'missing').setOrigin(0.5, 0.5).setScale(this.scene.game.currentMetadata.objects[id]?.scale || 1);
+        const image = this.scene.add.image(startPos.x, startPos.y, this.scene.game.metadata[id]?.type || 'missing').setOrigin(0.5, 0.5).setScale(this.scene.game.metadata[id]?.scale || 1);
         image.id = id;
         this.scene.images.set(id, image);
-        //console.log(`created image with id: ${id}`);
       }
     }
 
@@ -21,8 +25,6 @@ export class ImageManager {
       if (!idSet.has(existingId)) {
         image.destroy();
         this.scene.images.delete(existingId);
-
-        //console.log(`deleted image ${existingId}`);
       }
     }
   }

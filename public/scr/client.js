@@ -4,9 +4,10 @@ const inputInterval = 1000/60;
 export class Client{
   constructor(game) {
     this.game = game;
+    this.game.metadata = {};
+    this.game.client = this;
 
     this.history = []; //time -> [id -> {state, id}]
-    this.currentObjectIds = new Set();
     this.networkBuffer = Number(DEFAULT_BUFFER);
     this.clockOffset = 100
     this.HISTORY_TIME = 1000;
@@ -19,7 +20,6 @@ export class Client{
   }
 
   _onStep(time, delta) {
-    this.game.currentMetadata = {objects: this.objectMetadata};
     this.game.currentState = this.getCurrentState();
     this.sendInputsIfItsTimeTo(delta);
   }
@@ -258,11 +258,25 @@ export class Client{
     if (msg.type === 'snapshot') {
       this.handleSnapshot(msg)
     }
+
+    if (msg.type === 'metadataResponse') {
+      this.handleMetadataResponse(msg)
+    }
   }
 
   handleSnapshot(msg) {
-    this.objectMetadata = msg.metadata;
+    for (newMetadata of Object.values(msg.newMetadata || {})) {
+      this.game.metadata[newMetadata.id] = newMetadata;
+    }
     this.insertStateIntoHistory({state: msg.state, time: msg.time});
+  }
+
+  requestMetadata() {
+    this.sendMessage({type: 'metadataRequest'});
+  }
+
+  handleMetadataResponse(msg) {
+    this.game.metadata = msg.metadata || {};
   }
 
   findIdxBinarySearch(sortedArr, val, comparator) {

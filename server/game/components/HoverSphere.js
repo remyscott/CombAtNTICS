@@ -18,7 +18,7 @@ export class HoverSphere {
       friction: this.opts.friction,
       restitution: this.opts.restitution,
     });
-    
+
 
     player.body = this.body;
   }
