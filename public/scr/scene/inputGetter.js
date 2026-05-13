@@ -1,7 +1,7 @@
 export class InputGetter{
   constructor(scene) {
     this.scene = scene;
-    this.inputs = {mousePos: {x:0, y:0}, buildAFuckingBoxIWantToTest: false};
+    this.inputs = {mousePos: {x:0, y:0}, click: false};
     this.scene.game.inputs = this.inputs;
     console.log('InputGetter initiated');
     this.setUpInputs();
@@ -9,10 +9,9 @@ export class InputGetter{
 
   setUpInputs() {
     this.scene.input.on('pointerdown', (pointer) => {
-      this.inputs.buildAFuckingBoxIWantToTest = true;
+      this.inputs.click = true;
     });
     console.log('Inputs Setup')
-    console.info('Click to create more boxes!')
   }
   tick() {
     this.inputs.mousePos.x = this.scene.input.activePointer.worldX / this.scene.metersToPixel;

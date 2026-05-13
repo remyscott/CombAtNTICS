@@ -31,7 +31,7 @@ export class Client{
       this.sendMessage({type: 'input', inputs})
       this.timeSinceInputs -= inputInterval;
       this.lastInputsSent = structuredClone(inputs);
-      inputs.buildAFuckingBoxIWantToTest = false;
+      inputs.click = false;
     }
   }
 

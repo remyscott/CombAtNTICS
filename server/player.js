@@ -1,22 +1,28 @@
 import tryHandleMessage from "./tryHandleMessage.js";
-import { Vec2 } from 'planck';
-import { normalize, mulScalar, length } from './vec2helpers.js'
-
-export class Player{
-  constructor(ws, name, clientId) {
+import { HoverSphere } from "./components/HoverSphere.js";
+export class Player {
+  constructor(ws, name, clientId, world, components = [HoverSphere]) {
     this.ws = ws;
     this.name = name;
     this.clientId = clientId;
+    this.world = world;
+
     this.inputs = {};
     this.ws.on('message', (msg) => tryHandleMessage(msg, this.handleMessage.bind(this)));
-    this.body = null;
+    this.setUpComponents(components);
+  }
+
+  setUpComponents(components) {
+    this.components = [];
+    for (const component of components) {
+      this.components.push(new component(this));
+    }
   }
 
   handleMessage(msg) {
     if (msg.type === 'input') {
       this.inputs = msg.inputs;
     }
-
     if (msg.type === 'timeSync') {
       this.send({type: 'timeSyncResp', serverTime: Date.now(), id: msg.id});
     }
@@ -29,7 +35,6 @@ export class Player{
       name: this.name,
       bodyId: this.body.getUserData().id
     };
-    
     this.send(payload);
   }
 
@@ -56,16 +61,20 @@ export class Player{
     }
   }
 
-  applyForceTowardsMouse() {
-    if (!this.inputs.mousePos || !this.body) return;
-    const mousePos = this.inputs.mousePos;
-    const pos = this.body.getPosition();
-    let d = Vec2(mousePos.x - pos.x, mousePos.y - pos.y);
-    
-    let multiplier = 0.1/length(d);
+  applyInputs() { 
+    for (const component of this.components) {
+      if (typeof component.applyInputs === 'function') {
+        component.applyInputs(this.inputs);
+      }
+    }
+  }
 
-    this.body.applyForce(mulScalar(normalize(d), 20), this.body.getWorldPoint(Vec2(0,0)));
-    
-    this.body.setLinearVelocity(mulScalar(this.body.getLinearVelocity(),Math.max(0,1-multiplier)));
+  destroy() {
+    for (const component of this.components) {
+      if (typeof component.onDestroy === 'function') {
+        component.onDestroy(this);
+      }
+    }
+    this.components = [];
   }
 }

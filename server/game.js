@@ -1,39 +1,11 @@
-import {IDEAL_TICK_RATE, TEST_DROP_CHANCE, TEST_JITTER, TEST_LAG, TIMESTEP} from './settings.js'
+import {IDEAL_TICK_RATE, TIMESTEP} from './settings.js'
 import { World, Circle, Vec2, Edge, Box } from 'planck';
 import { Player } from './player.js';
+import { GameWorld } from './gameWorld.js';
 
 export class Game {
-  constructor() {
-    this.world = new World({
-      gravity: {x: 0, y: 0}
-    });
-
-    let platform = this.world.createBody({
-      type: "static",
-      position: {x: 0, y: 15},
-      angle: 0
-    });
-    
-    platform.createFixture({
-      shape: new Edge({x: -50, y: -50}, {x: +50, y: -50}),
-      friction: .3,
-      restitution: 0.2
-    });
-    platform.createFixture({
-      shape: new Edge({x: -50, y: 0}, {x: +50, y: 0}),
-      friction: .3,
-      restitution: 0.2
-    });
-    platform.createFixture({
-      shape: new Edge({x: 0, y: -50}, {x: 0, y: +50}),
-      friction: .3,
-      restitution: 0.2
-    });
-    platform.createFixture({
-      shape: new Edge({x: +50, y: -50}, {x:+50, y: +50}),
-      friction: .3,
-      restitution: 0.2
-    });
+  constructor(map) {
+    this.world = new GameWorld(map);
     
     this._id = 0;
     this.idToBody = new Map();
@@ -43,9 +15,6 @@ export class Game {
 
     this.startTickLoop();
     this.startTickRateTracker();
-    
-    for (let i=0; i<10; i++) {this.buildAFuckingBoxIWantToTest(); this.buildACircle();}
-    
   }
 
   addPlayer(clientId, name, socket) {
@@ -54,42 +23,16 @@ export class Game {
         name = name + '.' + String(Math.floor(Math.random()*1000));
     }
     
-    const newPlayer = new Player(socket, name, clientId);
-    newPlayer.body = this.world.createBody({
-      type: "dynamic",
-      position: {x:Math.random()*10, y:1},
-      userData: {id: this.newBodyId(), owner: newPlayer, type: 'player'}
-    })
 
-    newPlayer.body.createFixture({
-      shape: new Circle(new Vec2(0, 0), 0.5),
-      density: 1.0,
-      friction: .5,
-      angularDamping: 0.3,
-      restitution: 0.5,
-    })
-    
+
+    const newPlayer = new Player(socket, name, clientId, this.world);
+
     this.players.set(clientId, newPlayer);
   
     newPlayer.sendInit();
   }
 
-  buildAFuckingBoxIWantToTest() {
-    const scale = Math.random()*1.8 + 0.2;
-    let newBox = this.world.createBody({
-      type: "dynamic",
-      position: {x: Math.random()*25, y: Math.random()*15},
-      angle: 0,
-      userData: {id: this.newBodyId(), type: 'box', scale}
-    });
-
-    newBox.createFixture({
-      shape: new Box(scale*.5, scale*.5),
-      density: 1,
-      friction: .5,
-      restitution: .3,
-    });
-  }
+  
 
   buildACircle() {
     const scale = Math.random()*1.8 + 0.2;
@@ -97,7 +40,7 @@ export class Game {
       type: "dynamic",
       position: {x: Math.random()*25, y: Math.random()*15},
       angle: 0,
-      userData: {id: this.newBodyId(), type: 'circle', scale}
+      userData: {id: this.world.newBodyId(), type: 'circle', scale}
     });
 
     newCircle.createFixture({
@@ -108,14 +51,9 @@ export class Game {
     });
   }
 
-  newBodyId() {
-    return this._id++;
-  }
-
   removePlayer(clientId) {
-    this.world.destroyBody(this.players.get(clientId).body);
+    this.players.get(clientId).destroy();
     this.players.delete(clientId);
-
   }
 
   broadcast(msg) {
@@ -125,35 +63,9 @@ export class Game {
     }
   }
 
-  miserableBroadcast(msg) {
-    const data = JSON.stringify(msg);
-  
-    for (const client of this.players.values()) {
-      if (Math.random() < TEST_DROP_CHANCE) continue;
-  
-      const jitter = (Math.random() * 2 - 1) * TEST_JITTER;
-      const delay = Math.max(0, Math.round(TEST_LAG + jitter));
-  
-      setTimeout(() => {
-        if (client.socket && client.socket.readyState === client.socket.OPEN) {
-          try {
-            client.socket.send(data);
-          } catch (err) {
-            // ignore send errors for testing
-          }
-        }
-      }, delay);
-    }
-  }
-
-  
-
   tick() {
-    for (let b = this.world.getBodyList(); b; b = b.getNext()) {
-      const meta = b.getUserData() || {};      
-      if (meta.owner) { 
-        meta.owner.applyForceTowardsMouse();
-      }
+    for (const player of this.players.values()) {
+      player.applyInputs();
     }
 
     this.world.step(TIMESTEP, 8, 4);

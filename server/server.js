@@ -6,6 +6,7 @@ import crypto from "crypto";
 import { Game } from './game.js';
 import { httpAuthMiddleware, upgradeAuthHandler } from './auth.js';
 import { authorizedUsers } from './authorizedusers.js';
+import { maps } from './maps.js';
 const app = express();
 const server = http.createServer(app);
 
@@ -19,9 +20,9 @@ const wss = new WebSocketServer({ noServer: true });
 
 const games = new Map();
 
-function getOrCreateGame(gameId) {
+function getOrCreateGame(gameId, map = maps.map1) {
   if (!games.has(gameId)) {
-    const newGame = new Game();
+    const newGame = new Game(map);
     games.set(gameId, newGame);
     console.log(`🎮 Created new game: ${gameId}`);
   }
@@ -68,12 +69,6 @@ wss.on('connection', (ws, req) => {
     } catch(e) {
       console.warn('⚠️ Bad WS message:', raw);
       return;
-    }
-
-    if (data.type === 'input') {
-      if (data.inputs && data.inputs.buildAFuckingBoxIWantToTest) {
-        game.buildAFuckingBoxIWantToTest();
-      }
     }
   });
 

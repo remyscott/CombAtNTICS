@@ -9,10 +9,8 @@ export class InWorldObjects extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('player', '../assets/img/player.png');
-    this.load.image('missing', '../assets/img/missing.png');
-    this.load.image('box', '../assets/img/box.png');
-    this.load.image('circle', '../assets/img/circle.png');
+    const names = ['player','missing','box','circle', 'lockbox'];
+    names.forEach(name => this.load.image(name, `../assets/img/${name}.png`));
     this.images = new Map();
   }
 
