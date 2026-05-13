@@ -1,18 +1,20 @@
-function createRow(start, end, step, y, objectType, scale) {
+function createRow(start, end, step, y, objectType, scale, type = 'static') {
   const count = Math.floor((end - start) / step) + 1;
   return Array.from({ length: count }, (_, i) => ({
     position: { x: start + i * step, y },
     objectType,
-    scale
+    scale,
+    type
   }));
 }
 
-function createColumn(start, end, step, x, objectType, scale) {
+function createColumn(start, end, step, x, objectType, scale, type = 'static') {
   const count = Math.floor((end - start) / step) + 1;
   return Array.from({ length: count }, (_, i) => ({
     position: { x, y: start + i * step },
     objectType,
-    scale
+    scale,
+    type
   }));
 }
 
