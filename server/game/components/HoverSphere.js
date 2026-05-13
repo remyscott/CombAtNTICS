@@ -1,5 +1,5 @@
 import { Circle, Vec2 } from "planck";
-import { length, normalize, mulScalar } from "./vec2helpers.js";
+import { length, normalize, mulScalar } from "../../utilities/vec2helpers.js";
 
 export class HoverSphere {
   constructor(player) {
@@ -18,6 +18,7 @@ export class HoverSphere {
       friction: this.opts.friction,
       restitution: this.opts.restitution,
     });
+    
 
     player.body = this.body;
   }

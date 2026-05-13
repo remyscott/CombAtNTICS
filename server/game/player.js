@@ -1,4 +1,4 @@
-import tryHandleMessage from "./tryHandleMessage.js";
+import tryHandleMessage from "../utilities/tryHandleMessage.js";
 import { HoverSphere } from "./components/HoverSphere.js";
 export class Player {
   constructor(ws, name, clientId, world, components = [HoverSphere]) {

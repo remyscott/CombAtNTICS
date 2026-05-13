@@ -3,10 +3,11 @@ import express from "express";
 import http from "http";
 import { WebSocketServer } from "ws";
 import crypto from "crypto";
-import { Game } from './game.js';
+import { Game } from './game/game.js';
 import { httpAuthMiddleware, upgradeAuthHandler } from './auth.js';
-import { authorizedUsers } from './authorizedusers.js';
-import { maps } from './maps.js';
+import { authorizedUsers } from './config/authorizedusers.js';
+import { maps } from './config/maps.js';
+
 const app = express();
 const server = http.createServer(app);
 

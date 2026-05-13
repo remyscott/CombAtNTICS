@@ -24,8 +24,6 @@ export const maps = {
       ...createRow(-10, 10, 2, -15, 'lockbox', 2),
       ...createColumn(-15, 5, 2, -10, 'lockbox', 2),
       ...createColumn(-15, 5, 2, 10, 'lockbox', 2),
-      {type: 'dynamic', position: { x: 0, y: 0 }, objectType: 'circle', scale: 3 },
-      {type: 'dynamic', position: { x: 0, y: -5 }, objectType: 'circle', scale: .5 }
     ]
   }
 };

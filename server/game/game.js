@@ -1,4 +1,4 @@
-import {IDEAL_TICK_RATE, TIMESTEP} from './settings.js'
+import {IDEAL_TICK_RATE, TIMESTEP} from '../config/settings.js';
 import { World, Circle, Vec2, Edge, Box } from 'planck';
 import { Player } from './player.js';
 import { GameWorld } from './gameWorld.js';
@@ -23,32 +23,11 @@ export class Game {
         name = name + '.' + String(Math.floor(Math.random()*1000));
     }
     
-
-
     const newPlayer = new Player(socket, name, clientId, this.world);
 
     this.players.set(clientId, newPlayer);
   
     newPlayer.sendInit();
-  }
-
-  
-
-  buildACircle() {
-    const scale = Math.random()*1.8 + 0.2;
-    let newCircle = this.world.createBody({
-      type: "dynamic",
-      position: {x: Math.random()*25, y: Math.random()*15},
-      angle: 0,
-      userData: {id: this.world.newBodyId(), type: 'circle', scale}
-    });
-
-    newCircle.createFixture({
-      shape: new Circle(new Vec2(0, 0), scale*.5),
-      density: 1,
-      friction: .5,
-      restitution: 1,
-    });
   }
 
   removePlayer(clientId) {
@@ -73,28 +52,20 @@ export class Game {
   }
 
   broadcastSnapshot() {
-
     const overallState = [];
     const metadatas = [];
 
     for (let b = this.world.getBodyList(); b; b = b.getNext()) {
       const meta = b.getUserData() || {};      
       const id = meta.id;
-      if (id == null) continue;
-
-      if (meta.owner) {
-        const {state, metadata} = meta.owner.getSnapshot();
-        overallState[id] = state;
-        metadatas[id] = metadata;
-      }
+      if (id == null) {console.warn('⚠️ Body without ID:', b); continue;}
       else {
-        const {state, metadata} = this.getSnapshotOf(b);
+        const state = this.getSnapshotOf(b);
         overallState[id] = state;
-        metadatas[id] = metadata;
       }
     }
   
-    this.broadcast({ type: 'snapshot', state: overallState, metadata: metadatas, time: Date.now() });
+    this.broadcast({ type: 'snapshot', state: overallState, metadata: this.world.objectMetadata, time: Date.now() });
   }
 
   getSnapshotOf(b) {
@@ -102,15 +73,12 @@ export class Game {
     const pos = b.getPosition();
     const angle = b.getAngle();
     return {
+      id: meta.id,
       state: {
-        id: meta.id,
-        state: {
-          pos,
-          angle
-        },
-      },
-      metadata: meta
-    }
+        pos,
+        angle
+      } 
+    };
   }
 
   stop() {
