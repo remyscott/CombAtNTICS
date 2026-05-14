@@ -1,6 +1,6 @@
 import { Client } from "./client.js";
-import { InWorldObjects } from "./scene/InWorldObjects.js"
-import { UI } from "./scene/UI.js"
+import { IngameWorld } from "./scenes/ingameWorld/ingameWorld.js"
+import { UI } from "./scenes/UI/UI.js"
 
 const config = {
   type: Phaser.AUTO,
@@ -10,7 +10,7 @@ const config = {
     width: window.innerWidth,
     height: window.innerHeight
   },
-  scene: [ InWorldObjects, UI ]
+  scene: [ IngameWorld, UI ]
 };
 
 let phaserGame = new Phaser.Game(config);

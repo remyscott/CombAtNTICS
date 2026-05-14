@@ -1,7 +1,7 @@
 import { InputGetter } from "./inputGetter.js";
 import { ImageManager } from "./ImageManager.js";
 
-export class InWorldObjects extends Phaser.Scene {
+export class IngameWorld extends Phaser.Scene {
   constructor() {
     super({key: 'InWorldObjects', active: true});
     console.log('InWorldObjects initiated')
@@ -9,7 +9,7 @@ export class InWorldObjects extends Phaser.Scene {
   }
 
   preload() {
-    const names = ['player','missing','box','circle', 'lockbox'];
+    const names = ['hoversphere','missing','box','circle', 'lockbox'];
     names.forEach(name => this.load.image(name, `../assets/img/${name}.png`));
     this.images = new Map();
   }
