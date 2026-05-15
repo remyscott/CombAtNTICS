@@ -9,7 +9,7 @@ export class HoverSphere {
     this.body = player.world.createBody({
       type: "dynamic",
       position: {x:1, y:1},
-      userData: {id: player.world.newBodyId(), owner: player, type: 'hoversphere', scale: this.opts.radius*2}
+      userData: {id: player.world.newBodyId(), owner: player, fixtures: []}
     });
 
     this.body.createFixture({
@@ -17,9 +17,10 @@ export class HoverSphere {
       density: this.opts.density,
       friction: this.opts.friction,
       restitution: this.opts.restitution,
+      userData: {type: 'hoversphere', scale: this.opts.radius*2}
     });
 
-
+    this.body.getWorld().registerBody(this.body);
     player.body = this.body;
   }
 

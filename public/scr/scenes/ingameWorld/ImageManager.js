@@ -10,14 +10,17 @@ export class ImageManager {
       idSet.add(id);
       if (!this.scene.images.has(id)) {
         if (!this.scene.game.metadata[id]) {
-          this.scene.game.client.requestMetadata(id);
+          this.scene.game.client.requestMetadata();
           continue;
         }
 
-        const startPos = { x: 0, y: 0 };
-        const image = this.scene.add.image(startPos.x, startPos.y, this.scene.game.metadata[id]?.type || 'missing').setOrigin(0.5, 0.5).setScale(this.scene.game.metadata[id]?.scale || 1);
-        image.id = id;
-        this.scene.images.set(id, image);
+        let i = 0;
+        for (const fixture of this.scene.game.metadata[id].fixtures) {
+          const image = this.scene.add.image(0, 0, fixture.type || 'missing').setOrigin(0.5, 0.5).setScale(fixture.scale || 1);
+          image.id = Number(String(i) + String(id));
+          this.scene.images.set(id, image);
+          i++;
+        }
       }
     }
 

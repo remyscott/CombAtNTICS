@@ -28,6 +28,7 @@ export class GameWorld extends World {
 
   addNewObject(config) {
     const body = this.createBodyForType[config.objectType].call(this, config);
+    this.registerBody(body);
   }
 
   createBoxBody(config) {
@@ -35,7 +36,7 @@ export class GameWorld extends World {
       type: 'dynamic',
       position: config.position,
       angle: config.angle || 0,
-      userData: {id: this.newBodyId(), type: config.objectType, scale: config.scale || 1}
+      userData: {id: this.newBodyId(), fixtures: []}
     });
 
     body.createFixture({
@@ -43,6 +44,7 @@ export class GameWorld extends World {
       density: 1,
       friction: .5,
       restitution: .2,
+      userData: {type: config.objectType, scale: config.scale || 1}
     });
 
     return(body);
@@ -53,13 +55,14 @@ export class GameWorld extends World {
       type: 'static',
       position: config.position,
       angle: config.angle || 0,
-      userData: {id: this.newBodyId(), type: config.objectType, scale: config.scale || 1}
+      userData: {id: this.newBodyId(), fixtures: []}
     });
 
     body.createFixture({
       shape: new Box(0.5*config.scale, 0.5*config.scale),
       friction: .5,
       restitution: .2,
+      userData: {type: config.objectType, scale: config.scale || 1}
     });
     
     return(body);
@@ -67,15 +70,32 @@ export class GameWorld extends World {
 
   createBody(def) {
     const body = super.createBody(def);
-    const metadata = body.getUserData();
-    if (metadata.owner) {
-      const {owner, ...withoutOwner} = metadata;
-      this.objectMetadata[metadata.id] = withoutOwner;
-    } else {
-      this.objectMetadata[metadata.id] = metadata;
-    }
-    this.idToBody.set(metadata.id, body);
+    this.registerBody(body);
     return body;
+  }
+
+  registerBody(body) {
+    const bodyMetadata = body.getUserData();
+    if (bodyMetadata.owner) {
+      const {owner, ...withoutOwner} = bodyMetadata;
+      this.objectMetadata[bodyMetadata.id] = withoutOwner;
+    } else {
+      this.objectMetadata[bodyMetadata.id] = bodyMetadata;
+    }
+
+    const fixtures = body.getFixtureList();
+    if (fixtures) {
+      if (!(fixtures.length)) {
+        const fixtureMetadata = fixtures.getUserData();
+        this.objectMetadata[bodyMetadata.id].fixtures.push(fixtureMetadata);
+      }
+      else for (const fixture of fixtures) {
+        const fixtureMetadata = fixture.getUserData();
+        this.objectMetadata[bodyMetadata.id].fixtures.push(fixtureMetadata);
+      }
+    }
+    
+    this.idToBody.set(bodyMetadata.id, body);
   }
 
   getBody(id) {
