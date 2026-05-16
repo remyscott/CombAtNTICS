@@ -20,7 +20,7 @@ function createColumn(start, end, step, x, objectType, scale, type = 'static') {
 
 export const maps = {
   map1: {
-    planckConfig: { gravity: { x: 0, y: 0 } },
+    planckConfig: { gravity: { x: 0, y: 10} },
     objects: [
       ...createRow(-10, 10, 2, 5, 'lockbox', 2),
       ...createRow(-10, 10, 2, -15, 'lockbox', 2),

@@ -1,9 +1,9 @@
 import { Circle, Vec2 } from "planck";
 import { length, normalize, mulScalar } from "../../utilities/vec2helpers.js";
 
-export class HoverSphere {
+export class BouncySphere {
   constructor(player) {
-    const defaultOpts = { radius: 0.5, force: 20, density: 1, friction: 0.5, restitution: 0.5 };
+    const defaultOpts = { radius: 0.5, force: 20, density: 1, friction: 0.8, restitution: 0.95 };
     this.opts = defaultOpts;
 
     this.body = player.world.createBody({
@@ -12,8 +12,6 @@ export class HoverSphere {
       userData: {owner: player}
     });
 
-    this.body.setGravityScale(0);
-    
     this.body.createFixture({
       shape: new Circle(new Vec2(0, 0), this.opts.radius),
       density: this.opts.density,
@@ -27,16 +25,6 @@ export class HoverSphere {
   }
 
   applyInputs(inputs) {
-    if (!inputs.mousePos || !this.body) return;
-    const mousePos = inputs.mousePos;
-    const pos = this.body.getPosition();
-    let d = Vec2(mousePos.x - pos.x, mousePos.y - pos.y);
-    
-    let multiplier = 0.1/length(d);
-    
-    this.body.applyForce(mulScalar(normalize(d), this.opts.force), this.body.getWorldPoint(Vec2(0,0)));
-    
-    this.body.setLinearVelocity(mulScalar(this.body.getLinearVelocity(),Math.max(0,1-multiplier)));
   }
 
   onDestroy() {

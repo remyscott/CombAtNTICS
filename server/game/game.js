@@ -48,7 +48,7 @@ export class Game {
       player.applyInputs();
     }
 
-    this.world.step(TIMESTEP, 8, 4);
+    this.world.step(TIMESTEP, 8, 8);
     this.broadcastSnapshot();
   }
 
@@ -83,7 +83,7 @@ export class Game {
     return {
       id: meta.id,
       state: {
-        pos,
+        pos: {x: pos.x, y: pos.y}, // invert y for client
         angle
       } 
     };

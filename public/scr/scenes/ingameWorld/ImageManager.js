@@ -7,21 +7,25 @@ export class ImageManager {
   ensureImagesForObjectStates(states) {
     const idSet = new Set();
     for (const { id } of states) {
-      idSet.add(id);
-      if (!this.scene.images.has(id)) {
-        if (!this.scene.game.metadata[id]) {
-          this.scene.game.client.requestMetadata();
-          continue;
-        }
+      if (!this.scene.game.metadata[id]) {
+        this.scene.game.client.requestMetadata();
+        console.log('Metadata missing for ID:', id, 'requested update from server');
+        continue;
+      }
+      
+      for (const fixture of this.scene.game.metadata[id]?.fixtures || []) {
+        idSet.add(fixture.id);
+        if (!this.scene.images.has(fixture.id)) {
+          
 
-        let i = 0;
-        for (const fixture of this.scene.game.metadata[id].fixtures) {
           const image = this.scene.add.image(0, 0, fixture.type || 'missing').setOrigin(0.5, 0.5).setScale(fixture.scale || 1);
-          image.id = Number(String(i) + String(id));
-          this.scene.images.set(id, image);
-          i++;
+          image.id = fixture.id;
+          this.scene.images.set(image.id, image);
+          idSet.add(image.id);
+
         }
       }
+      
     }
 
     for (const [existingId, image] of this.scene.images.entries()) {
@@ -40,15 +44,18 @@ export class ImageManager {
     this.ensureImagesForObjectStates(objectStates);
 
     for (const {id, state} of objectStates) {
-      const image = this.getImage(id);
-      if (!image) continue;
-  
       if (state && state.pos && typeof state.pos.x === 'number' && typeof state.pos.y === 'number') {
-        image.x = state.pos.x * this.scene.metersToPixel;
-        image.y = state.pos.y * this.scene.metersToPixel;
-        image.setRotation(state.angle)
+
+        for (const fixture of this.scene.game.metadata[id]?.fixtures || []) {
+          const image = this.scene.images.get(fixture.id);
+          if (!image) continue;
+
+          image.x = state.pos.x * this.scene.metersToPixel;
+          image.y = state.pos.y * this.scene.metersToPixel;
+          image.setRotation(state.angle)
+        }
+
       }
     }
   }
-  
 }

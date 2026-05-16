@@ -1,7 +1,10 @@
 import tryHandleMessage from "../utilities/tryHandleMessage.js";
+import { BouncySphere } from "./components/BouncySphere.js";
 import { HoverSphere } from "./components/HoverSphere.js";
+import { Sword } from "./components/Sword.js";
+
 export class Player {
-  constructor(ws, name, clientId, world, components = [HoverSphere]) {
+  constructor(ws, name, clientId, world, components = [HoverSphere, Sword]) {
     this.ws = ws;
     this.name = name;
     this.clientId = clientId;

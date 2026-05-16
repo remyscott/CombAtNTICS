@@ -9,7 +9,7 @@ export class IngameWorld extends Phaser.Scene {
   }
 
   preload() {
-    const names = ['hoversphere','missing','box','circle', 'lockbox'];
+    const names = ['hoversphere','missing','box','circle', 'lockbox', 'boxHat', 'sword'];
     names.forEach(name => this.load.image(name, `../assets/img/${name}.png`));
     this.images = new Map();
   }
@@ -17,7 +17,7 @@ export class IngameWorld extends Phaser.Scene {
   create() {
     this.inputGettter = new InputGetter(this);
     this.imageManager = new ImageManager(this);
-    
+    this.lastCameraCenteredTime = 0;
   }
 
   applyState(state) {
@@ -26,7 +26,10 @@ export class IngameWorld extends Phaser.Scene {
 
   update() {
     this.applyState(this.game.currentState);
-    this.cameras.main.centerOn(this.imageManager.getImage(this.game.playerBodyId)?.x|| 0, this.imageManager.getImage(this.game.playerBodyId)?.y || 0);
+    if (Date.now() - this.lastCameraCenteredTime > 10000) {
+      this.lastCameraCenteredTime = Date.now();
+      this.cameras.main.centerOn(this.imageManager.getImage(this.game.playerBodyId)?.x|| 0, this.imageManager.getImage(this.game.playerBodyId)?.y || 0);
+    }
     this.inputGettter.tick();
   }
 }

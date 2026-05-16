@@ -22,7 +22,7 @@ export class GameWorld extends World {
     } 
   }
 
-  newBodyId() {
+  newId() {
     return this._id++;
   }
 
@@ -36,7 +36,6 @@ export class GameWorld extends World {
       type: 'dynamic',
       position: config.position,
       angle: config.angle || 0,
-      userData: {id: this.newBodyId(), fixtures: []}
     });
 
     body.createFixture({
@@ -44,7 +43,7 @@ export class GameWorld extends World {
       density: 1,
       friction: .5,
       restitution: .2,
-      userData: {type: config.objectType, scale: config.scale || 1}
+      userData: {id: body.getUserData().id, type: config.objectType, scale: config.scale || 1}
     });
 
     return(body);
@@ -55,21 +54,20 @@ export class GameWorld extends World {
       type: 'static',
       position: config.position,
       angle: config.angle || 0,
-      userData: {id: this.newBodyId(), fixtures: []}
     });
 
     body.createFixture({
       shape: new Box(0.5*config.scale, 0.5*config.scale),
       friction: .5,
       restitution: .2,
-      userData: {type: config.objectType, scale: config.scale || 1}
+      userData: {id: body.getUserData().id, type: config.objectType, scale: config.scale || 1}
     });
     
     return(body);
   }
 
   createBody(def) {
-    const body = super.createBody(def);
+    const body = super.createBody({...def, userData: {...def.userData, id: this.newId(), fixtures: []}});
     this.registerBody(body);
     return body;
   }
