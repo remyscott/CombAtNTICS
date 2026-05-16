@@ -10,6 +10,7 @@ export class InputGetter{
   setUpInputs() {
     this.scene.input.on('pointerdown', (pointer) => {
       this.inputs.click = true;
+      this.scene.centerCamera();
     });
     console.log('Inputs Setup')
   }

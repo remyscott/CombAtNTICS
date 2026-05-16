@@ -33,5 +33,6 @@ export class Sword {
   }
 
   onDestroy() {
+    this.body.getWorld().destroyBody(this.body);
   }
 }

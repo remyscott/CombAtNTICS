@@ -26,10 +26,14 @@ export class IngameWorld extends Phaser.Scene {
 
   update() {
     this.applyState(this.game.currentState);
-    if (Date.now() - this.lastCameraCenteredTime > 10000) {
+    if (Date.now() - this.lastCameraCenteredTime > 100000) {
       this.lastCameraCenteredTime = Date.now();
-      this.cameras.main.centerOn(this.imageManager.getImage(this.game.playerBodyId)?.x|| 0, this.imageManager.getImage(this.game.playerBodyId)?.y || 0);
+      this.centerCamera();
     }
     this.inputGettter.tick();
+  }
+
+  centerCamera() {
+    this.cameras.main.centerOn(this.imageManager.getImage(this.game.playerBodyId)?.x|| 0, this.imageManager.getImage(this.game.playerBodyId)?.y || 0);
   }
 }
