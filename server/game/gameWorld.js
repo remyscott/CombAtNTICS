@@ -40,7 +40,7 @@ export class GameWorld extends World {
 
     body.createFixture({
       shape: new Box(0.5*config.scale, 0.5*config.scale),
-      density: 1,
+      density: 0.25,
       friction: .5,
       restitution: .2,
       userData: {id: body.getUserData().id, type: config.objectType, scale: config.scale || 1}
