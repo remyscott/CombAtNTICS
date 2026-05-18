@@ -1,11 +1,11 @@
-import { InputGetter } from "./inputGetter.js";
 import { ImageManager } from "./ImageManager.js";
+import { InputManager } from "./inputManager.js";
 
 export class IngameWorld extends Phaser.Scene {
   constructor() {
     super({key: 'InWorldObjects', active: true});
     console.log('InWorldObjects initiated')
-    this.metersToPixel = 50;
+    this.pixelsPerMeter = 50;
   }
 
   preload() {
@@ -15,9 +15,9 @@ export class IngameWorld extends Phaser.Scene {
   }
 
   create() {
-    this.inputGettter = new InputGetter(this);
+    this.input.mouse.disableContextMenu(); 
+    this.inputManager = new InputManager(this);
     this.imageManager = new ImageManager(this);
-    this.lastCameraCenteredTime = 0;
   }
 
   applyState(state) {
@@ -26,11 +26,8 @@ export class IngameWorld extends Phaser.Scene {
 
   update() {
     this.applyState(this.game.currentState);
-    if (Date.now() - this.lastCameraCenteredTime > 100000) {
-      this.lastCameraCenteredTime = Date.now();
-      this.centerCamera();
-    }
-    this.inputGettter.tick();
+    this.centerCamera();
+    this.inputManager.tick();
   }
 
   centerCamera() {

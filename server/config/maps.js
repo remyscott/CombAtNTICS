@@ -45,13 +45,15 @@ export const maps = {
       ...createRow(10, 50, 2, 5, 'lockbox', 2),
       ...createColumn(5, 15, 2, -0, 'lockbox', 2),
       ...createColumn(-5, 15, 2, 20, 'lockbox', 2),
-      ...createColumn(-10,0,2, 0, 'box', 1),
-      ...createColumn(-10,0,1, 5, 'box', 0.5),
+      ...createColumn(-10,0,2, 15, 'box', 1),
+      ...createColumn(0,10,.5, 5, 'box', 0.5),
       ...createColumn(-10,0,0.5, -5, 'box', 0.25),
       ...createColumn(-10,0,0.5, -5, 'box', 0.25),
-      ...createColumn(-10,0,0.25, -7.5, 'box', 0.125),
-      ...createColumn(-10,0,2.5, 7, 'box', 2),
-
+      ...createColumn(-10,0,0.5, -5, 'box', 0.25),
+      ...createColumn(-10,0,0.5, -5, 'box', 0.25),
+      ...createColumn(7,12,2, 14, 'box', 2),
+      {objectType: 'box', scale: 5, position: {x: 17, y: 10}},
+      {objectType: 'box', scale: 6, position: {x: 30, y: -10}}
     ]
   }
 };

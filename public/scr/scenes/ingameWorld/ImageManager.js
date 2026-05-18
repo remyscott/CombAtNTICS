@@ -6,9 +6,11 @@ export class ImageManager {
 
   ensureImagesForObjectStates(states) {
     const idSet = new Set();
+    let metadataRequested = false;
     for (const { id } of states) {
-      if (!this.scene.game.metadata[id]) {
+      if (!this.scene.game.metadata[id] && !metadataRequested) {
         this.scene.game.client.requestMetadata();
+        metadataRequested = true;
         console.log('Metadata missing for ID:', id, 'requested update from server');
         continue;
       }
@@ -50,8 +52,8 @@ export class ImageManager {
           const image = this.scene.images.get(fixture.id);
           if (!image) continue;
 
-          image.x = state.pos.x * this.scene.metersToPixel;
-          image.y = state.pos.y * this.scene.metersToPixel;
+          image.x = state.pos.x * this.scene.pixelsPerMeter;
+          image.y = state.pos.y * this.scene.pixelsPerMeter;
           image.setRotation(state.angle)
         }
 

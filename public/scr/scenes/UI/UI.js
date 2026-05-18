@@ -11,7 +11,7 @@ export class UI extends Phaser.Scene {
 
   create() {
     console.log('UI create')
-
+    this.input.mouse.disableContextMenu(); 
     this.console = new GameConsole(this);  
   }
 
