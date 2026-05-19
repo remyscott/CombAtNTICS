@@ -2,11 +2,12 @@ import {IDEAL_TICK_RATE, TIMESTEP} from '../config/settings.js';
 import { World, Circle, Vec2, Edge, Box } from 'planck';
 import { Player } from './player.js';
 import { GameWorld } from './gameWorld.js';
+import { Filter } from 'bad-words';
 
 export class Game {
   constructor(map) {
     this.world = new GameWorld(map);
-    
+    this.chatFilter = new Filter();
     this._id = 0;
     this.idToBody = new Map();
 
@@ -16,6 +17,23 @@ export class Game {
 
     this.startTickLoop();
     this.startTickRateTracker();
+  }
+
+  onClientChat(payload, clientId) {
+    if (!payload || payload.type !== 'chatMsg') return;
+
+    const raw = String(payload.msg || '');
+    const containsSwear = this.chatFilter.isProfane(raw);
+    
+    if (containsSwear) {
+      this.removePlayer(clientId)
+    }
+
+    const censored = this.chatFilter.clean(raw);
+
+    payload.msg = censored;
+
+    this.broadcast(payload);
   }
 
   addPlayer(clientId, name, socket) {

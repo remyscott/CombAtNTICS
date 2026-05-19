@@ -24,7 +24,7 @@ export class Player {
 
   handleMessage(msg) {
     if (msg.type === 'chatMsg') {
-      this.game.broadcast({type: 'chatMsg', msg: msg.msg, nameOfSender: this.name})
+      this.game.onClientChat({type: 'chatMsg', msg: msg.msg, nameOfSender: this.name}, this.clientId)
     }
     if (msg.type === 'input') {
       this.inputs = msg.inputs;
@@ -79,11 +79,67 @@ export class Player {
   }
 
   destroy() {
-    for (const component of this.components) {
-      if (typeof component.onDestroy === 'function') {
-        component.onDestroy(this);
+    try {
+      for (const component of this.components) {
+        if (typeof component.onDestroy === 'function') {
+          component.onDestroy(this);
+        }
       }
+    } catch (e) {
+      console.error('Error during player component cleanup', e);
+    } finally {
+      this.components = [];
     }
-    this.components = [];
+
+    if (!this.ws) return;
+
+    try {
+      if (typeof this.ws.removeAllListeners === 'function') {
+        this.ws.removeAllListeners('message');
+        this.ws.removeAllListeners('error');
+        this.ws.removeAllListeners('close');
+      }
+
+      const OPEN = this.ws.OPEN;  
+      const CLOSING = this.ws.CLOSING ?? 2;
+      const CLOSED = this.ws.CLOSED ?? 3;
+
+      if (this.ws.readyState === OPEN) {
+        try {
+          this.ws.close(1000, 'server disconnect'); // normal closure
+        } catch (e) {
+        }
+
+        const FORCE_TIMEOUT = 2000; // ms
+        const wsRef = this.ws;
+        const force = setTimeout(() => {
+          try {
+            if (wsRef && wsRef.terminate) wsRef.terminate();
+          } catch (e) { /* ignore */ }
+        }, FORCE_TIMEOUT);
+
+        if (typeof this.ws.once === 'function') {
+          this.ws.once('close', () => clearTimeout(force));
+        } else if (typeof this.ws.addEventListener === 'function') {
+          const onClose = () => {
+            clearTimeout(force);
+            try { this.ws.removeEventListener('close', onClose); } catch (e) {}
+          };
+          this.ws.addEventListener('close', onClose);
+        }
+      } else if (this.ws.readyState === CLOSING) {
+        setTimeout(() => {
+          try { if (this.ws && this.ws.terminate) this.ws.terminate(); } catch (e) {}
+        }, 2000);
+      } else if (this.ws.readyState === CLOSED) {
+      } else {
+        try { if (this.ws.terminate) this.ws.terminate(); } catch (e) {}
+      }
+    } catch (e) {
+      console.error('Error while shutting down websocket for player', e);
+      try { if (this.ws && this.ws.terminate) this.ws.terminate(); } catch (e2) {}
+    } finally {
+      this.ws = null;
+    }
   }
 }
