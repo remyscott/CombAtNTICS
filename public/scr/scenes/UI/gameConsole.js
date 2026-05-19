@@ -4,7 +4,7 @@ export class GameConsole {
     this.scene = scene;
     this.opts = Object.assign({
       maxMessages: 30,
-      ttl: 5000,
+      ttl: 15000,
       spacing: 6,
       padding: 12,
       style: { font: '14px Arial', fill: '#ffffff' },
@@ -142,31 +142,51 @@ export class GameConsole {
   /* ---------- public API ---------- */
 
   log(message, { level = 'log', ttl } = {}) {
-    const lifetime = (typeof ttl === 'number') ? ttl : this.ttl;
+    // normalize lifetime: treat 0 as "persistent"
+    const lifetime = (typeof ttl === 'number') ? (ttl === 0 ? Infinity : ttl) : this.ttl;
 
+    // Evict oldest if at capacity
     if (this.active.length >= this.maxMessages) {
       const oldest = this.active.shift();
-      clearTimeout(oldest.timer);
+      if (oldest && oldest.timer) {
+        clearTimeout(oldest.timer);
+        oldest.timer = null;
+      }
       this._releaseText(oldest.text);
       this._layoutMessages();
     }
 
+    // Acquire text object and style it
     const text = this._acquireText();
-    const color = (level === 'error') ? '#ff6666' : (level === 'warn') ? '#ffcc66' : (level === 'info') ? '#3be025' : '#ffffff';
+    const color = (level === 'error') ? '#ff6666' :
+                  (level === 'warn')  ? '#ffcc66' :
+                  (level === 'info')  ? '#3be025' : '#ffffff';
 
-    // set color depending on Phaser API: try setColor then setStyle.fill
     try {
       if (typeof text.setColor === 'function') text.setColor(color);
       else text.setStyle && text.setStyle({ fill: color });
-    } catch (e) {}
+    } catch (e) { /* ignore styling errors */ }
 
     text.setText && text.setText(String(message));
 
-    const rec = { text, level, expiresAt: Date.now() + lifetime, timer: null };
+    // Create record
+    const rec = {
+      text,
+      level,
+      expiresAt: (lifetime === Infinity) ? Infinity : (Date.now() + lifetime),
+      timer: null
+    };
+
+    // Push and layout
     this.active.push(rec);
     this._layoutMessages();
 
-    rec.timer = setTimeout(() => { this._removeRecord(rec); }, lifetime);
+    // If lifetime is finite, schedule removal
+    if (lifetime !== Infinity) {
+      rec.timer = setTimeout(() => { this._removeRecord(rec); }, Math.max(0, lifetime));
+    } else {
+      rec.timer = null;
+    }
 
     return rec;
   }

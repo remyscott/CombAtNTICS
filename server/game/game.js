@@ -24,7 +24,7 @@ export class Game {
         name = name + '.' + String(Math.floor(Math.random()*1000));
     }
     
-    const newPlayer = new Player(socket, name, clientId, this.world);
+    const newPlayer = new Player(socket, name, clientId, this);
 
     this.players.set(clientId, newPlayer);
   

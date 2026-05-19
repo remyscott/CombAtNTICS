@@ -75,9 +75,9 @@ export class Client{
     const promise = result && result.promise ? result.promise : result;
     promise.then(stats => {
       let ext = stats.networkBuffer === 50 ? ' (minimum buffer)' : '';
-      this.game.console.updateRecord(calibRec, `Calibrated: buffer ${stats.networkBuffer}ms${ext}`, { level: 'info', ttl: 5000 });
+      this.game.console.updateRecord(calibRec, `Calibrated: buffer ${stats.networkBuffer}ms${ext}`, { level: 'info' });
     }).catch(err => {
-      this.game.console.updateRecord(calibRec, 'Calibration failed — using defaults', { level: 'error', ttl: 5000 });
+      this.game.console.updateRecord(calibRec, 'Calibration failed — using defaults', { level: 'error' });
     });
   }
 
@@ -250,6 +250,9 @@ export class Client{
   }
 
   handleMessage(msg) {
+    if (msg.type === 'chatMsg') {
+      this.game.scene.getScene('UI').displayMessage(msg.msg, msg.nameOfSender)
+    }
     if (msg.type === 'init') {
       this.init(msg)
     }

@@ -48,9 +48,6 @@ export const maps = {
       ...createColumn(-10,0,2, 15, 'box', 1),
       ...createColumn(0,10,.5, 5, 'box', 0.5),
       ...createColumn(-10,0,0.5, -5, 'box', 0.25),
-      ...createColumn(-10,0,0.5, -5, 'box', 0.25),
-      ...createColumn(-10,0,0.5, -5, 'box', 0.25),
-      ...createColumn(-10,0,0.5, -5, 'box', 0.25),
       ...createColumn(7,12,2, 14, 'box', 2),
       {objectType: 'box', scale: 5, position: {x: 17, y: 10}},
       {objectType: 'box', scale: 6, position: {x: 30, y: -10}}

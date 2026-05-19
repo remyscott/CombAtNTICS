@@ -4,12 +4,12 @@ import { HoverSphere } from "./components/HoverSphere.js";
 import { Sword } from "./components/Sword.js";
 
 export class Player {
-  constructor(ws, name, clientId, world, components = [HoverSphere, Sword]) {
+  constructor(ws, name, clientId, game, components = [HoverSphere, Sword]) {
     this.ws = ws;
     this.name = name;
     this.clientId = clientId;
-    this.world = world;
-
+    this.world = game.world;
+    this.game = game;
     this.inputs = {};
     this.ws.on('message', (msg) => tryHandleMessage(msg, this.handleMessage.bind(this)));
     this.setUpComponents(components);
@@ -23,6 +23,9 @@ export class Player {
   }
 
   handleMessage(msg) {
+    if (msg.type === 'chatMsg') {
+      this.game.broadcast({type: 'chatMsg', msg: msg.msg, nameOfSender: this.name})
+    }
     if (msg.type === 'input') {
       this.inputs = msg.inputs;
     }
