@@ -16,6 +16,12 @@ export class Player {
   }
 
   setUpComponents(components) {
+    this.body = this.world.createBody({
+      type: "dynamic",
+      position: { x: 0, y: 0 },
+      userData: { owner: this }
+    });
+    
     this.components = [];
     for (const component of components) {
       this.components.push(new component(this));

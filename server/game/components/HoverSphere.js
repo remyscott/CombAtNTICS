@@ -11,12 +11,8 @@ export class HoverSphere {
   constructor(player) {
     const defaultOpts = { radius: 0.5, force: 20, density: 1, friction: 0.5, restitution: 0.5 };
     this.opts = defaultOpts;
-
-    this.body = player.world.createBody({
-      type: "dynamic",
-      position: { x: 0, y: 0 },
-      userData: { owner: player }
-    });
+    this.body = player.body;
+    
 
     this.body.setGravityScale(0);
 
