@@ -26,11 +26,10 @@ export class Client{
 
   sendInputsIfItsTimeTo(delta) {
     this.timeSinceInputs += delta;
-    const inputs = this.game.inputs;
-    if (inputs && (this.timeSinceInputs >= inputInterval) && (inputs !== this.lastInputsSent)) {
+    const inputs = {actions: this.game.inputs, default: {mousePosRel: this.game.mousePosRel}};
+    if (inputs && (this.timeSinceInputs >= inputInterval)) {
       this.sendMessage({type: 'input', inputs})
       this.timeSinceInputs -= inputInterval;
-      this.lastInputsSent = structuredClone(inputs);
     }
   }
 

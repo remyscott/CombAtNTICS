@@ -15,13 +15,14 @@ export class HoverSphere {
     
 
     this.body.setGravityScale(0);
-
+    this.body.setLinearDamping(0.01);
+    
     this.body.createFixture({
       shape: new Circle(new Vec2(0, 0), this.opts.radius),
       density: this.opts.density,
       friction: this.opts.friction,
       restitution: this.opts.restitution,
-      userData: { id: this.body.getUserData().id, type: 'hoversphere', scale: this.opts.radius * 2 }
+      userData: { id: this.body.getUserData().id, type: 'hoversphere', scale: this.opts.radius * 2, name: player.name }
     });
 
     this.body.getWorld().registerBody(this.body);
@@ -41,27 +42,19 @@ export class HoverSphere {
     this._tmpDir.y = 0;
 
     // Note: inputs[UP] etc. are 0/1 (Uint8Array)
-    if (inputs[UP]) this._tmpDir.y -= 1;
-    if (inputs[DOWN]) this._tmpDir.y += 1;
-    if (inputs[LEFT]) this._tmpDir.x -= 1;
-    if (inputs[RIGHT]) this._tmpDir.x += 1;
+    if (inputs.actions[UP]) this._tmpDir.y -= 1;
+    if (inputs.actions[DOWN]) this._tmpDir.y += 1;
+    if (inputs.actions[LEFT]) this._tmpDir.x -= 1;
+    if (inputs.actions[RIGHT]) this._tmpDir.x += 1;
 
-    // Compute length and only apply force when there's input
-    const mag = length(this._tmpDir); // should be numeric
+    const mag = length(this._tmpDir);
     if (mag > 1e-6) {
-      // normalize -> multiply by force -> apply
-      const dirNorm = normalize(this._tmpDir); // returns a Vec2 or plain object depending on your helper
-      // create force vector = dirNorm * opts.force
+      const dirNorm = normalize(this._tmpDir); 
       this._tmpForce.x = dirNorm.x * this.opts.force;
       this._tmpForce.y = dirNorm.y * this.opts.force;
 
-      // Apply force at center (world point 0,0)
       this.body.applyForce(this._tmpForce, this.body.getWorldPoint(Vec2(0, 0)));
     }
-
-    // Gentle damping on linear velocity
-    const vel = this.body.getLinearVelocity();
-    this.body.setLinearVelocity(mulScalar(vel, 0.99));
   }
 
   onDestroy() {

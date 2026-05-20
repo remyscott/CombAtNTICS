@@ -21,13 +21,20 @@ export class InputManager {
     const bindings = loadBindings();
     this.inputAdapter = new PhaserInputAdapter(this.scene, bindings);
 
-    // optional: keep mouse info separate (still JS objects)
-    this.scene.game.mousePos = { x: 0, y: 0 };
-    this.scene.input.on('pointermove', p => {
-      this.scene.game.mousePos.x = p.worldX * this.scene.pixelsPerMeter ?? p.x;
-      this.scene.game.mousePos.y = p.worldY * this.scene.pixelsPerMeter ?? p.y;
-    });
+    this.scene.game.mousePos = { x: 0, y: 0 };  
+    this.scene.game.mousePosRel = { x: 0, y: 0 };   
 
+    this.scene.input.on('pointermove', p => {
+      const ppm = this.scene.pixelsPerMeter || 50;
+
+      this.scene.game.mousePos.x = p.worldX / ppm;
+      this.scene.game.mousePos.y = p.worldY / ppm;
+
+      const playerScreenPos = this.scene.imageManager && this.scene.imageManager.playerImagePos;
+      this.scene.game.mousePosRel.x = p.worldX - playerScreenPos.x / ppm;
+      this.scene.game.mousePosRel.y = p.worldY - playerScreenPos.y / ppm;
+    });
+ 
     console.log('InputManager initiated (typed array size =', this.size, ')');
   }
 

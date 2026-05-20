@@ -39,15 +39,16 @@ export class Sword {
 
   applyInputs(inputs) {
     if (!inputs || !this.body) return;
+
     let torque = 0;
-    if (inputs.actions[SWORD_CW]) torque -= this.opts.torque;
-    if (inputs.actions[SWORD_CCW]) torque += this.opts.torque;
+    if (inputs[SWORD_CW]) torque -= this.opts.torque;
+    if (inputs[SWORD_CCW]) torque += this.opts.torque;
 
     if (torque !== 0) {
       this.body.applyTorque(torque);
     }
 
-    if (inputs.actions[SWORD_SLOW]) {
+    if (inputs[SWORD_SLOW]) {
       this.body.setAngularDamping(this.opts.angularDampingWhenSlow);
     } else {
       this.body.setAngularDamping(0);
@@ -58,3 +59,6 @@ export class Sword {
     this.body.getWorld().destroyBody(this.body);
   }
 }
+
+
+Can you make a gun module that works like the sword module exept it orients itself using the MOUSE_POS_REL input, and fires a bullet when with bullet: true when the CLICK input happens. CLICK and MOUSE_POS_REL aren't configureable inputs, 
