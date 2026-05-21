@@ -8,13 +8,13 @@ export class BlockLauncher {
   constructor(player, opts = {}) {
     const o = Object.assign({
       barrelLength: 1,
-      launchForce: 1,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
+      launchForce: 2,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
       cooldown: 10,          // frames between shots
       motorMaxTorque: 20000000,
       motorMaxSpeed: 500,    // rad/s
       kp: 18,               // P gain
       kd: 0.4,              // D gain (damping)
-      projectileSize: 0.125,
+      projectileSize: 0.25,
       projectileDensity: 1,
       radius: 0.5
     }, opts);

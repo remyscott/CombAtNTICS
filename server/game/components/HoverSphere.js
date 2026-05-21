@@ -12,7 +12,7 @@ export class HoverSphere {
       force: 20,
       density: 1,
       friction: 0.5,
-      restitution: 0.5,
+      restitution: 0.2,
 
       // upright controller (PD)
       uprightKp: 8.0,         // proportional gain (torque per radian)
