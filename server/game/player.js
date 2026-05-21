@@ -8,15 +8,15 @@ import { BlockUltraShotgun } from "./components/BlockUltraShotgun.js";
 
 export class Player {
   constructor(ws, name, clientId, game, components = [HoverSphere]) {
-    if (Math.random()>0.5) {
+    if (Math.random()>0.4) {
       components.push(Sword);
     }
     else {
-      if (Math.random()>0.7) {
-          if (Math.random()>0.7) {
+      if (Math.random()>0.6) {
+          if (Math.random()>0.6) {
           components.push(BlockUltraShotgun);
         } else {
-          components.push(BlockLauncher)
+          components.push(BlockShotgun)
         }
       } else {
         components.push(BlockLauncher)
