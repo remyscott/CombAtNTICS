@@ -7,16 +7,11 @@ export class GameWorld extends World {
     this.idToBody = new Map();
     this.ttlBodies = new Map();
     this.objectMetadata = {};
-    this.defaultAttributesFor = {
-      'lockbox': {type: 'static', friction: .5, restitution: .2},
-      'box': {type: 'dynamic', friction: .5, restitution: .2},
-    }
-
     this.loadMapObjects(map.objects);
   }
 
   loadMapObjects(objects) {
-    this.createBodyForType = {'box': this.createBoxBody, 'lockbox': this.createLockboxBody};
+    this.createBodyForType = {'box': this.createBoxBody, 'lockbox': this.createLockboxBody, 'circle': this.createCircleBody};
 
     for (const object of objects) {
       this.addNewObject(object);
@@ -44,6 +39,24 @@ export class GameWorld extends World {
       density: 0.25,
       friction: .5,
       restitution: .2,
+      userData: {id: body.getUserData().id, type: config.objectType, scale: config.scale || 1}
+    });
+
+    return(body);
+  }
+
+  createCircleBody(config) {
+    const body = this.createBody({
+      type: 'dynamic',
+      position: config.position,
+      angle: config.angle || 0,
+    });
+
+    body.createFixture({
+      shape: new Circle(0.5*config.scale),
+      density: 1,
+      friction: .5,
+      restitution: .9,
       userData: {id: body.getUserData().id, type: config.objectType, scale: config.scale || 1}
     });
 

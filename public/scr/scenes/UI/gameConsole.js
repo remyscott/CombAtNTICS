@@ -7,7 +7,7 @@ export class GameConsole {
       ttl: 15000,
       spacing: 6,
       padding: 12,
-      style: { font: '14px Arial', fill: '#ffffff' },
+      style: {},
       depth: 1000,
       forwardConsole: true,
       captureErrors: true,
@@ -35,7 +35,7 @@ export class GameConsole {
     this.container = (this.scene && this.scene.add) ? this.scene.add.container(0, 0).setDepth(this.opts.depth) : { add: () => {} };
 
     // style: merge user style onto defaults
-    this.style = Object.assign({      fontSize: '14px',      color: '#ffffff',      backgroundColor: null,      stroke: null,      strokeThickness: 0    }, opts.style || {});
+    this.style = Object.assign({      fontSize: '28px',      color: '#ffffff',      backgroundColor: null,      stroke: '#000000',      strokeThickness: 2    }, opts.style || {});
     // resize handler bound
     this._onResize = this._onResize.bind(this);
 

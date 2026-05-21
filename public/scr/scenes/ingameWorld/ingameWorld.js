@@ -9,7 +9,7 @@ export class IngameWorld extends Phaser.Scene {
   }
 
   preload() {
-    const names = ['hoversphere', 'redbox','missing','box','circle', 'lockbox', 'boxHat', 'sword', 'blockLauncher'];
+    const names = ['hoversphere', 'redbox','missing','box','circle', 'lockbox', 'boxHat', 'sword', 'blockLauncher', 'blockShotgun'];
     names.forEach(name => this.load.image(name, `../assets/img/${name}.png`));
     this.images = new Map();
   }

@@ -40,7 +40,7 @@ export class UI extends Phaser.Scene {
   _open() {
     this._chatActive = true;
     this._chatBuf = '';
-    this._chatRec = this.console.log(`> ${this._chatBuf}`, { level: 'info', ttl: 0 });
+    this._chatRec = this.console.log(`> ${this._chatBuf}`, { level: 'log', ttl: 0 });
   }
 
   _update() {
@@ -73,9 +73,9 @@ export class UI extends Phaser.Scene {
   displayMessage(msg, nameOfSender) {
     const myName = (this && this.game && this.game.client) ? this.game.client.name : null;
     if (myName && nameOfSender === myName) {
-      this.console.log(`you: ${msg}`, { level: 'info' });
+      this.console.log(`you: ${msg}`);
     } else {
-      this.console.log(`${nameOfSender}: ${msg}`, { level: 'info' });
+      this.console.log(`${nameOfSender}: ${msg}`);
     }
   }
 

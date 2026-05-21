@@ -3,6 +3,7 @@ import { BouncySphere } from "./components/BouncySphere.js";
 import { HoverSphere } from "./components/HoverSphere.js";
 import { Sword } from "./components/Sword.js";
 import { BlockLauncher } from "./components/BlockLauncher.js";
+import { BlockShotgun } from "./components/blockShotgun.js";
 
 export class Player {
   constructor(ws, name, clientId, game, components = [HoverSphere]) {
@@ -10,7 +11,11 @@ export class Player {
       components.push(Sword);
     }
     else {
-      components.push(BlockLauncher)
+      if (Math.random()>0.7) {
+        components.push(BlockShotgun);
+      } else {
+        components.push(BlockLauncher)
+      }
     }
     this.ws = ws;
     this.name = name;
