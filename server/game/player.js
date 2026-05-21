@@ -2,9 +2,16 @@ import tryHandleMessage from "../utilities/tryHandleMessage.js";
 import { BouncySphere } from "./components/BouncySphere.js";
 import { HoverSphere } from "./components/HoverSphere.js";
 import { Sword } from "./components/Sword.js";
+import { BlockLauncher } from "./components/BlockLauncher.js";
 
 export class Player {
-  constructor(ws, name, clientId, game, components = [HoverSphere, Sword]) {
+  constructor(ws, name, clientId, game, components = [HoverSphere]) {
+    if (Math.random()>0.5) {
+      components.push(Sword);
+    }
+    else {
+      components.push(BlockLauncher)
+    }
     this.ws = ws;
     this.name = name;
     this.clientId = clientId;
@@ -25,6 +32,11 @@ export class Player {
     this.components = [];
     for (const component of components) {
       this.components.push(new component(this));
+    }
+
+    const mainGravityScale = this.body.getGravityScale();
+    for (const component of this.components) {
+      if (component.body) component.body.setGravityScale(mainGravityScale);
     }
   }
 

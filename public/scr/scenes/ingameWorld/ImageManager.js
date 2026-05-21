@@ -178,6 +178,10 @@ export class ImageManager {
           image.x = state.pos.x * this.scene.pixelsPerMeter;
           image.y = state.pos.y * this.scene.pixelsPerMeter;
           image.setRotation(state.angle || 0);
+          
+          if (state.scale) {
+            image.setScale(state.scale);
+          }
 
           const nameImage = fixture.nameImage;
 

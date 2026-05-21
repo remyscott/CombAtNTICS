@@ -6,6 +6,7 @@ export const configurableInputs = {
   SWORD_CW: 4,
   SWORD_CCW: 5,
   SWORD_SLOW: 6,
+  FIRE_GUN: 7,
 }
 
 export const defaultBindings = {
@@ -15,5 +16,6 @@ export const defaultBindings = {
   DOWN: 'KeyS',
   SWORD_CW: 'Mouse0',
   SWORD_CCW: 'Mouse2',
-  SWORD_SLOW: 'KeySpace',
+  SWORD_SLOW: 'Space',
+  FIRE_GUN: 'Mouse0',
 };

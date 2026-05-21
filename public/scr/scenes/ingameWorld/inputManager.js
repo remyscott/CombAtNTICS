@@ -31,8 +31,8 @@ export class InputManager {
       this.scene.game.mousePos.y = p.worldY / ppm;
 
       const playerScreenPos = this.scene.imageManager && this.scene.imageManager.playerImagePos;
-      this.scene.game.mousePosRel.x = p.worldX - playerScreenPos.x / ppm;
-      this.scene.game.mousePosRel.y = p.worldY - playerScreenPos.y / ppm;
+      this.scene.game.mousePosRel.x = p.worldX - playerScreenPos.x;
+      this.scene.game.mousePosRel.y = p.worldY - playerScreenPos.y;
     });
  
     console.log('InputManager initiated (typed array size =', this.size, ')');

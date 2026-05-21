@@ -5,6 +5,7 @@ export class GameWorld extends World {
     super(map.planckConfig);
     this._id = 0;
     this.idToBody = new Map();
+    this.ttlBodies = new Map();
     this.objectMetadata = {};
     this.defaultAttributesFor = {
       'lockbox': {type: 'static', friction: .5, restitution: .2},
@@ -94,6 +95,9 @@ export class GameWorld extends World {
     }
     
     this.idToBody.set(bodyMetadata.id, body);
+    if (bodyMetadata.ttl) {
+      this.ttlBodies.set(bodyMetadata.id, body);
+    }
   }
 
   getBody(id) {
@@ -108,7 +112,22 @@ export class GameWorld extends World {
     const id = body.getUserData().id;
     super.destroyBody(body);
     this.idToBody.delete(id);
+    this.ttlBodies.delete(id);
     delete this.objectMetadata[id];
+  }
+
+  step(config) {
+    super.step(config);
+    for (const [id, body] of this.ttlBodies) {
+      const ud = body.getUserData();
+      if (!ud) continue;
+      if (typeof ud.ttl === 'number') {
+        ud.ttl -= config.dt || 1/60;
+        if (ud.ttl <= 0) {
+          this.destroyBody(body);
+        }
+      }
+    }
   }
 }
 

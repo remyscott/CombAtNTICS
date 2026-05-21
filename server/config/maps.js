@@ -50,7 +50,7 @@ export const maps = {
       ...createColumn(-10,0,0.5, -5, 'box', 0.25),
       ...createColumn(7,12,2, 14, 'box', 2),
       {objectType: 'box', scale: 5, position: {x: 17, y: 10}},
-      {objectType: 'box', scale: 6, position: {x: 30, y: -10}}
+      {objectType: 'box', scale: 6, position: {x: 30, y: -10}},
     ]
   }
 };
