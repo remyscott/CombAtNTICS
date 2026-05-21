@@ -20,6 +20,7 @@ export class Player {
     this.inputs = {};
     this.ws.on('message', (msg) => tryHandleMessage(msg, this.handleMessage.bind(this)));
     this.setUpComponents(components);
+    this.chatBanned = false;
   }
 
   setUpComponents(components) {
@@ -42,6 +43,7 @@ export class Player {
 
   handleMessage(msg) {
     if (msg.type === 'chatMsg') {
+      if(this.chatBanned) return;
       this.game.onClientChat({type: 'chatMsg', msg: msg.msg, nameOfSender: this.name}, this.clientId)
     }
     if (msg.type === 'input') {

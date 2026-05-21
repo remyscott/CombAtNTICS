@@ -26,12 +26,12 @@ export class Game {
     const containsSwear = this.chatFilter.isProfane(raw);
     
     if (containsSwear) {
-      this.removePlayer(clientId)
+      this.players.get(clientId).chatBanned = true;
+      this.broadcast({type: 'chatMsg', msg: `Player ${payload.nameOfSender} has been banned from chat for swearing`, nameOfSender: 'SERVER'});
+      return;
     }
 
-    const censored = this.chatFilter.clean(raw);
 
-    payload.msg = censored;
 
     this.broadcast(payload);
   }
