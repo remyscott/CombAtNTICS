@@ -18,8 +18,8 @@ function createColumn(start, end, step, x, objectType, scale, type = 'static') {
   }));
 }
 
-export const maps = {
-  map1: {
+export const maps = [
+  {
     planckConfig: { gravity: { x: 0, y: 0.1} },
     objects: [
       ...createRow(-10, 10, 2, 5, 'lockbox', 2),
@@ -29,12 +29,11 @@ export const maps = {
       ...createColumn(-10,0,2, 0, 'box', 1),
       ...createColumn(-10,0,1, 5, 'box', 0.5),
       ...createColumn(-10,0,0.5, -5, 'box', 0.25),
-      ...createColumn(-10,0,2.5, 7, 'box', 2),
 
     ]
   },
 
-  map2: {
+  {
     planckConfig: { gravity: { x: 0, y: 10} },
     objects: [
       ...createRow(-10, 0, 2, 5, 'lockbox', 2),
@@ -54,4 +53,4 @@ export const maps = {
       {objectType: 'box', scale: 6, position: {x: 30, y: -10}},
     ]
   }
-};
+];

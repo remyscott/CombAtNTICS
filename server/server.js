@@ -21,7 +21,7 @@ const wss = new WebSocketServer({ noServer: true });
 
 const games = new Map();
 
-function getOrCreateGame(gameId, map = maps.map2) {
+function getOrCreateGame(gameId, map = maps[Math.floor(Math.random()*maps.length)]) {
   if (!games.has(gameId)) {
     const newGame = new Game(map);
     games.set(gameId, newGame);
