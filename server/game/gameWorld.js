@@ -4,9 +4,12 @@ export class GameWorld extends World {
   constructor(map) {
     super(map.planckConfig);
     this._id = 0;
+    this._fId = 0;
+    this._fmId = 128;
     this.idToBody = new Map();
     this.ttlBodies = new Map();
-    this.objectMetadata = {};
+    this.metadata = {bodies: {}, fixtures: {}};
+    this._fixtureMetaCache = new Map();
     this.loadMapObjects(map.objects);
   }
 
@@ -18,9 +21,21 @@ export class GameWorld extends World {
     } 
   }
 
-  newId() {
+  newBodyId() {
     return this._id++;
   }
+
+  newFxId() {
+    return this._fId++;
+  }
+
+  newFxMetaId() {
+    while (this._fmId in this.metadata.fixtures) {
+      this._fmId++;
+    }
+    return this._fmId++;
+  }
+
 
   addNewObject(config) {
     const body = this.createBodyForType[config.objectType].call(this, config);
@@ -39,7 +54,7 @@ export class GameWorld extends World {
       density: 0.25,
       friction: .5,
       restitution: .2,
-      userData: {id: body.getUserData().id, type: config.objectType, scale: config.scale || 1}
+      userData: {id: this.newFxId(), type: config.objectType, scale: config.scale || 1}
     });
 
     return(body);
@@ -57,7 +72,7 @@ export class GameWorld extends World {
       density: 1,
       friction: .5,
       restitution: .9,
-      userData: {id: body.getUserData().id, type: config.objectType, scale: config.scale || 1}
+      userData: {id: this.newFxId(), type: config.objectType, scale: config.scale || 1}
     });
 
     return(body);
@@ -74,39 +89,44 @@ export class GameWorld extends World {
       shape: new Box(0.5*config.scale, 0.5*config.scale),
       friction: .5,
       restitution: .2,
-      userData: {id: body.getUserData().id, type: config.objectType, scale: config.scale || 1}
+      userData: {id: this.newFxId(), type: config.objectType, scale: config.scale || 1}
     });
     
     return(body);
   }
 
   createBody(def) {
-    const body = super.createBody({...def, userData: {...def.userData, id: this.newId(), fixtures: []}});
+    const body = super.createBody({...def, userData: {...def.userData, id: this.newBodyId(), fixtures: []}});
     this.registerBody(body);
     return body;
   }
 
   registerBody(body) {
     const bodyMetadata = body.getUserData();
-    if (bodyMetadata.owner) {
-      const {owner, ...withoutOwner} = bodyMetadata;
-      this.objectMetadata[bodyMetadata.id] = withoutOwner;
-    } else {
-      this.objectMetadata[bodyMetadata.id] = bodyMetadata;
+
+    // Produce the stored metadata (remove owner if necessary)
+    const storedMeta = bodyMetadata.owner
+      ? (() => { const { owner, ...withoutOwner } = bodyMetadata; return withoutOwner; })()
+      : bodyMetadata;
+
+    // Ensure fixtures array exists so pushes won't fail
+    if (!Array.isArray(storedMeta.fixtures)) storedMeta.fixtures = [];
+
+    // Save to canonical store
+    this.metadata.bodies[bodyMetadata.id] = storedMeta;
+
+    // Iterate fixtures on the body and create/reuse fixture meta ids
+    let fixture = body.getFixtureList();
+    while (fixture) {
+      const fixtureMetadata = fixture.getUserData() || {};
+      const metaId = this._findOrCreateFixtureMeta(fixtureMetadata);
+
+      // Keep instance-level fixture info within body metadata (if needed)
+      this.metadata.bodies[bodyMetadata.id].fixtures.push({ metaId, ...fixtureMetadata });
+
+      fixture = fixture.getNext();
     }
 
-    const fixtures = body.getFixtureList();
-    if (fixtures) {
-      if (!(fixtures.length)) {
-        const fixtureMetadata = fixtures.getUserData();
-        this.objectMetadata[bodyMetadata.id].fixtures.push(fixtureMetadata);
-      }
-      else for (const fixture of fixtures) {
-        const fixtureMetadata = fixture.getUserData();
-        this.objectMetadata[bodyMetadata.id].fixtures.push(fixtureMetadata);
-      }
-    }
-    
     this.idToBody.set(bodyMetadata.id, body);
     if (bodyMetadata.ttl) {
       this.ttlBodies.set(bodyMetadata.id, body);
@@ -126,7 +146,6 @@ export class GameWorld extends World {
     super.destroyBody(body);
     this.idToBody.delete(id);
     this.ttlBodies.delete(id);
-    delete this.objectMetadata[id];
   }
 
   step(config) {
@@ -142,5 +161,62 @@ export class GameWorld extends World {
       }
     }
   }
+
+  _buildFixtureIdentity(fixtureMetadata) {
+    if (!fixtureMetadata || typeof fixtureMetadata !== 'object') return {};
+
+    // Example: only these keys form identity. Add/remove as needed.
+    const identity = {
+      type: fixtureMetadata.type,
+      scale: fixtureMetadata.scale,
+      name: fixtureMetadata.name,
+    };
+
+    // Remove undefined keys for a cleaner canonical representation
+    for (const k of Object.keys(identity)) {
+      if (identity[k] === undefined) delete identity[k];
+    }
+
+    return identity;
+  }
+
+  // Deterministic canonicalizer for plain serializable objects
+  _canonicalizeObject(obj) {
+    if (obj === null || typeof obj !== 'object') return JSON.stringify(obj);
+    if (Array.isArray(obj)) {
+      return '[' + obj.map(v => this._canonicalizeObject(v)).join(',') + ']';
+    }
+    const keys = Object.keys(obj).sort();
+    const parts = keys.map(k => JSON.stringify(k) + ':' + this._canonicalizeObject(obj[k]));
+    return '{' + parts.join(',') + '}';
+  }
+
+  // Use a cache map to avoid scanning whole fixtures object repeatedly
+  // Create this in constructor: this._fixtureMetaCache = new Map();
+  _findOrCreateFixtureMeta(fixtureMetadata) {
+    // Build the identity (memento) from supplied fixture metadata
+    const identity = this._buildFixtureIdentity(fixtureMetadata);
+
+    // Create canonical key
+    const key = this._canonicalizeObject(identity);
+
+    // Fast-path: cached lookup
+    if (!this._fixtureMetaCache) this._fixtureMetaCache = new Map();
+    const cached = this._fixtureMetaCache.get(key);
+    if (cached != null) return cached;
+
+    // Create new meta id
+    const newMetaId = this.newFxMetaId();
+
+    const storedMeta = Object.assign({}, identity, {
+    });
+
+    this.metadata.fixtures[newMetaId] = storedMeta;
+
+    this._fixtureMetaCache.set(key, newMetaId);
+
+    return newMetaId;
+  }
+
 }
 

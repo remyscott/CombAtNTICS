@@ -4,7 +4,7 @@ const inputInterval = 1000/60;
 export class Client{
   constructor(game) {
     this.game = game;
-    this.game.metadata = {};
+    this.game.metadata = {bodies: {}, fixtures: {}};
     this.game.client = this;
 
     this.history = []; //time -> [id -> {state, id}]
@@ -267,9 +267,18 @@ export class Client{
   }
 
   handleSnapshot(msg) {
-    for (newMetadata of Object.values(msg.newMetadata || {})) {
-      this.game.metadata[newMetadata.id] = newMetadata;
+    if (msg.newMetadata) {
+      this.game.metadata.bodies = {
+        ...this.game.metadata.bodies,
+        ...msg.newMetadata.bodies
+      };
+
+      this.game.metadata.fixtures = {
+        ...this.game.metadata.fixtures,
+        ...msg.newMetadata.fixtures
+      };
     }
+  
     this.insertStateIntoHistory({state: msg.state, time: msg.time});
   }
 
@@ -278,7 +287,10 @@ export class Client{
   }
 
   handleMetadataResponse(msg) {
-    this.game.metadata = msg.metadata || {};
+    if (msg.metadata) {
+      Object.assign(this.game.metadata.bodies, msg.metadata.bodies);
+      Object.assign(this.game.metadata.fixtures, msg.metadata.fixtures);
+    }
   }
 
   findIdxBinarySearch(sortedArr, val, comparator) {

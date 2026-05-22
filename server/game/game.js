@@ -10,10 +10,10 @@ export class Game {
     this.chatFilter = new Filter();
     this._id = 0;
     this.idToBody = new Map();
+    this._lastFrameMeta = {bodies: {}, fixtures: {}};
 
     this.players = new Map();
     this._tickTimeout = null;
-    this.lastTickMetadata = {};
 
     this.startTickLoop();
     this.startTickRateTracker();
@@ -72,11 +72,10 @@ export class Game {
 
   broadcastSnapshot() {
     const overallState = {};
-    const newMetadata = {};
-
+    const newMeta = {bodies: {}, fixtures: {}}
     for (const id of this.world.idToBody.keys()) {
       const b = this.world.getBody(id);
-      const meta = this.world.objectMetadata[id];
+      
       if (!b) {
         console.warn('⚠️ Body not found for ID:', id);
         continue;
@@ -84,14 +83,14 @@ export class Game {
       else {
         const state = this.getSnapshotOf(b);
         overallState[id] = state;
-        if (!this.lastTickMetadata[id]) {
-          newMetadata[id] = meta;
+        if (!(id in this._lastFrameMeta.bodies)) {
+          newMeta.bodies[id] = this.world.metadata.bodies[id];
         }
       }
     }
-    
-    this.lastTickMetadata = structuredClone(this.world.objectMetadata);
-    this.broadcast({ type: 'snapshot', state: overallState, metadata: newMetadata, time: Date.now() });
+
+    this.broadcast({ type: 'snapshot', state: overallState, newMetadata: newMeta, time: Date.now() });
+    this._lastFrameMeta = structuredClone(this.world.metadata);
   }
 
   getSnapshotOf(b) {
@@ -120,7 +119,6 @@ export class Game {
 
     console.log(`🛑 Game ${this.MAP_IMAGE} stopped.`);
 
-    //clear internal references to help GC
     this.players = null;
   }
 
