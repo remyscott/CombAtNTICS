@@ -43,9 +43,8 @@ export class Client{
     const auth = await wsClient.waitForAuth(1500);
     if (!auth.ok) {
       console.warn('Not authenticated (or auth timed out). Redirect to login.');
-      // Option: redirect to login page if auth required
-      // window.location.href = '/login.html';
-      // return;
+      window.location.href = '/login.html';
+      return;
     } else {
       console.log('Authenticated via session token:', auth.msg?.account?.email);
     }

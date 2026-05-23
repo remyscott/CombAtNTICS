@@ -7,6 +7,15 @@ class WSClient {
     this.listeners = new Map();
     this.sessionToken = localStorage.getItem('sessionToken') || null;
     this.account = null;
+    // If an account JSON is stored, keep in-memory in sync on startup
+    try {
+      const saved = localStorage.getItem('account');
+      if (saved) this.account = JSON.parse(saved);
+    } catch (e) {
+      // ignore parse errors
+      localStorage.removeItem('account');
+      this.account = null;
+    }
     this._connectPromise = null;
   }
 
@@ -80,11 +89,22 @@ class WSClient {
   }
 
   getToken() { return this.sessionToken; }
-  getAccount() { return this.account; }
+  getAccount() {
+    if (this.account) return this.account;
+    try {
+      const saved = localStorage.getItem('account');
+      if (saved) {
+        this.account = JSON.parse(saved);
+        return this.account;
+      }
+    } catch (e) {
+      localStorage.removeItem('account');
+    }
+    return null;
+  }
 
   // --- high-level operations ---
 
-  // Sign in over WS: resolves {ok:true, account, sessionToken} or {ok:false, reason}
   async signin(email, password) {
     await this.connect();
     return new Promise((resolve) => {
@@ -105,7 +125,6 @@ class WSClient {
     });
   }
 
-  // Sign up over WS: resolves {ok:true, account, sessionToken} or {ok:false, reason}
   async signup(email, password, displayName) {
     await this.connect();
     return new Promise((resolve) => {
@@ -126,8 +145,6 @@ class WSClient {
     });
   }
 
-  // Join a game by id. Optionally pass a name override (server may prefer account displayName).
-  // Resolves {ok:true, gameId, clientId} or {ok:false, reason}
   async join(gameId, name) {
     await this.connect();
     return new Promise((resolve) => {
@@ -156,32 +173,36 @@ class WSClient {
   }
 
   logout() {
-    if (this.sessionToken) { 
+    if (this.sessionToken) {
       this.send({ type: 'logout', token: this.sessionToken });
       this.sessionToken = null;
       localStorage.removeItem('sessionToken');
       this.account = null;
+      localStorage.removeItem('account');
     }
   }
 
   // internal: store account & token when auth.ok arrives
   _autoStoreAuth(msg) {
     if (!msg) return;
-    if (msg.account) this.account = msg.account;
+    if (msg.account) {
+      this.account = msg.account;
+      try { localStorage.setItem('account', JSON.stringify(msg.account)); } catch (e) { /* ignore */ }
+    }
     if (msg.sessionToken) {
       this.sessionToken = msg.sessionToken;
       localStorage.setItem('sessionToken', msg.sessionToken);
     }
   }
 
-  // Optional: when server sends auth.ok, capture account & token locally
   _initAutoAccountTracking() {
-    // keep internal state in sync if server sends auth.ok at any time
     this.on('auth.ok', (msg) => this._autoStoreAuth(msg));
     this.on('auth.fail', (msg) => {
       if (msg && msg.reason === 'invalid_or_expired') {
         this.sessionToken = null;
         localStorage.removeItem('sessionToken');
+        this.account = null;
+        localStorage.removeItem('account');
       }
     });
   }

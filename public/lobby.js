@@ -87,12 +87,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (msg && msg.reason === 'invalid_or_expired') {
         localStorage.removeItem('sessionToken');
       }
+      window.location.href = '/login.html';
+
     });
     wsClient.on('joinAck', (m) => { log('joinAck', m); });
   } catch (e) {
     setStatus('Connection failed', 'bad');
     log('WS connect error', e);
   }
+
+  // Save name to server (explicit button). This sends updateDisplayName via WS.
+  saveNameBtn?.addEventListener('click', async () => {
+    const name = sanitizeName(nameInput.value || '');
+    if (!name) { alert('Enter a name'); return; }
+    localStorage.setItem('playerName', name);
+    try {
+      await wsClient.connect();
+      wsClient.send({ type: 'updateDisplayName', displayName: name });
+      setStatus('Saved name (sent to server)', 'good');
+      log('Sent updateDisplayName', name);
+    } catch (e) {
+      setStatus('Failed to save name', 'bad');
+      log('updateDisplayName error', e);
+    }
+  });
 
   refreshGames();
   setInterval(refreshGames, 5000);

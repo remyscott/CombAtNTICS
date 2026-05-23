@@ -113,9 +113,6 @@ export class Game {
         clearInterval(this._tickRateInterval);
         this._tickRateInterval = null;
     }
-
-    console.log(`🛑 Game ${this.MAP_IMAGE} stopped.`);
-
     this.players = null;
   }
 

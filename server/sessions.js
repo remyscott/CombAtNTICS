@@ -14,15 +14,27 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS idx_sessions_account_email ON sessions(account_email);
 `);
 
+// Transaction wrapper for atomic delete+insert
+const createSessionTxn = db.transaction((accountEmail, token, now, expires) => {
+  // remove existing sessions for this email
+  db.prepare(`DELETE FROM sessions WHERE account_email = ?`).run(accountEmail);
+  // insert the new session
+  db.prepare(`INSERT INTO sessions (token, account_email, created_at, expires_at) VALUES (?, ?, ?, ?)`)
+    .run(token, accountEmail, now, expires);
+});
+
 /**
- * Create a new session row and return { token, accountEmail, createdAt, expiresAt }
+ * Create a new session row and return { token, accountEmail, createdAt, expiresAt }.
+ * This invalidates (deletes) any existing sessions for the same accountEmail first.
  */
 export function createSession(accountEmail) {
   const token = crypto.randomBytes(32).toString('hex');
   const now = Date.now();
   const expires = now + SESSION_TTL_MS;
-  const stmt = db.prepare(`INSERT INTO sessions (token, account_email, created_at, expires_at) VALUES (?, ?, ?, ?)`);
-  stmt.run(token, accountEmail, now, expires);
+
+  // run delete + insert atomically
+  createSessionTxn(accountEmail, token, now, expires);
+
   return { token, accountEmail, createdAt: now, expiresAt: expires };
 }
 
