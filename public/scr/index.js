@@ -13,5 +13,7 @@ const config = {
   scene: [ IngameWorld, UI ]
 };
 
+const ws = new WebSocket(`${location.origin.replace(/^http/, "ws")}/`);
+
 let phaserGame = new Phaser.Game(config);
-let client = new Client(phaserGame);
+phaserGame.ws = ws;

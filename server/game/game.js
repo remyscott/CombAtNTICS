@@ -36,15 +36,10 @@ export class Game {
     this.broadcast(payload);
   }
 
-  addPlayer(clientId, name, socket) {
-    const existingNames = new Set([...this.players.values()].map(p => p.name));
-    while (existingNames.has(name)) {
-        name = name + '.' + String(Math.floor(Math.random()*1000));
-    }
-    
-    const newPlayer = new Player(socket, name, clientId, this);
+  addPlayer(ws) {
+    const newPlayer = new Player(ws, this);
 
-    this.players.set(clientId, newPlayer);
+    this.players.set(ws.clientId, newPlayer);
   
     newPlayer.sendInit();
   }

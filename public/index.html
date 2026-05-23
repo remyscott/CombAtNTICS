@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>WS Auth Test UI</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; margin: 16px; }
+    h1 { margin: 0 0 12px; }
+    .panel { border: 1px solid #ddd; padding: 12px; border-radius: 6px; margin-bottom: 12px; }
+    label { display:block; margin:6px 0 2px; font-size:0.9rem; }
+    input[type="text"], input[type="password"] { width: 100%; padding:8px; box-sizing:border-box; }
+    .row { display:flex; gap:8px; align-items:center; }
+    button { padding:8px 12px; }
+    #log { height: 240px; overflow:auto; background:#111; color:#eee; padding:8px; font-family:monospace; font-size:12px; border-radius:4px; }
+    .status { font-size:0.9rem; margin-top:6px; }
+    .good { color: green; }
+    .bad { color: red; }
+    .muted { color: #666; font-size:0.85rem; }
+  </style>
+</head>
+<body>
+  <h1>WebSocket Session Test</h1>
+
+  <div class="panel" id="connectionPanel">
+    <strong>Connection</strong>
+    <div class="row" style="margin-top:8px;">
+      <span id="wsStatus" class="muted">Connecting...</span>
+      <button id="btnReconnect">Reconnect</button>
+      <button id="btnClose">Close WS</button>
+      <button id="btnClearToken">Clear Local Token</button>
+    </div>
+    <div class="status muted">Session token stored: <span id="tokenDisplay">none</span></div>
+  </div>
+
+  <div class="panel" id="authPanel">
+    <strong>Signup / Signin (over WebSocket)</strong>
+
+    <label>Email</label>
+    <input id="email" type="text" placeholder="user@example.com" />
+
+    <label>Password</label>
+    <input id="password" type="password" placeholder="password" />
+
+    <label>Display name (optional for signup)</label>
+    <input id="displayName" type="text" placeholder="PlayerName" />
+
+    <div class="row" style="margin-top:8px;">
+      <button id="btnSignup">Sign Up (WS)</button>
+      <button id="btnSignin">Sign In (WS)</button>
+      <button id="btnLogout">Logout (WS)</button>
+    </div>
+
+    <div class="status" id="authStatus"></div>
+  </div>
+
+  <div class="panel" id="lobbyPanel">
+    <strong>Lobby / Game</strong>
+    <label>Game ID (e.g. game123)</label>
+    <input id="gameId" type="text" placeholder="game123" />
+    <div class="row" style="margin-top:8px;">
+      <button id="btnJoin">Join Game</button>
+      <button id="btnLeave">Leave Game</button>
+    </div>
+    <div class="status" id="lobbyStatus"></div>
+  </div>
+
+  <div class="panel">
+    <strong>Account / Debug</strong>
+    <div class="muted">Account info from server (if authenticated):</div>
+    <pre id="accountInfo">none</pre>
+    <div class="muted">Raw server messages & log:</div>
+    <div id="log"></div>
+    <div style="margin-top:8px;">
+      <button id="btnClearLog">Clear Log</button>
+    </div>
+  </div>
+
+<script>
+(function () {
+  // Settings
+  const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrlBase = `${wsProtocol}//${location.host}/`;
+  let ws = null;
+  let clientId = null;
+  let account = null;
+  let sessionToken = localStorage.getItem('sessionToken') || null;
+
+  // Elements
+  const wsStatus = document.getElementById('wsStatus');
+  const tokenDisplay = document.getElementById('tokenDisplay');
+  const btnReconnect = document.getElementById('btnReconnect');
+  const btnClose = document.getElementById('btnClose');
+  const btnClearToken = document.getElementById('btnClearToken');
+
+  const emailInput = document.getElementById('email');
+  const passwordInput = document.getElementById('password');
+  const displayNameInput = document.getElementById('displayName');
+  const authStatus = document.getElementById('authStatus');
+  const accountInfo = document.getElementById('accountInfo');
+
+  const btnSignup = document.getElementById('btnSignup');
+  const btnSignin = document.getElementById('btnSignin');
+  const btnLogout = document.getElementById('btnLogout');
+
+  const gameIdInput = document.getElementById('gameId');
+  const btnJoin = document.getElementById('btnJoin');
+  const btnLeave = document.getElementById('btnLeave');
+  const lobbyStatus = document.getElementById('lobbyStatus');
+
+  const logEl = document.getElementById('log');
+  const btnClearLog = document.getElementById('btnClearLog');
+
+  function log(...args) {
+    const line = args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+    const time = new Date().toLocaleTimeString();
+    logEl.textContent = `[${time}] ${line}\n` + logEl.textContent;
+  }
+  btnClearLog.addEventListener('click', () => logEl.textContent = '');
+
+  function setWsStatus(text, cls) {
+    wsStatus.textContent = text;
+    wsStatus.className = cls ? cls : 'muted';
+  }
+
+  function setAuthStatus(text, ok) {
+    authStatus.textContent = text;
+    authStatus.className = ok ? 'good' : 'bad';
+  }
+
+  function updateTokenDisplay() {
+    tokenDisplay.textContent = sessionToken ? sessionToken.slice(0,8) + '…' : 'none';
+  }
+
+  function updateAccountDisplay() {
+    accountInfo.textContent = account ? JSON.stringify(account, null, 2) : 'none';
+  }
+
+  function openWs() {
+    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+    // include session token in query if present (optional): we use explicit auth message approach
+    ws = new WebSocket(wsUrlBase);
+    setWsStatus('connecting...');
+    log('Opening WS to', wsUrlBase);
+
+    ws.addEventListener('open', () => {
+      setWsStatus('open', 'good');
+      log('WS open');
+      // send auth if token exists
+      if (sessionToken) {
+        ws.send(JSON.stringify({ type: 'auth', token: sessionToken }));
+        log('Sent auth token for validation');
+      }
+    });
+
+    ws.addEventListener('message', (ev) => {
+      let msg;
+      try { msg = JSON.parse(ev.data); } catch (e) {
+        log('Bad JSON from server:', ev.data);
+        return;
+      }
+      log('RECV', msg);
+      handleServerMessage(msg);
+    });
+
+    ws.addEventListener('close', () => {
+      setWsStatus('closed', 'bad');
+      log('WS closed');
+      // leave game state handled by server; client clears joined info locally as needed
+    });
+
+    ws.addEventListener('error', (err) => {
+      setWsStatus('error', 'bad');
+      log('WS error', err);
+    });
+  }
+
+  function closeWs() {
+    if (!ws) return;
+    try { ws.close(); } catch (e) {}
+    ws = null;
+  }
+
+  function handleServerMessage(msg) {
+    switch (msg.type) {
+      case 'client.id':
+        clientId = msg.clientId;
+        log('Assigned clientId', clientId);
+        break;
+
+      case 'auth.ok':
+        account = msg.account;
+        sessionToken = msg.sessionToken || sessionToken;
+        localStorage.setItem('sessionToken', sessionToken);
+        updateTokenDisplay();
+        updateAccountDisplay();
+        setAuthStatus('Authenticated: ' + (account.displayName || account.email), true);
+        break;
+
+      case 'auth.fail':
+        setAuthStatus('Auth failed: ' + (msg.reason || ''), false);
+        // clear stored token if invalid
+        if (msg.reason === 'invalid_or_expired') {
+          sessionToken = null;
+          localStorage.removeItem('sessionToken');
+          updateTokenDisplay();
+        }
+        break;
+
+      case 'signup.fail':
+      case 'signin.fail':
+        setAuthStatus('Auth failed: ' + (msg.reason || ''), false);
+        break;
+
+      case 'joinAck':
+        lobbyStatus.textContent = `Joined ${msg.gameId} (clientId=${msg.clientId})`;
+        lobbyStatus.className = 'good';
+        break;
+
+      case 'leaveAck':
+        lobbyStatus.textContent = `Left game`;
+        lobbyStatus.className = '';
+        break;
+
+      case 'error':
+        log('Server error:', msg.message);
+        break;
+
+      default:
+        // game messages or other messages
+        log('Server message:', msg);
+        break;
+    }
+  }
+
+  // Buttons
+  btnReconnect.addEventListener('click', () => { openWs(); });
+  btnClose.addEventListener('click', () => { closeWs(); setWsStatus('closed', 'bad'); });
+  btnClearToken.addEventListener('click', () => { sessionToken = null; localStorage.removeItem('sessionToken'); updateTokenDisplay(); setAuthStatus('cleared token', false); });
+
+  btnSignup.addEventListener('click', () => {
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+    const displayName = displayNameInput.value.trim() || undefined;
+    if (!email || !password) { setAuthStatus('email & password required', false); return; }
+    if (!ws || ws.readyState !== WebSocket.OPEN) { setAuthStatus('WS not open', false); return; }
+    ws.send(JSON.stringify({ type: 'signup', email, password, displayName }));
+    setAuthStatus('Signing up...', false);
+  });
+
+  btnSignin.addEventListener('click', () => {
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+    if (!email || !password) { setAuthStatus('email & password required', false); return; }
+    if (!ws || ws.readyState !== WebSocket.OPEN) { setAuthStatus('WS not open', false); return; }
+    ws.send(JSON.stringify({ type: 'signin', email, password }));
+    setAuthStatus('Signing in...', false);
+  });
+
+  btnLogout.addEventListener('click', () => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) { setAuthStatus('WS not open', false); return; }
+    ws.send(JSON.stringify({ type: 'logout', token: sessionToken }));
+    sessionToken = null;
+    localStorage.removeItem('sessionToken');
+    updateTokenDisplay();
+    account = null;
+    updateAccountDisplay();
+    setAuthStatus('Logged out', false);
+  });
+
+  btnJoin.addEventListener('click', () => {
+    const gameId = (gameIdInput.value || '').trim();
+    if (!gameId) { lobbyStatus.textContent = 'Enter game id'; return; }
+    if (!ws || ws.readyState !== WebSocket.OPEN) { lobbyStatus.textContent = 'WS not open'; return; }
+    ws.send(JSON.stringify({ type: 'join', gameId }));
+    lobbyStatus.textContent = 'Joining...';
+  });
+
+  btnLeave.addEventListener('click', () => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) { lobbyStatus.textContent = 'WS not open'; return; }
+    ws.send(JSON.stringify({ type: 'leave' }));
+    lobbyStatus.textContent = 'Leaving...';
+  });
+
+  // init
+  updateTokenDisplay();
+  updateAccountDisplay();
+  openWs();
+})();
+</script>
+</body>
+</html>

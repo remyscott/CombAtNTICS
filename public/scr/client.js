@@ -49,13 +49,7 @@ export class Client{
   }
 
   setupWebSocket() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const gameId = urlParams.get('game');
-    const playerName = urlParams.get('name') || localStorage.getItem('playerName') || 'Unnamed';
-
-    this.ws = new WebSocket(
-      `${location.origin.replace(/^http/, "ws")}/?game=${encodeURIComponent(gameId)}&name=${encodeURIComponent(playerName)}`
-    );
+    this.ws = new WebSocket(`${location.origin.replace(/^http/, "ws")}/`);
   }
 
   startTimeSync({count = 25, interval = 1, timeout = 1000 } = {}) {

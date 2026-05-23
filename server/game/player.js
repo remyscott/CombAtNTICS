@@ -6,10 +6,11 @@ import { BlockLauncher } from "./components/BlockLauncher.js";
 import { BlockShotgun } from "./components/blockShotgun.js";
 import { BlockUltraShotgun } from "./components/BlockUltraShotgun.js";
 import { BlockUltraUltraShotgun } from "./components/BlockUltraUltraShotgun.js";
+import { configurableInputs } from "../../shared/inputsListing.js";
 
 export class Player {
-  constructor(ws, name, clientId, game, components = [HoverSphere]) {
-    if (Math.random()>0.4) {
+  constructor(ws, game, components = [HoverSphere]) {
+    if (Math.random()>0.6) {
       components.push(Sword);
     }
     else {
@@ -28,11 +29,10 @@ export class Player {
       }
     }
     this.ws = ws;
-    this.name = name;
-    this.clientId = clientId;
+    this.name = ws.account.displayName || 'Anonymous Loser'
     this.world = game.world;
     this.game = game;
-    this.inputs = {};
+    this.inputs = {actions: [], default: {}};
     this.ws.on('message', (msg) => tryHandleMessage(msg, this.handleMessage.bind(this)));
     this.setUpComponents(components);
     this.chatBanned = false;
