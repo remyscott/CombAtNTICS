@@ -1,3 +1,6 @@
+import wsClient from '../ws-client.js';
+
+
 const DEFAULT_BUFFER = 100;
 const inputInterval = 1000/60;
 
@@ -33,24 +36,38 @@ export class Client{
     }
   }
 
-  start() {
-    this.setupWebSocket();
-    
-    this.ws.addEventListener('open', () => {
-      console.log('WebSocket opened');
-    });
+  async start() {
+    await wsClient.connect();
+    this.ws = wsClient.ws;
+    // Wait briefly for auth result (auto-auth on connect). If you need to require auth:
+    const auth = await wsClient.waitForAuth(1500);
+    if (!auth.ok) {
+      console.warn('Not authenticated (or auth timed out). Redirect to login.');
+      // Option: redirect to login page if auth required
+      // window.location.href = '/login.html';
+      // return;
+    } else {
+      console.log('Authenticated via session token:', auth.msg?.account?.email);
+    }
 
-    this.ws.addEventListener('close', () => {
-      console.error('Websocket Closed');
-    })
+    // Wire up incoming server messages
+    wsClient.on('__any', (msg) => this.handleMessage(msg));
 
-
-    this.ws.addEventListener('message', (ev) => this.handleMessage(this.parseMessage(ev)));
+    // Optionally, auto-join based on URL query
+    const url = new URL(window.location.href);
+    const gameId = url.searchParams.get('game');
+    const qName = url.searchParams.get('name');
+    if (gameId) {
+      // send join via ws-client
+      const joinRes = await wsClient.join(gameId, qName);
+      if (!joinRes.ok) {
+        console.warn('Join failed', joinRes.reason);
+      } else {
+        console.log('Joined game', gameId);
+      }
+    }
   }
 
-  setupWebSocket() {
-    this.ws = new WebSocket(`${location.origin.replace(/^http/, "ws")}/`);
-  }
 
   startTimeSync({count = 25, interval = 1, timeout = 1000 } = {}) {
     console.log('Calibrating buffer ...');
@@ -215,11 +232,9 @@ export class Client{
     return run();
   }
 
-  sendMessage(msg) {
-    if (this.ws.readyState === this.ws.OPEN) {
-      this.ws.send(JSON.stringify(msg));
-    }
-  }
+  sendMessage(obj) {
+    wsClient.send(obj);
+  };
 
   parseMessage(ev) {
     if (!ev) return null;

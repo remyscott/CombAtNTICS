@@ -45,6 +45,8 @@ export class Game {
   }
 
   removePlayer(clientId) {
+    console.log(`🔴 Player left: clientId=${clientId}`);
+
     this.players.get(clientId).destroy();
     this.players.delete(clientId);
   }

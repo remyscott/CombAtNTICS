@@ -45,7 +45,7 @@ app.get("/games", (req, res) => {
 app.use(express.static("public"));
 app.use('/shared', express.static('shared'));
 app.get("/", (req, res) => {
-  res.sendFile("index.html", { root: "public" });
+  res.sendFile("login.html", { root: "public" });
 });
 
 const upgradeHandler = upgradeAuthHandler(usersObj, wss, { realm: 'Game Demo' });
@@ -60,9 +60,21 @@ wss.on('connection', (ws, req) => {
 
   console.log(`🔌 WS connected (clientId=${clientId})`);
 
+  function assertLoggedIn() {
+    if (!ws.account) { ws.send(JSON.stringify({ type:'error', message:'please sign in' })); return false;} else return true;
+  }
+
   function joinGame(gameId) {
-    if (!ws.account) { ws.send(JSON.stringify({ type:'error', message:'please sign in' })); return;}
-    if (ws.joinedGameId === gameId) return;
+    if (!assertLoggedIn()) return;
+    if (!gameId) {
+      ws.send(JSON.stringify({ type: 'joinAck', ok: false, reason: 'no_gameId' }));
+      return;
+    }
+    if (ws.joinedGameId === gameId) {
+      ws.send(JSON.stringify({ type: 'joinAck', ok: true, gameId, clientId }));
+      return; // already in game
+    }
+
     if (ws.joinedGameId) {
       const prev = games.get(ws.joinedGameId);
       if (prev) prev.removePlayer(clientId);
@@ -70,12 +82,14 @@ wss.on('connection', (ws, req) => {
     }
 
     const game = getOrCreateGame(gameId);
-
+    ws.account = ws.account;
     game.addPlayer(ws);
 
     ws.joinedGameId = gameId;
 
-    console.log(`🟢 Player joined: (email=${ws.account.email}clientId=${clientId}) -> ${gameId}`);
+    ws.send(JSON.stringify({ type: 'joinAck', ok: true, gameId, clientId }));
+
+    console.log(`🟢 Player joined: ${ws.displayName} (clientId=${clientId}) -> ${gameId}`);
   }
 
   function leaveGame() {
@@ -83,7 +97,6 @@ wss.on('connection', (ws, req) => {
     const game = games.get(ws.joinedGameId);
     if (game) {
       game.removePlayer(clientId);
-      console.log(`🔴 Player left: clientId=${clientId} -> ${ws.joinedGameId}`);
       if (game.players.size === 0) {
         game.stop();
         games.delete(ws.joinedGameId);
@@ -161,6 +174,12 @@ wss.on('connection', (ws, req) => {
         ws.account = null;
         ws.sessionToken = null;
         ws.send(JSON.stringify({ type:'logout.ok' }));
+        break;
+      }
+
+      case 'updateDisplayName': {
+        if (!assertLoggedIn()) return;
+        accounts.updateDisplayName(ws.account.email, msg.displayName);
         break;
       }
 
