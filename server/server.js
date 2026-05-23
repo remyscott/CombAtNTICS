@@ -61,8 +61,8 @@ wss.on('connection', (ws, req) => {
   console.log(`🔌 WS connected (clientId=${clientId})`);
 
   function joinGame(gameId) {
-    if (ws.joinedGameId === gameId) return; // already in game
-
+    if (!ws.account) { ws.send(JSON.stringify({ type:'error', message:'please sign in' })); return;}
+    if (ws.joinedGameId === gameId) return;
     if (ws.joinedGameId) {
       const prev = games.get(ws.joinedGameId);
       if (prev) prev.removePlayer(clientId);
@@ -75,7 +75,7 @@ wss.on('connection', (ws, req) => {
 
     ws.joinedGameId = gameId;
 
-    console.log(`🟢 Player joined: ${playerName} (clientId=${clientId}) -> ${gameId}`);
+    console.log(`🟢 Player joined: (email=${ws.account.email}clientId=${clientId}) -> ${gameId}`);
   }
 
   function leaveGame() {
@@ -165,7 +165,6 @@ wss.on('connection', (ws, req) => {
       }
 
       case 'join': {
-        if (!ws.account) { ws.send(JSON.stringify({ type:'error', message:'please sign in' })); break; }
         await joinGame(msg.gameId);
         break;
       }

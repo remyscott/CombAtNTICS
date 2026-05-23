@@ -29,7 +29,7 @@ export class Player {
       }
     }
     this.ws = ws;
-    this.name = ws.account.displayName || 'Anonymous Loser'
+    this.name = ws.account.displayName || 'Anonymous Loser';
     this.world = game.world;
     this.game = game;
     this.inputs = {actions: [], default: {}};
