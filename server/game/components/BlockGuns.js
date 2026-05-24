@@ -1,30 +1,13 @@
-// blockLauncherMulti.js
-import { Box, Vec2, RevoluteJoint } from "planck";
+// src/weapons.js
+import { Box, Vec2, Circle, RevoluteJoint } from 'planck';
 import { configurableInputs } from "../../../shared/inputsListing.js";
 
 const { FIRE_GUN } = configurableInputs;
 
-export class BlockUltraShotgun {
+// Generic base weapon class
+export class BlockShotgunBase {
   constructor(player, opts = {}) {
-    const o = Object.assign({
-      barrelLength: 2,
-      launchForce: 2,           // impulse magnitude applied to each projectile
-      cooldown: 120,             // frames between shots
-      motorMaxTorque: 20000000,
-      motorMaxSpeed: 500,       // rad/s
-      kp: 18,                   // P gain for aiming motor
-      kd: 0.4,                  // D gain (damping)
-      projectileSize: 0.25,
-      projectileDensity: 1,
-      radius: 0.5,
-
-      // Multi-shot-specific
-      multiShotCount: 32,            // number of projectiles per shot
-      multiShotSpread: Math.PI / 8, // total spread angle (radians)
-      multiShotRandomness: 0.15,    // fraction of spread for jitter (0..1)
-      projectileTTL: 5.0            // seconds to live (userData.ttl)
-    }, opts);
-
+    const o = opts;
     this.opts = o;
     this.player = player;
     this.world = player.world;
@@ -39,11 +22,11 @@ export class BlockUltraShotgun {
     });
 
     this.body.createFixture({
-      shape: Box(o.barrelLength / 2, 0.12),
+      shape: Box(o.barrelLength / 2, o.radius),
       density: o.projectileDensity,
-      friction: 0.5,
+      friction: 0.2,
       restitution: 0.1,
-      userData: { id: this.body.getUserData().id, type: "blockUltraShotgun", scale: o.radius * 2 }
+      userData: { id: this.body.getUserData().id, type: o.objectType}
     });
 
     // revolute joint (motor)
@@ -210,3 +193,144 @@ export class BlockUltraShotgun {
     this.body = null;
   }
 }
+
+// Thin wrappers with different defaults
+export class BlockGunBasic extends BlockShotgunBase {
+  constructor(player, opts = {}) {
+    super(player, Object.assign({
+      barrelLength: 1,
+      launchForce: 2,
+      cooldown: 20,
+      motorMaxTorque: 20000000,
+      motorMaxSpeed: 500,
+      kp: 18,
+      kd: 0.4,
+      projectileSize: 0.25,
+      projectileDensity: 1,
+      radius: 0.2,
+      multiShotCount: 1,
+      multiShotSpread: 0,
+      multiShotRandomness: 0,
+      projectileTTL: 5.0,
+      objectType: 'blockGun'
+    }, opts));
+  }
+}
+
+export class BlockShotgun extends BlockShotgunBase {
+  constructor(player, opts = {}) {
+    super(player, Object.assign({
+      barrelLength: 1,
+      launchForce: 2,
+      cooldown: 60,
+      motorMaxTorque: 20000000,
+      motorMaxSpeed: 500,
+      kp: 18,
+      kd: 0.4,
+      projectileSize: 0.25,
+      projectileDensity: 1,
+      radius: 0.2,
+      multiShotCount: 8,
+      multiShotSpread: Math.PI / 8,
+      multiShotRandomness: 0.15,
+      projectileTTL: 5.0,
+      objectType: 'blockShotgun'
+    }, opts));
+  }
+}
+
+export class BlockUltraShotgun extends BlockShotgunBase {
+  constructor(player, opts = {}) {
+    super(player, Object.assign({
+      barrelLength: 2,
+      launchForce: 4,
+      cooldown: 60,
+      motorMaxTorque: 20000000,
+      motorMaxSpeed: 500,
+      kp: 18,
+      kd: 0.4,
+      projectileSize: 0.25,
+      projectileDensity: 1,
+      radius: 0.2,
+      multiShotCount: 32,
+      multiShotSpread: Math.PI / 8,
+      multiShotRandomness: 0.15,
+      projectileTTL: 5.0,
+      objectType: 'blockUltraShotgun'
+    }, opts));
+  }
+}
+
+export class BlockUltraUltraShotgun extends BlockShotgunBase {
+  constructor(player, opts = {}) {
+    super(player, Object.assign({
+      barrelLength: 3,
+      launchForce: 4,           // impulse magnitude applied to each projectile
+      cooldown: 60,             // frames between shots
+      motorMaxTorque: 20000000,
+      motorMaxSpeed: 500,       // rad/s
+      kp: 18,                   // P gain for aiming motor
+      kd: 0.4,                  // D gain (damping)
+      projectileSize: 0.25,
+      projectileDensity: 1,
+      radius: 0.2,
+
+      // Multi-shot-specific
+      multiShotCount: 64,            // number of projectiles per shot
+      multiShotSpread: Math.PI / 4, // total spread angle (radians)
+      multiShotRandomness: 0.15,    // fraction of spread for jitter (0..1)
+      projectileTTL: 5.0     ,
+      objectType: 'blockUltraUltraShotgun'
+    }, opts));
+  }
+}
+
+export class BlockShinigun extends BlockShotgunBase {
+  constructor(player, opts = {}) {
+    super(player, Object.assign({
+      barrelLength: 1,
+      launchForce: 1,           // impulse magnitude applied to each projectile
+      cooldown: 10,             // frames between shots
+      motorMaxTorque: 20000000,
+      motorMaxSpeed: 500,       // rad/s
+      kp: 18,                   // P gain for aiming motor
+      kd: 0.4,                  // D gain (damping)
+      projectileSize: 0.25,
+      projectileDensity: 0.5,
+      radius: 0.5,
+
+      // Multi-shot-specific
+      multiShotCount: 8,            // number of projectiles per shot
+      multiShotSpread: Math.PI / 8, // total spread angle (radians)
+      multiShotRandomness: 0.15,    // fraction of spread for jitter (0..1)
+      projectileTTL: 0.5  ,
+      objectType: 'blockShinigun'
+    }, opts));
+  }
+}
+
+export class BlockMinigun extends BlockShotgunBase {
+  constructor(player, opts = {}) {
+    super(player, Object.assign({
+      barrelLength: 2,
+      launchForce: 1,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
+      cooldown: 2,          // frames between shots
+      motorMaxTorque: 20000000,
+      motorMaxSpeed: 500,    // rad/s
+      kp: 18,               // P gain
+      kd: 0.4,              // D gain (damping)
+      projectileSize: 0.25,
+      projectileDensity: 0.5,
+      radius: 0.25,
+
+      multiShotCount: 1,            // number of projectiles per shot
+      multiShotSpread: Math.PI / 16, // total spread angle (radians)
+      multiShotRandomness: 0.15,    // fraction of spread for jitter (0..1)
+      projectileTTL: 1,
+      objectType: 'blockMinigun'
+    }, opts));
+  }
+}
+
+
+

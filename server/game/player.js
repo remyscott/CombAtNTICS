@@ -2,31 +2,37 @@ import tryHandleMessage from "../utilities/tryHandleMessage.js";
 import { BouncySphere } from "./components/BouncySphere.js";
 import { HoverSphere } from "./components/HoverSphere.js";
 import { Sword } from "./components/Sword.js";
-import { BlockLauncher } from "./components/BlockLauncher.js";
-import { BlockShotgun } from "./components/blockShotgun.js";
-import { BlockUltraShotgun } from "./components/BlockUltraShotgun.js";
-import { BlockUltraUltraShotgun } from "./components/BlockUltraUltraShotgun.js";
 import { configurableInputs } from "../../shared/inputsListing.js";
 import { Dash } from "./components/Dash.js";
 
+import { BlockGunBasic, BlockMinigun, BlockShinigun, BlockShotgun, BlockUltraShotgun, BlockUltraUltraShotgun } from "./components/BlockGuns.js";
+
 export class Player {
   constructor(ws, game, components = [HoverSphere, Dash]) {
-    if (Math.random()>0.6) {
+    if (Math.random()>0.7) {
       components.push(Sword);
     }
     else {
-      if (Math.random()>0.5) {
-        if (Math.random()>0.8) {
+      if (Math.random()>0.4) {
+        if (Math.random()>0.6) {
           if (Math.random()>0.8) {
-          components.push(BlockUltraUltraShotgun);
+            components.push(BlockUltraUltraShotgun);
+          } else {
+            if (Math.random()>0.5) {
+              components.push(BlockShinigun);
+            } else {
+              components.push(BlockUltraShotgun)
+            }
+          }
         } else {
-          components.push(BlockUltraShotgun)
-        }
-        } else {
-          components.push(BlockShotgun)
+          if (Math.random()>0.5) {
+            components.push(BlockMinigun);
+          } else {
+            components.push(BlockShotgun)
+          }
         }
       } else {
-        components.push(BlockLauncher)
+        components.push(BlockGunBasic)
       }
     }
     this.ws = ws;

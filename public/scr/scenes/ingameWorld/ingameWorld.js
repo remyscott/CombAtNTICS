@@ -9,7 +9,7 @@ export class IngameWorld extends Phaser.Scene {
   }
 
   preload() {
-    const names = ['ball', 'hoversphere', 'redbox','missing','box','circle', 'lockbox', 'boxHat', 'sword', 'blockLauncher', 'blockShotgun', 'blockUltraShotgun', 'blockUltraUltraShotgun'];
+    const names = ['blockShinigun', 'blockMinigun','ball', 'hoversphere', 'redbox','missing','box','circle', 'lockbox', 'boxHat', 'sword', 'blockGun', 'blockShotgun', 'blockUltraShotgun', 'blockUltraUltraShotgun'];
     names.forEach(name => this.load.image(name, `../assets/img/${name}.png`));
     this.images = new Map();
   }
@@ -22,7 +22,7 @@ export class IngameWorld extends Phaser.Scene {
 
   applyState(state) {
     if (state.objects) this.imageManager.applyBodyStates(state.objects);
-  }d
+  }
 
   update() {
     this.applyState(this.game.currentState);

@@ -267,5 +267,23 @@ for (let i = 0.5; i < 5; i++) {
 }
 maps[2].objects.push(...makeCircleArc(5*10+cum, 36, Math.random()*360, 360, { objectType: 'lockbox', scale: 14, cx: 0, cy: 0 }));
 
+maps.push({
+  name: '2',
+  planckConfig: { gravity: { x: 0, y: 0 } },
+  objects: [
+  ...makeCircleArc(100, 36, 0, 360, { objectType: 'lockbox', scale: 15, cx: 0, cy: 0 })  ,
+  ...makeCircleArc(90, 36, 5, 360, { objectType: 'lockbox', scale: 12, cx: 0, cy: 0 })  ]
+});
+
+cum = 0;
+for (let i = 1; i < 7; i++) {
+  maps[3].objects.push(...makeCircleArc(i*10+cum, 4, Math.random()*360, 200, { objectType: 'lockbox', scale: i*7, cx: -15+i*5, cy: 0 }));
+  cum += i*2;
+}
+cum = 0;
+for (let i = 1; i < 7; i++) {
+  maps[3].objects.push(...makeCircleArc(i*10+cum, 4, Math.random()*360, 200, { objectType: 'lockbox', scale: i*7, cx: 15-i*5, cy: 5 }));
+  cum += i*2;
+}
 
 export default maps;

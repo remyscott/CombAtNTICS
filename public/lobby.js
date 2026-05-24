@@ -114,19 +114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const gameId = 'game' + Math.floor(Math.random()*1000);
     setStatus('Creating and joining ' + gameId + '...', 'muted');
     log('Creating game', gameId);
-    try {
-      await wsClient.connect();
-      const res = await wsClient.join(gameId);
-      if (res.ok) {
-        log('Created & joined', res);
-        window.location.href = `game.html?game=${encodeURIComponent(gameId)}`;
-      } else {
-        setStatus('Failed to create/join: ' + (res.reason || 'timeout'), 'bad');
-        log('Create/join failed', res);
-      }
-    } catch (e) {
-      setStatus('Create/join error', 'bad');
-      log('Create/join error', e);
-    }
+    window.location.href = `game.html?game=${encodeURIComponent(gameId)}`;
+
   });
 });

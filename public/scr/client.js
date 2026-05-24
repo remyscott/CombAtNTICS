@@ -40,7 +40,7 @@ export class Client{
     await wsClient.connect();
     this.ws = wsClient.ws;
     // Wait briefly for auth result (auto-auth on connect). If you need to require auth:
-    const auth = await wsClient.waitForAuth(1500);
+    const auth = await wsClient.waitForAuth(500);
     if (!auth.ok) {
       console.warn('Not authenticated (or auth timed out). Redirect to login.');
       window.location.href = '/login.html';
@@ -53,12 +53,15 @@ export class Client{
     this.ws.binaryType = 'arraybuffer';
     this.ws.onmessage = (event) => {
       if (event.data instanceof ArrayBuffer) {
-        const stateObj = this.decodeOverallState(event.data);
-        this.insertStateIntoHistory({ state: stateObj, time: Date.now() }); // or use server timestamp
-      } else {
-        this.handleMessage(this.parseMessage(event.data));
+        this.handleBinarySnapshot(event.data);
+        return;
       }
+      // text messages
+      const parsed = this.parseMessage(event.data);
+      if (!parsed) return;
+      this.handleMessage(parsed);
     };
+
 
     // Optionally, auto-join based on URL query
     const url = new URL(window.location.href);
@@ -287,6 +290,105 @@ export class Client{
     }
   }
 
+  handleBinarySnapshot(buffer) {
+    const dv = new DataView(buffer);
+    let offset = 0;
+
+    // header byte
+    if (dv.byteLength < 1) return;
+    const kind = dv.getUint8(offset); offset += 1; // 0 = full, 1 = partial
+
+    // read 8-byte serverTimeMs
+    if (offset + 8 > dv.byteLength) return;
+    let serverTimeMs;
+    if (typeof dv.getBigUint64 === 'function') {
+      serverTimeMs = Number(dv.getBigUint64(offset, true)); // safe to Number() for ms range
+    } else {
+      // fallback: read two uint32 low/high
+      const low = dv.getUint32(offset, true);
+      const high = dv.getUint32(offset + 4, true);
+      serverTimeMs = (high * 0x100000000) + low; // Number is okay here
+    }
+    offset += 8;
+
+    // read count
+    if (offset + 2 > dv.byteLength) return;
+    const N = dv.getUint16(offset, true); offset += 2;
+
+    const parsed = {};
+    for (let i = 0; i < N; i++) {
+      if (offset + 16 > dv.byteLength) break;
+      const id = dv.getUint32(offset, true); offset += 4;
+      const x = dv.getFloat32(offset, true); offset += 4;
+      const y = dv.getFloat32(offset, true); offset += 4;
+      const angle = dv.getFloat32(offset, true); offset += 4;
+      parsed[id] = { id, state: { pos: { x, y }, angle } };
+    }
+
+    if (kind === 0) { // full
+      this.insertStateIntoHistory({ state: parsed, time: serverTimeMs });
+    } else if (kind === 1) { // partial
+      const baseline = this.getLatestBaselineState();
+      const full = this.mergePartialIntoBaseline(baseline, parsed);
+      this.insertStateIntoHistory({ state: full, time: serverTimeMs });
+    } else {
+      console.warn('Unknown binary snapshot kind:', kind);
+    }
+  }
+
+  // Returns the most recent full-state from the history, or constructs one from game.metadata if none.
+  getLatestBaselineState() {
+    // Look from the end of history for the most recent state that appears "full".
+    // We treat any history entry as a baseline candidate. The server sends full snapshots every TICKS_PER_SNAPSHOT,
+    // but if you prefer, you could tag full snapshots with a flag and search for that.
+    if (!this.history || this.history.length === 0) {
+      // Build a baseline from metadata: instantiate zeroed states for known metadata entries
+      const baseline = {};
+      for (const idStr of Object.keys(this.game.metadata.bodies || {})) {
+        const id = Number(idStr);
+        baseline[id] = {
+          id,
+          state: {
+            pos: { x: 0, y: 0 },
+            angle: 0
+          }
+        };
+      }
+      return baseline;
+    }
+    // Use the most recent inserted state as baseline
+    return deepClone(this.history[this.history.length - 1].state);
+  }
+
+  // Merge partial (subset) into baseline (both are keyed objects). Returns a NEW object.
+  mergePartialIntoBaseline(baseline, partial) {
+    if (!baseline || Object.keys(baseline).length === 0) return deepClone(partial || {});
+    if (!partial || Object.keys(partial).length === 0) return deepClone(baseline);
+
+    // copy baseline shallowly and then overwrite keys from partial (deep clone values)
+    const out = {};
+    for (const [id, entry] of Object.entries(baseline)) {
+      out[id] = deepClone(entry);
+    }
+
+    for (const [id, entry] of Object.entries(partial)) {
+      // replace entire entity entry with the partial entity info (server sends full per-entity state)
+      out[id] = deepClone(entry);
+    }
+
+    return out;
+  }
+
+  // Called when we receive a binary snapshot buffer; decodes, merges with baseline, and inserts into history
+  insertMergedStateFromBuffer(buffer, serverTime = Date.now()) {
+    const partialState = this.decodeOverallState(buffer); // keyed object id -> {id, state}
+    // If this partial looks like a full snapshot (i.e., contains a superset of known IDs), you could detect and skip merge.
+    // For now, always merge so partials become full.
+    const baseline = this.getLatestBaselineState();
+    const fullState = this.mergePartialIntoBaseline(baseline, partialState);
+    this.insertStateIntoHistory({ state: fullState, time: serverTime });
+  }
+
   handleNewMetadata(msg) {
     if (msg.newMetadata) {
       this.game.metadata.bodies = {
@@ -377,68 +479,90 @@ export class Client{
   }
 
   getCurrentObjectStates() {
-  const renderServerTime = Date.now() + (this.clockOffset || 0) - this.networkBuffer;
-  const result = [];
+    const renderServerTime = Date.now() + (this.clockOffset || 0) - this.networkBuffer;
+    const result = [];
 
-  if (!this.history || this.history.length === 0) return result;
+    if (!this.history || this.history.length === 0) return result;
 
-  const idx = this.findIdxBinarySearch(this.history, { time: renderServerTime }, this.timeComparator.bind(this));
-
-  let s0 = null, s1 = null;
-  if (idx <= 0) {
-    s1 = this.history[0];
-  } else if (idx >= this.history.length) {
-    s0 = this.history[this.history.length - 1];
-  } else {
-    s1 = this.history[idx];
-    s0 = this.history[idx - 1];
-  }
-
-  const span = (s1 && s0) ? (s1.time - s0.time) : 0;
-  const alpha = span > 0 && s0 ? (renderServerTime - s0.time) / span : 0;
-
-  const interpolatedState = this.lerpStates(s0 ? s0.state : null, s1 ? s1.state : null, alpha) || {};
-
-  for (const [id, state] of Object.entries(interpolatedState)) {
-    if (state != null) {                
-      result.push(state);               
+    // if render time is before first sample, clamp to first sample (no interpolation)
+    if (renderServerTime <= this.history[0].time) {
+      const interpolatedState = this.history[0].state;
+      for (const [, state] of Object.entries(interpolatedState)) {
+        if (state != null) result.push(state);
+      }
+      return result;
     }
-  }
 
-  return result;
-}
+    // if render time is after last sample, optionally extrapolate small amount, or clamp to last
+    const last = this.history[this.history.length - 1];
+    if (renderServerTime >= last.time) {
+      // Option A: clamp to last sample (safe)
+      const interpolatedState = last.state;
+      for (const [, state] of Object.entries(interpolatedState)) {
+        if (state != null) result.push(state);
+      }
+      return result;
+
+      // Option B: small extrapolation could be attempted here if you have velocity data
+    }
+
+    // find index of first history entry with time >= renderServerTime
+    const idx = this.findIdxBinarySearch(this.history, { time: renderServerTime }, this.timeComparator.bind(this));
+
+    // s1 is the sample at or after render time, s0 is the sample before
+    const s1 = this.history[idx];
+    const s0 = (idx > 0) ? this.history[idx - 1] : null;
+    if (!s1) return result; // defensive
+
+    const span = s0 ? (s1.time - s0.time) : 0;
+    const alpha = (span > 1e-6 && s0) ? ((renderServerTime - s0.time) / span) : 0;
+
+    // now lerp s0 and s1 states
+    const interpolatedState = this.lerpStates(s0 ? s0.state : null, s1.state, alpha) || {};
+
+    for (const [, state] of Object.entries(interpolatedState)) {
+      if (state != null) result.push(state);
+    }
+
+    return result;
+  }
 
   lerp(a, b, alpha) {
     return a + (b - a) * alpha;
   }
 
-  lerpStates(s0, s1, alpha) { //Recursively searches downward through state tree, once it finds numbers with matching key it lerps them
+  lerpStates(s0, s1, alpha) {
+    // If one side is missing, prefer a clone of the present side (no interpolation possible).
+    if (s0 == null && s1 == null) return null;
     if (s0 == null) return deepClone(s1);
     if (s1 == null) return deepClone(s0);
 
+    // numbers
     if (typeof s0 === 'number' && typeof s1 === 'number') {
       return this.lerp(s0, s1, alpha);
     }
 
+    // non-object fallback: choose the more recent (s1)
     if (typeof s0 !== 'object' || typeof s1 !== 'object' || s0 === null || s1 === null) {
       return deepClone(s1);
     }
-
 
     const out = Array.isArray(s0) ? [] : {};
     const keys = new Set([...Object.keys(s0), ...Object.keys(s1)]);
     for (const k of keys) {
       const a = s0[k];
       const b = s1[k];
+
       if (typeof a === 'number' && typeof b === 'number') {
         out[k] = this.lerp(a, b, alpha);
-      } else if (typeof a === 'object' && typeof b === 'object' && a != null && b != null) {
-        out[k] = this.lerpStates(a, b, alpha); // recurse
+      } else if (a != null && b != null && typeof a === 'object' && typeof b === 'object') {
+        out[k] = this.lerpStates(a, b, alpha);
       } else {
-        // if cannot interpolate, choose the more recent (b), but clone to avoid mutation
+        // if cannot interpolate or one side missing, choose the more recent (b) if defined else a
         out[k] = deepClone(b !== undefined ? b : a);
       }
     }
+
     return out;
   }
 }
