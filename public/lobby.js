@@ -62,91 +62,6 @@ async function refreshGames(){
   }
 }
 
-function createAdminPanel(container) {
-  // Build DOM elements
-  const panel = document.createElement('div');
-  panel.style.border = '1px dashed #ccc';
-  panel.style.padding = '8px';
-  panel.style.marginTop = '12px';
-  panel.style.borderRadius = '6px';
-  panel.innerHTML = `
-    <strong>Admin Console</strong>
-    <div style="margin-top:8px;">
-      <label>Command
-        <select id="adminCmdSelect">
-          <option value="listGames">listGames</option>
-          <option value="list-sessions">list-sessions</option>
-          <option value="kick">kick</option>
-          <option value="broadcast">broadcast</option>
-        </select>
-      </label>
-    </div>
-    <div style="margin-top:8px;">
-      <label>Args (JSON)
-        <textarea id="adminArgs" rows="4" style="width:100%;box-sizing:border-box;">{}</textarea>
-      </label>
-    </div>
-    <div style="margin-top:8px;" class="row">
-      <button id="adminSendBtn">Send</button>
-      <button id="adminClearBtn">Clear</button>
-      <span id="adminStatus" style="margin-left:12px;color:#666"></span>
-    </div>
-    <pre id="adminResult" style="margin-top:8px;background:#0b1220;color:#d7e1f1;padding:8px;height:120px;overflow:auto;border-radius:6px;"></pre>
-  `;
-  container.appendChild(panel);
-
-  const cmdSelect = panel.querySelector('#adminCmdSelect');
-  const argsEl = panel.querySelector('#adminArgs');
-  const sendBtn = panel.querySelector('#adminSendBtn');
-  const clearBtn = panel.querySelector('#adminClearBtn');
-  const status = panel.querySelector('#adminStatus');
-  const result = panel.querySelector('#adminResult');
-
-  // Send admin command
-  sendBtn.addEventListener('click', async () => {
-    let args = {};
-    try {
-      args = argsEl.value ? JSON.parse(argsEl.value) : {};
-    } catch (e) {
-      status.textContent = 'Invalid JSON in args';
-      status.style.color = 'red';
-      return;
-    }
-    const cmd = cmdSelect.value;
-    status.textContent = 'Sending...';
-    status.style.color = '#666';
-    // ensure connected
-    await wsClient.connect();
-    // send admin command
-    wsClient.send({ type: 'admin', cmd, args });
-    // wait for admin.res matching cmd (one-off listener)
-    const onRes = (msg) => {
-      if (msg && msg.cmd === cmd) {
-        result.textContent = JSON.stringify(msg, null, 2);
-        status.textContent = msg.ok ? 'OK' : 'ERROR';
-        status.style.color = msg.ok ? 'green' : 'red';
-        wsClient.off('admin.res', onRes);
-      }
-    };
-    wsClient.on('admin.res', onRes);
-    // also set a timeout
-    setTimeout(() => {
-      wsClient.off('admin.res', onRes);
-      if (!result.textContent) {
-        result.textContent = 'No response (timeout)';
-        status.textContent = 'timeout';
-        status.style.color = 'red';
-      }
-    }, 5000);
-  });
-
-  clearBtn.addEventListener('click', () => {
-    argsEl.value = '{}';
-    result.textContent = '';
-    status.textContent = '';
-  });
-}
-
 document.addEventListener('DOMContentLoaded', async () => {
   const saved = localStorage.getItem('playerName');
   if (saved) nameInput.value = saved;
@@ -161,16 +76,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     wsClient.on('auth.ok', (msg) => {
       setStatus('Signed in as ' + (msg.account?.displayName || msg.account?.email), 'good');
       log('auth.ok', msg.account);
-      // show admin panel if account has admin role or email in ADMIN_EMAILS
       const acct = msg.account || {};
-      const isAdmin = (Array.isArray(acct.roles) && acct.roles.includes('admin'))
-        || (process && process.env && process.env.ADMIN_EMAILS && process.env.ADMIN_EMAILS.split(',').map(s=>s.trim().toLowerCase()).includes((acct.email||'').toLowerCase()));
-      if (isAdmin) {
-        // Ensure admin panel shown only once
-        if (!document.getElementById('adminResult')) {
-          createAdminPanel(document.getElementById('lobby-panel'));
-        }
-      }
     });
 
     wsClient.on('auth.fail', (msg) => {

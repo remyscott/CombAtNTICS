@@ -41,7 +41,7 @@ export class BlockShotgun {
     this.body.createFixture({
       shape: Box(o.barrelLength / 2, 0.12),
       density: o.projectileDensity,
-      friction: 0.5,
+      friction: 0.2,
       restitution: 0.1,
       userData: { id: this.body.getUserData().id, type: "blockShotgun", scale: o.radius * 2 }
     });
