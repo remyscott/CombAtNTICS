@@ -1,3 +1,4 @@
+import { IDEAL_TICK_RATE, TICKS_PER_SNAPSHOT } from '../../shared/settings.js';
 import wsClient from '../ws-client.js';
 
 
@@ -13,7 +14,7 @@ export class Client{
     this.history = []; //time -> [id -> {state, id}]
     this.networkBuffer = Number(DEFAULT_BUFFER);
     this.clockOffset = 100
-    this.HISTORY_TIME = 1000;
+    this.HISTORY_TIME = 2500;
     this.timeSinceInputs = 0;
     this.lastInputsSent = null;
 
@@ -23,6 +24,7 @@ export class Client{
   }
 
   _onStep(time, delta) {
+    if (!this.recievedInit) return;
     this.game.currentState = this.getCurrentState();
     this.sendInputsIfItsTimeTo(delta);
   }
@@ -234,7 +236,7 @@ export class Client{
       })();
   
       // use p90 (scaled) as the network buffer, keep a minimum floor
-      this.networkBuffer = Math.max(Math.ceil(p90), 1000 / 20);
+      this.networkBuffer = Math.max(Math.ceil(p90), TICKS_PER_SNAPSHOT*1000/IDEAL_TICK_RATE);
       this.clockOffset = medianOffset;  
       return { rtts, offsets, validRtts, p90, medianOffset, networkBuffer: this.networkBuffer, clockOffset: this.clockOffset };
     };
@@ -262,6 +264,7 @@ export class Client{
   }
 
   init(msg) {
+    this.recievedInit = true;
     this.clientId = msg.clientId;
     this.name = msg.name;
     this.game.playerName = this.name;

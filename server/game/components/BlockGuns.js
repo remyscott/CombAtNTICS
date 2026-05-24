@@ -112,7 +112,8 @@ export class BlockShotgunBase {
         type: "dynamic",
         position: { x: px, y: py },
         bullet: true,
-        userData: { owner: this, type: "block_projectile", ttl: ttl }
+        userData: { owner: this, type: "block_projectile", ttl: ttl },
+        angle: Math.random() *3.14
       });
 
       const s = this.opts.projectileSize;
@@ -239,6 +240,28 @@ export class BlockShotgun extends BlockShotgunBase {
   }
 }
 
+export class BlockSawedOff extends BlockShotgunBase {
+  constructor(player, opts = {}) {
+    super(player, Object.assign({
+      barrelLength: 1,
+      launchForce: 1,
+      cooldown: 60,
+      motorMaxTorque: 20000000,
+      motorMaxSpeed: 500,
+      kp: 18,
+      kd: 0.4,
+      projectileSize: 0.125,
+      projectileDensity: 1,
+      radius: 0.2,
+      multiShotCount: 32,
+      multiShotSpread: Math.PI / 2,
+      multiShotRandomness: 0.15,
+      projectileTTL: 2.5,
+      objectType: 'blockSawedOff'
+    }, opts));
+  }
+}
+
 export class BlockUltraShotgun extends BlockShotgunBase {
   constructor(player, opts = {}) {
     super(player, Object.assign({
@@ -325,9 +348,80 @@ export class BlockMinigun extends BlockShotgunBase {
 
       multiShotCount: 1,            // number of projectiles per shot
       multiShotSpread: Math.PI / 16, // total spread angle (radians)
-      multiShotRandomness: 0.15,    // fraction of spread for jitter (0..1)
+      multiShotRandomness: 1,    // fraction of spread for jitter (0..1)
       projectileTTL: 1,
       objectType: 'blockMinigun'
+    }, opts));
+  }
+}
+
+export class BlockUltraMinigun extends BlockShotgunBase {
+  constructor(player, opts = {}) {
+    super(player, Object.assign({
+      barrelLength: 3,
+      launchForce: 1,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
+      cooldown: 1,          // frames between shots
+      motorMaxTorque: 20000000,
+      motorMaxSpeed: 500,    // rad/s
+      kp: 18,               // P gain
+      kd: 0.4,              // D gain (damping)
+      projectileSize: 0.25,
+      projectileDensity: 0.5,
+      radius: 0.25,
+
+      multiShotCount: 2,            // number of projectiles per shot
+      multiShotSpread: Math.PI / 16, // total spread angle (radians)
+      multiShotRandomness: 1,    // fraction of spread for jitter (0..1)
+      projectileTTL: 1,
+      objectType: 'blockUltraMinigun'
+    }, opts));
+  }
+}
+
+
+export class BlockSmg extends BlockShotgunBase {
+  constructor(player, opts = {}) {
+    super(player, Object.assign({
+      barrelLength: 1,
+      launchForce: 1,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
+      cooldown: 5,          // frames between shots
+      motorMaxTorque: 200000,
+      motorMaxSpeed: 500,    // rad/s
+      kp: 18,               // P gain
+      kd: 0.4,              // D gain (damping)
+      projectileSize: .176,
+      projectileDensity: 1,
+      radius: .3,
+
+      multiShotCount: 1,            // number of projectiles per shot
+      multiShotSpread: 3.14/8, // total spread angle (radians)
+      multiShotRandomness: 1,    // fraction of spread for jitter (0..1)
+      projectileTTL: 1,
+      objectType: 'blockSmg'
+    }, opts));
+  }
+}
+
+
+export class BlockHeavy extends BlockShotgunBase {
+  constructor(player, opts = {}) {
+    super(player, Object.assign({
+      barrelLength: 2,
+      launchForce: 10,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
+      cooldown: 50,          // frames between shots
+      motorMaxTorque: 20000000,
+      motorMaxSpeed: 500,    // rad/s
+      kp: 18,               // P gain
+      kd: 0.4,              // D gain (damping)
+      projectileSize: .5,
+      projectileDensity: 1,
+      radius: .3,
+
+      multiShotCount: 1,            // number of projectiles per shot
+      multiShotSpread: 0, // total spread angle (radians)
+      multiShotRandomness: 0,    // fraction of spread for jitter (0..1)
+      projectileTTL: 10,
+      objectType: 'blockHeavy'
     }, opts));
   }
 }
@@ -401,42 +495,62 @@ export class BlockSniper extends BlockShotgunBase {
   }
 }
 
-
+function chance(chance) {
+  return (Math.random()<chance)
+}
 export function addRandomGunToComponentList(components) {
-    if (Math.random()>0.3) {
-      if (Math.random()>0.67) {
-        if (Math.random()>0.9) {
-          components.push(BlockUltraUltraShotgun);
+    if (chance(1/4)) {
+      if (chance(1/2)) {
+        components.push(BlockShotgun);
+      } else {
+        if (chance(1/2)) {
+          components.push(BlockSawedOff);
         } else {
-          if (Math.random()>0.6666) {
-            components.push(BlockShinigun);
-          } else {
-            if (Math.random()>0.5) {
-              if (Math.random()>0.95) {
-                components.push(THE_ULTRA_CANNON);
-              } else {
-                components.push(BlockCannon);
-              }
+          if (chance(.9)) {
+              if (chance(1/2)) {
+              components.push(BlockShinigun);
             } else {
-              components.push(BlockUltraShotgun);
+              components.push(BlockUltraShotgun)
             }
+          } else {
+            components.push(BlockUltraUltraShotgun)
           }
         }
-      } else {
-        if (Math.random()>0.6666) {
-          if (Math.random()>0.5) {
-          components.push(BlockSniper);
+      }
+      
+    } else {
+      if (chance(1/5)) {
+        if (chance(2/3)) {
+          components.push(BlockHeavy);
         } else {
-          components.push(BlockMinigun);
+          if (chance(0.97)) {
+            components.push(BlockCannon);
+          } else {
+            components.push(THE_ULTRA_CANNON);
+          }
         }
+        
+      } else {
+        if (chance(1/4)) {
+          if (chance(1/2)) {
+            components.push(BlockSmg);
+          } else {
+            if (chance(4/5)) {
+              components.push(BlockMinigun);
+            } else {
+              components.push(BlockUltraMinigun);
+            }
+          }
         } else {
-          components.push(BlockShotgun);
+          if (chance(1/3)) {
+            components.push(BlockSniper);
+          } else {
+            components.push(BlockGunBasic);
+          }
         }
       }
-    } else {
-      components.push(BlockGunBasic)
     }
-    if (Math.random()>0.95) {
+    if (chance(0.005)) {
       addRandomGunToComponentList(components);
     }
   }

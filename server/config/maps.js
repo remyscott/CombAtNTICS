@@ -195,8 +195,8 @@ maps.push({
     ...createRow({ start: -12, end: 12, step: 2, y: 4, objectType: 'lockbox', scale: 2 }),
 
     // some circles inside each arena
-    ...makeScatter(12, 50, 0, { objectType: 'ball', scaleMin: 0.5, scaleMax: 1 }).map(o => ({ ...o, position: { x: o.position.x - 28, y: o.position.y } })),
-    ...makeScatter(12, 50, 0, { objectType: 'ball', scaleMin: 0.5, scaleMax: 1 }).map(o => ({ ...o, position: { x: o.position.x + 28, y: o.position.y } })),
+    ...makeScatter(12, 400, 0, { objectType: 'ball', scaleMin: 0.1, scaleMax: 1 }).map(o => ({ ...o, position: { x: o.position.x - 28, y: o.position.y } })),
+    ...makeScatter(12, 1, 0, { objectType: 'ball', scaleMin: 0.5, scaleMax: 1 }).map(o => ({ ...o, position: { x: o.position.x + 28, y: o.position.y } })),
   ]
 });
 

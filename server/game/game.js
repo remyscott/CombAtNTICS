@@ -1,4 +1,4 @@
-import {IDEAL_TICK_RATE, TICKS_PER_SNAPSHOT, TIMESTEP} from '../config/settings.js';
+import {IDEAL_TICK_RATE, TICKS_PER_SNAPSHOT, TIMESTEP} from '../../shared/settings.js';
 import { World, Circle, Vec2, Edge, Box } from 'planck';
 import { Player } from './player.js';
 import { GameWorld } from './gameWorld.js';
