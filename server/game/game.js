@@ -1,4 +1,4 @@
-import {IDEAL_TICK_RATE, TIMESTEP} from '../config/settings.js';
+import {IDEAL_TICK_RATE, TICKS_PER_SNAPSHOT, TIMESTEP} from '../config/settings.js';
 import { World, Circle, Vec2, Edge, Box } from 'planck';
 import { Player } from './player.js';
 import { GameWorld } from './gameWorld.js';
@@ -15,6 +15,7 @@ export class Game {
 
     this.players = new Map();
     this._tickTimeout = null;
+    this._ticksSinceSnapshot = 0;
 
     this.startTickLoop();
     this.startTickRateTracker();
@@ -63,10 +64,13 @@ export class Game {
     }
 
     this.world.step(TIMESTEP, 8, 8);
-    this.broadcastSnapshot();
+    this._ticksSinceSnapshot += 1;
+    if (this._ticksSinceSnapshot > TICKS_PER_SNAPSHOT) this.broadcastSnapshot();
   }
 
   broadcastSnapshot() {
+    this._ticksSinceSnapshot = 0;
+
     const overallState = {};
     const newMeta = {bodies: {}, fixtures: {}}
     for (const id of this.world.idToBody.keys()) {
@@ -85,8 +89,45 @@ export class Game {
       }
     }
 
-    this.broadcast({ type: 'snapshot', state: overallState, newMetadata: newMeta, time: Date.now() });
+    const buf = this.encodeOverallState(overallState);
+    for (const client of this.players.values()) {
+      // keep chat/metadata as JSON, send binary snapshot as ArrayBuffer
+      client.ws.send(buf);
+    }
+    // Optionally still broadcast newMetadata/time as a separate small JSON message
+    this.broadcast({ type: 'newMetadata', newMetadata: newMeta});    
     this._lastFrameMeta = structuredClone(this.world.metadata);
+  }
+
+  encodeOverallState(overallState) {
+    const entries = Object.values(overallState); // order arbitrary
+    const N = entries.length;
+    // header (uint16) + per-entity (4 + 4 + 4 + 4) bytes = 16 bytes per entity
+    const BYTES_PER_ENTITY = 4 + 4 + 4 + 4;
+    const headerBytes = 2;
+    const totalBytes = headerBytes + (N * BYTES_PER_ENTITY);
+    const buffer = new ArrayBuffer(totalBytes);
+    const dv = new DataView(buffer);
+    let offset = 0;
+
+    // number of entities (uint16)
+    dv.setUint16(offset, N, true); offset += 2;
+
+    for (let i = 0; i < N; i++) {
+      const e = entries[i];
+      // ensure numeric id and state shape
+      const id = Number(e.id || 0) >>> 0;
+      const x = Number(e.state?.pos?.x || 0);
+      const y = Number(e.state?.pos?.y || 0);
+      const angle = Number(e.state?.angle || 0);
+
+      dv.setUint32(offset, id, true); offset += 4;
+      dv.setFloat32(offset, x, true); offset += 4;
+      dv.setFloat32(offset, y, true); offset += 4;
+      dv.setFloat32(offset, angle, true); offset += 4;
+    }
+
+    return buffer;
   }
 
   getSnapshotOf(b) {

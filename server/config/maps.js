@@ -195,8 +195,8 @@ maps.push({
     ...createRow({ start: -12, end: 12, step: 2, y: 4, objectType: 'lockbox', scale: 2 }),
 
     // some circles inside each arena
-    ...makeScatter(12, 200, 0, { objectType: 'ball', scaleMin: 0.5, scaleMax: 1 }).map(o => ({ ...o, position: { x: o.position.x - 28, y: o.position.y } })),
-    ...makeScatter(12, 100, 0, { objectType: 'ball', scaleMin: 0.5, scaleMax: 1 }).map(o => ({ ...o, position: { x: o.position.x + 28, y: o.position.y } })),
+    ...makeScatter(12, 50, 0, { objectType: 'ball', scaleMin: 0.5, scaleMax: 1 }).map(o => ({ ...o, position: { x: o.position.x - 28, y: o.position.y } })),
+    ...makeScatter(12, 50, 0, { objectType: 'ball', scaleMin: 0.5, scaleMax: 1 }).map(o => ({ ...o, position: { x: o.position.x + 28, y: o.position.y } })),
   ]
 });
 
@@ -250,22 +250,22 @@ maps.push({
   name: 'big',
   planckConfig: { gravity: { x: 0, y: 0 } },
   objects: [
-    ...makeScatter(200, 200, 0.9, { objectType: 'circle', scaleMin: 0.4, scaleMax: 1.2 }),
-    ...makeScatter(200, 200, 0.9, { objectType: 'box', scaleMin: 0.4, scaleMax: .9 })
+    ...makeScatter(100, 50, 0.9, { objectType: 'circle', scaleMin: 0.4, scaleMax: 1.2 }),
+    ...makeScatter(100, 50, 0.9, { objectType: 'box', scaleMin: 0.4, scaleMax: .9 })
   ]
 });
 
 let cum = 0;
-for (let i = 1; i < 10; i++) {
-  maps[2].objects.push(...makeCircleArc(i*10+cum, 36, Math.random()*360, 280, { objectType: 'lockbox', scale: i*2, cx: 0, cy: 0 }));
+for (let i = 1; i < 5; i++) {
+  maps[2].objects.push(...makeCircleArc(i*10+cum, 10+i*6, Math.random()*360, 280, { objectType: 'lockbox', scale: i*2 + .5, cx: 0, cy: 0 }));
   cum += i*2.5;
 }
 cum = 0;
-for (let i = 0.5; i < 10; i++) {
-  maps[2].objects.push(...makeCircleArc(i*10+cum, 36, Math.random()*360, 180, { objectType: 'lockbox', scale: i*2, cx: 0, cy: 0 }));
+for (let i = 0.5; i < 5; i++) {
+  maps[2].objects.push(...makeCircleArc(i*10+cum, 10+i* 6, Math.random()*360, 180, { objectType: 'lockbox', scale: i*2 + .5, cx: 0, cy: 0 }));
   cum += i*2.5;
 }
-maps[2].objects.push(...makeCircleArc(10*10+cum, 36, Math.random()*360, 360, { objectType: 'lockbox', scale: 22, cx: 0, cy: 0 }));
+maps[2].objects.push(...makeCircleArc(5*10+cum, 36, Math.random()*360, 360, { objectType: 'lockbox', scale: 14, cx: 0, cy: 0 }));
 
 
 export default maps;

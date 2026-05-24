@@ -50,7 +50,15 @@ export class Client{
     }
 
     // Wire up incoming server messages
-    wsClient.on('__any', (msg) => this.handleMessage(msg));
+    this.ws.binaryType = 'arraybuffer';
+    this.ws.onmessage = (event) => {
+      if (event.data instanceof ArrayBuffer) {
+        const stateObj = this.decodeOverallState(event.data);
+        this.insertStateIntoHistory({ state: stateObj, time: Date.now() }); // or use server timestamp
+      } else {
+        this.handleMessage(this.parseMessage(event.data));
+      }
+    };
 
     // Optionally, auto-join based on URL query
     const url = new URL(window.location.href);
@@ -235,12 +243,17 @@ export class Client{
     wsClient.send(obj);
   };
 
-  parseMessage(ev) {
-    if (!ev) return null;
+  parseMessage(data) {
+  if (!data) return null;
     try {
-      return (typeof ev.data === 'string') ? JSON.parse(ev.data) : ev.data;
+      // if it's already an object (maybe someone passed parsed JSON) return it
+      if (typeof data === 'object') return data;
+      // otherwise try to parse string JSON
+      if (typeof data === 'string') return JSON.parse(data);
+      // otherwise unknown type — return as-is
+      return data;
     } catch (e) {
-      console.warn('Invalid JSON from websocket, ignoring message:', ev && ev.data, e);
+      console.warn('Invalid JSON from websocket, ignoring message:', data, e);
       return null;
     }
   }
@@ -265,8 +278,8 @@ export class Client{
       this.init(msg)
     }
 
-    if (msg.type === 'snapshot') {
-      this.handleSnapshot(msg)
+    if (msg.type === 'newMetadata') {
+      this.handleNewMetadata(msg)
     }
 
     if (msg.type === 'metadataResponse') {
@@ -274,7 +287,7 @@ export class Client{
     }
   }
 
-  handleSnapshot(msg) {
+  handleNewMetadata(msg) {
     if (msg.newMetadata) {
       this.game.metadata.bodies = {
         ...this.game.metadata.bodies,
@@ -286,8 +299,34 @@ export class Client{
         ...msg.newMetadata.fixtures
       };
     }
-  
-    this.insertStateIntoHistory({state: msg.state, time: msg.time});
+  }
+
+  decodeOverallState(buffer) {
+    const dv = new DataView(buffer);
+    let offset = 0;
+    const result = {};
+
+    // number of entities (uint16)
+    if (dv.byteLength < 2) return result;
+    const N = dv.getUint16(offset, true); offset += 2;
+
+    for (let i = 0; i < N; i++) {
+      if (offset + 16 > dv.byteLength) break; // safety
+      const id = dv.getUint32(offset, true); offset += 4;
+      const x = dv.getFloat32(offset, true); offset += 4;
+      const y = dv.getFloat32(offset, true); offset += 4;
+      const angle = dv.getFloat32(offset, true); offset += 4;
+
+      result[id] = {
+        id,
+        state: {
+          pos: { x, y },
+          angle
+        }
+      };
+    }
+
+    return result;
   }
 
   requestMetadata() {
