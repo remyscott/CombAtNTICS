@@ -26,7 +26,7 @@ const games = new Map();
 
 function getOrCreateGame(gameId, map = maps[Math.floor(Math.random()*maps.length)]) {
   if (!games.has(gameId)) {
-    const newGame = new Game(maps);
+    const newGame = new Game(map);
     games.set(gameId, newGame);
     console.log(`🎮 Created new game: ${gameId}`);
   }
