@@ -6,11 +6,22 @@ import { configurableInputs } from "../../shared/inputsListing.js";
 import { Dash } from "./components/Dash.js";
 
 import { addRandomGunToComponentList, BlockCannon, BlockGunBasic, BlockMinigun, BlockShinigun, BlockShotgun, BlockSniper, BlockUltraShotgun, BlockUltraUltraShotgun, THE_ULTRA_CANNON } from "./components/BlockGuns.js";
+import { SwordBig } from "./components/SwordBig.js";
+import { TitaniumCore } from "./components/TitaniumCore.js";
 
+function chance(chance) {
+  return (Math.random()<chance)
+}
 export class Player {
   constructor(ws, game, components = [HoverSphere, Dash]) {
-    if (Math.random()>0.8) {
-      components.push(Sword);
+    if (chance(0.5)) {
+      if (chance(0.5)) {
+        components.push(SwordBig);
+        components.push(TitaniumCore);
+      } else {
+        components.push(Sword);
+
+      }
     } else {
       addRandomGunToComponentList(components)
 
@@ -21,6 +32,7 @@ export class Player {
     this.game = game;
     this.inputs = {actions: [], default: {}};
     this.ws.on('message', (msg) => tryHandleMessage(msg, this.handleMessage.bind(this)));
+    this.ws.on('open', () => this.sendInit());
     this.setUpComponents(components);
     this.chatBanned = ws.account.chatBanned || false;
   }

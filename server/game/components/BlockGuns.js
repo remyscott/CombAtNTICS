@@ -408,7 +408,7 @@ export class BlockHeavy extends BlockShotgunBase {
     super(player, Object.assign({
       barrelLength: 2,
       launchForce: 10,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
-      cooldown: 50,          // frames between shots
+      cooldown: 30,          // frames between shots
       motorMaxTorque: 20000000,
       motorMaxSpeed: 500,    // rad/s
       kp: 18,               // P gain

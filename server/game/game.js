@@ -42,7 +42,6 @@ export class Game {
     const newPlayer = new Player(ws, this);
 
     this.players.set(ws.clientId, newPlayer);
-  
     newPlayer.sendInit();
   }
 
