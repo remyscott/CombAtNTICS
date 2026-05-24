@@ -5,35 +5,15 @@ import { Sword } from "./components/Sword.js";
 import { configurableInputs } from "../../shared/inputsListing.js";
 import { Dash } from "./components/Dash.js";
 
-import { BlockGunBasic, BlockMinigun, BlockShinigun, BlockShotgun, BlockUltraShotgun, BlockUltraUltraShotgun } from "./components/BlockGuns.js";
+import { addRandomGunToComponentList, BlockCannon, BlockGunBasic, BlockMinigun, BlockShinigun, BlockShotgun, BlockSniper, BlockUltraShotgun, BlockUltraUltraShotgun, THE_ULTRA_CANNON } from "./components/BlockGuns.js";
 
 export class Player {
   constructor(ws, game, components = [HoverSphere, Dash]) {
-    if (Math.random()>0.7) {
+    if (Math.random()>0.8) {
       components.push(Sword);
-    }
-    else {
-      if (Math.random()>0.4) {
-        if (Math.random()>0.6) {
-          if (Math.random()>0.8) {
-            components.push(BlockUltraUltraShotgun);
-          } else {
-            if (Math.random()>0.5) {
-              components.push(BlockShinigun);
-            } else {
-              components.push(BlockUltraShotgun)
-            }
-          }
-        } else {
-          if (Math.random()>0.5) {
-            components.push(BlockMinigun);
-          } else {
-            components.push(BlockShotgun)
-          }
-        }
-      } else {
-        components.push(BlockGunBasic)
-      }
+    } else {
+      addRandomGunToComponentList(components)
+
     }
     this.ws = ws;
     this.name = ws.account.displayName || 'Anonymous Loser';

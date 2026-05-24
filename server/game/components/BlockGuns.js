@@ -278,7 +278,7 @@ export class BlockUltraUltraShotgun extends BlockShotgunBase {
       // Multi-shot-specific
       multiShotCount: 64,            // number of projectiles per shot
       multiShotSpread: Math.PI / 4, // total spread angle (radians)
-      multiShotRandomness: 0.15,    // fraction of spread for jitter (0..1)
+      multiShotRandomness: 1,    // fraction of spread for jitter (0..1)
       projectileTTL: 5.0     ,
       objectType: 'blockUltraUltraShotgun'
     }, opts));
@@ -332,5 +332,111 @@ export class BlockMinigun extends BlockShotgunBase {
   }
 }
 
+export class BlockCannon extends BlockShotgunBase {
+  constructor(player, opts = {}) {
+    super(player, Object.assign({
+      barrelLength: 5,
+      launchForce: 100,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
+      cooldown: 120,          // frames between shots
+      motorMaxTorque: 20000000,
+      motorMaxSpeed: 500,    // rad/s
+      kp: 18,               // P gain
+      kd: 0.4,              // D gain (damping)
+      projectileSize: 1,
+      projectileDensity: 1,
+      radius: .75,
+
+      multiShotCount: 1,            // number of projectiles per shot
+      multiShotSpread: 0, // total spread angle (radians)
+      multiShotRandomness: 0,    // fraction of spread for jitter (0..1)
+      projectileTTL: 10,
+      objectType: 'blockCannon'
+    }, opts));
+  }
+}
+
+export class THE_ULTRA_CANNON extends BlockShotgunBase {
+  constructor(player, opts = {}) {
+    super(player, Object.assign({
+      barrelLength: 10,
+      launchForce: 1000,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
+      cooldown: 600,          // frames between shots
+      motorMaxTorque: 20000000000,
+      motorMaxSpeed: 5000,    // rad/s
+      kp: 180,               // P gain
+      kd: 0.4,              // D gain (damping)
+      projectileSize: 2.5,
+      projectileDensity: 2,
+      radius: 1.5,
+
+      multiShotCount: 2,            // number of projectiles per shot
+      multiShotSpread: 3.14/6, // total spread angle (radians)
+      multiShotRandomness: 0.15,    // fraction of spread for jitter (0..1)
+      projectileTTL: 25,
+      objectType: 'THE_ULTRA_CANNON'
+    }, opts));
+  }
+}
+
+export class BlockSniper extends BlockShotgunBase {
+  constructor(player, opts = {}) {
+    super(player, Object.assign({
+      barrelLength: 3,
+      launchForce: 50,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
+      cooldown: 60,          // frames between shots
+      motorMaxTorque: 20000000,
+      motorMaxSpeed: 5000,    // rad/s
+      kp: 25,               // P gain
+      kd: 0.4,              // D gain (damping)
+      projectileSize: 0.25,
+      projectileDensity: 2,
+      radius: .2,
+
+      multiShotCount: 1,            // number of projectiles per shot
+      multiShotSpread: 0, // total spread angle (radians)
+      multiShotRandomness: 0,    // fraction of spread for jitter (0..1)
+      projectileTTL: 10,
+      objectType: 'blockSniper'
+    }, opts));
+  }
+}
 
 
+export function addRandomGunToComponentList(components) {
+    if (Math.random()>0.3) {
+      if (Math.random()>0.67) {
+        if (Math.random()>0.9) {
+          components.push(BlockUltraUltraShotgun);
+        } else {
+          if (Math.random()>0.6666) {
+            components.push(BlockShinigun);
+          } else {
+            if (Math.random()>0.5) {
+              if (Math.random()>0.95) {
+                components.push(THE_ULTRA_CANNON);
+              } else {
+                components.push(BlockCannon);
+              }
+            } else {
+              components.push(BlockUltraShotgun);
+            }
+          }
+        }
+      } else {
+        if (Math.random()>0.6666) {
+          if (Math.random()>0.5) {
+          components.push(BlockSniper);
+        } else {
+          components.push(BlockMinigun);
+        }
+        } else {
+          components.push(BlockShotgun);
+        }
+      }
+    } else {
+      components.push(BlockGunBasic)
+    }
+    if (Math.random()>0.95) {
+      addRandomGunToComponentList(components);
+    }
+  }

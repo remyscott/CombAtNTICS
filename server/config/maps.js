@@ -255,17 +255,16 @@ maps.push({
   ]
 });
 
-let cum = 0;
-for (let i = 1; i < 5; i++) {
-  maps[2].objects.push(...makeCircleArc(i*10+cum, 10+i*6, Math.random()*360, 280, { objectType: 'lockbox', scale: i*2 + .5, cx: 0, cy: 0 }));
-  cum += i*2.5;
+let cum = 3.5;
+for (let i = 2; i < 10; i++) {
+  maps[2].objects.push(...makeCircleArc(i*10+cum, 16+i*6, Math.random()*360, 260+i*10, { objectType: 'lockbox', scale: i*2 + .5, cx: 0, cy: 0 }));
+  cum += i*3.5;
 }
-cum = 0;
-for (let i = 0.5; i < 5; i++) {
-  maps[2].objects.push(...makeCircleArc(i*10+cum, 10+i* 6, Math.random()*360, 180, { objectType: 'lockbox', scale: i*2 + .5, cx: 0, cy: 0 }));
-  cum += i*2.5;
+cum = 0.5*3.5;
+for (let i = 1.5; i < 10; i++) {
+  maps[2].objects.push(...makeCircleArc(i*10+cum, 16+i* 6, Math.random()*360, 260+i*10, { objectType: 'lockbox', scale: i*2 + .5, cx: 0, cy: 0 }));
+  cum += i*3.5;
 }
-maps[2].objects.push(...makeCircleArc(5*10+cum, 36, Math.random()*360, 360, { objectType: 'lockbox', scale: 14, cx: 0, cy: 0 }));
 
 maps.push({
   name: '2',
@@ -276,12 +275,12 @@ maps.push({
 });
 
 cum = 0;
-for (let i = 1; i < 7; i++) {
+for (let i = 2; i < 7; i++) {
   maps[3].objects.push(...makeCircleArc(i*10+cum, 4, Math.random()*360, 200, { objectType: 'lockbox', scale: i*7, cx: -15+i*5, cy: 0 }));
   cum += i*2;
 }
 cum = 0;
-for (let i = 1; i < 7; i++) {
+for (let i = 2; i < 7; i++) {
   maps[3].objects.push(...makeCircleArc(i*10+cum, 4, Math.random()*360, 200, { objectType: 'lockbox', scale: i*7, cx: 15-i*5, cy: 5 }));
   cum += i*2;
 }
