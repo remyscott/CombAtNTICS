@@ -14,7 +14,8 @@ export class Sword {
     this.body = player.world.createBody({
       type: "dynamic",
       position: { x: this.opts.swordLength + 0.5, y: 0 },
-      userData: { owner: this }
+      userData: { owner: this },
+      bullet: true
     });
 
     this.body.createFixture({

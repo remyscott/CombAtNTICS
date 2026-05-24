@@ -7,9 +7,10 @@ import { BlockShotgun } from "./components/blockShotgun.js";
 import { BlockUltraShotgun } from "./components/BlockUltraShotgun.js";
 import { BlockUltraUltraShotgun } from "./components/BlockUltraUltraShotgun.js";
 import { configurableInputs } from "../../shared/inputsListing.js";
+import { Dash } from "./components/Dash.js";
 
 export class Player {
-  constructor(ws, game, components = [HoverSphere]) {
+  constructor(ws, game, components = [HoverSphere, Dash]) {
     if (Math.random()>0.6) {
       components.push(Sword);
     }
@@ -35,7 +36,7 @@ export class Player {
     this.inputs = {actions: [], default: {}};
     this.ws.on('message', (msg) => tryHandleMessage(msg, this.handleMessage.bind(this)));
     this.setUpComponents(components);
-    this.chatBanned = false;
+    this.chatBanned = ws.account.chatBanned || false;
   }
 
   setUpComponents(components) {
@@ -178,3 +179,5 @@ export class Player {
     }
   }
 }
+
+

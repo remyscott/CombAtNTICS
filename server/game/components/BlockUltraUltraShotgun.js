@@ -20,7 +20,7 @@ export class BlockUltraUltraShotgun {
 
       // Multi-shot-specific
       multiShotCount: 64,            // number of projectiles per shot
-      multiShotSpread: Math.PI / 2, // total spread angle (radians)
+      multiShotSpread: Math.PI / 4, // total spread angle (radians)
       multiShotRandomness: 0.15,    // fraction of spread for jitter (0..1)
       projectileTTL: 5.0            // seconds to live (userData.ttl)
     }, opts);

@@ -6,6 +6,7 @@ import { Filter } from 'bad-words';
 
 export class Game {
   constructor(map) {
+    this.map = map;
     this.world = new GameWorld(map);
     this.chatFilter = new Filter();
     this._id = 0;
@@ -45,8 +46,6 @@ export class Game {
   }
 
   removePlayer(clientId) {
-    console.log(`🔴 Player left: clientId=${clientId}`);
-
     this.players.get(clientId).destroy();
     this.players.delete(clientId);
   }

@@ -26,7 +26,7 @@ const games = new Map();
 
 function getOrCreateGame(gameId, map = maps[Math.floor(Math.random()*maps.length)]) {
   if (!games.has(gameId)) {
-    const newGame = new Game(map);
+    const newGame = new Game(maps);
     games.set(gameId, newGame);
     console.log(`🎮 Created new game: ${gameId}`);
   }
@@ -37,7 +37,7 @@ app.get("/games", (req, res) => {
   const list = [...games.entries()].map(([gameId, game]) => ({
     id: gameId,
     players: game.players.size,
-    map: game.MAP_NAME
+    map: game.map.name
   }));
   res.json(list);
 });
@@ -50,6 +50,9 @@ app.get("/", (req, res) => {
 
 const upgradeHandler = upgradeAuthHandler(usersObj, wss, { realm: 'Game Demo' });
 server.on('upgrade', upgradeHandler);
+
+
+
 
 
 wss.on('connection', (ws, req) => {

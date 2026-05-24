@@ -128,14 +128,6 @@ window.addEventListener('keydown', (ev) => {
 
   const code = keyboardCodeFromEvent(ev);
 
-  // ignore standalone modifiers
-  if (code === 'ShiftLeft' || code === 'ShiftRight' ||
-      code === 'ControlLeft' || code === 'ControlRight' ||
-      code === 'AltLeft' || code === 'AltRight' ||
-      code === 'MetaLeft' || code === 'MetaRight') {
-    return;
-  }
-
   assignBindingForCode(code);
 }, { passive: false });
 
