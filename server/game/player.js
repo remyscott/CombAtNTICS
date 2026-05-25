@@ -260,6 +260,99 @@ export class Player {
     };
 
     const commands = {
+      '/banWord': {
+        requiredRole: 'mod+',
+        function: (...words) => {
+          try {
+            // normalize words: split if a single string with spaces, trim and lowercase
+            const normalized = words
+              .flatMap(w => typeof w === 'string' ? w.split(/\s+/) : [])
+              .map(w => String(w).trim().toLowerCase())
+              .filter(Boolean);
+
+            if (normalized.length === 0) {
+              this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Usage: /banWord word [word2 ...]', nameOfSender: 'SERVER' }));
+              return;
+            }
+
+            // call addWords with individual args (not as a single array)
+            this.game.chatFilter.addWords(...normalized);
+
+            // persist change (example: write to a JSON file of extra words)
+            try {
+              const fs = require('fs');
+              const path = require('path');
+              const DATA_FILE = path.join(process.cwd(), 'config', 'custom-badwords.json');
+              let current = [];
+              if (fs.existsSync(DATA_FILE)) {
+                try { current = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8') || '[]'); } catch(e){ current = []; }
+              }
+              // merge uniquely
+              const merged = Array.from(new Set([...current.map(s => s.toLowerCase()), ...normalized]));
+              fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
+              fs.writeFileSync(DATA_FILE, JSON.stringify(merged, null, 2), 'utf8');
+            } catch (persistErr) {
+              console.warn('Failed to persist custom badwords:', persistErr);
+            }
+
+            this.game.broadcast({
+              type: 'chatMsg',
+              msg: `Word(s) ${normalized.join(', ')} added to banned list by ${this.account?.username || this.name}`,
+              nameOfSender: 'SERVER'
+            });
+          } catch (err) {
+            console.error('/banWord failed', err);
+            this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Failed to ban word: ' + (err.message || 'error'), nameOfSender: 'SERVER' }));
+          }
+        },
+        description: 'Add word(s) to the chat filter. Usage: /banWord foo bar'
+      },
+      '/allowWord': {
+        requiredRole: 'admin',
+        function: (...words) => {
+          try {
+            const normalized = words
+              .flatMap(w => typeof w === 'string' ? w.split(/\s+/) : [])
+              .map(w => String(w).trim().toLowerCase())
+              .filter(Boolean);
+
+            if (normalized.length === 0) {
+              this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Usage: /allowWord word [word2 ...]', nameOfSender: 'SERVER' }));
+              return;
+            }
+
+            // removeWords expects separate args, not an array argument
+            this.game.chatFilter.removeWords(...normalized);
+
+            // update persisted custom list (remove the words)
+            try {
+              const fs = require('fs');
+              const path = require('path');
+              const DATA_FILE = path.join(process.cwd(), 'config', 'custom-badwords.json');
+              if (fs.existsSync(DATA_FILE)) {
+                let current = [];
+                try { current = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8') || '[]'); } catch(e) { current = []; }
+                const remaining = current
+                  .map(s => String(s).toLowerCase())
+                  .filter(s => !normalized.includes(s));
+                fs.writeFileSync(DATA_FILE, JSON.stringify(remaining, null, 2), 'utf8');
+              }
+            } catch (persistErr) {
+              console.warn('Failed to persist custom badwords removal:', persistErr);
+            }
+
+            this.game.broadcast({
+              type: 'chatMsg',
+              msg: `Word(s) ${normalized.join(', ')} removed from banned list by ${this.account?.username || this.name}`,
+              nameOfSender: 'SERVER'
+            });
+          } catch (err) {
+            console.error('/allowWord failed', err);
+            this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Failed to allow word: ' + (err.message || 'error'), nameOfSender: 'SERVER' }));
+          }
+        },
+        description: 'Remove word(s) from the chat filter. Usage: /allowWord foo bar'
+      },
       '/spawn': {
         requiredRole: 'player',
         function: () => {
@@ -272,6 +365,17 @@ export class Player {
           }
          },
         description: 'delete current player and build a new one'
+      },
+      '/stop': {
+        requiredRole: 'admin',
+        function: () => {
+          try {
+            this.game.stop();
+          } catch (err) {
+            console.error('stop failed', err);
+          }
+         },
+        description: 'end the game'
       },
       '/leave': {
         requiredRole: 'player',

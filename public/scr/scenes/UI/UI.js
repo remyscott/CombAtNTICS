@@ -15,8 +15,13 @@ export class UI extends Phaser.Scene {
     this.console = new GameConsole(this);
     window.addEventListener('keydown', this._onKey, { capture: true });
 
-    // delegate sending to game.client
-    this.client = (this && this.game && this.game.client) ? this.game.client : null;
+    this.client = this.game.client;
+
+    const inWorldScene = this.game.scene.getScene('InWorldObjects');
+    if (inWorldScene && inWorldScene.cameras && inWorldScene.cameras.main) {
+      inWorldScene.cameras.main.setZoom(localStorage.getItem('zoom') || 1) ;
+    }
+    this.console.style.fontSize = String(Math.round(localStorage.getItem('uiscale')*28 || 28))+ 'px';
   }
 
   _onKey(e) {
@@ -64,13 +69,14 @@ export class UI extends Phaser.Scene {
     if (command === '/zoom') {
       let zoomLevel = parseFloat(parts[1]);
       if (!zoomLevel) {
-        zoomLevel = 1;
+        zoomLevel = localStorage.getItem('zoom') || 1;
       }
       if (isNaN(zoomLevel) || zoomLevel <= 0) {
         this.console.log('Usage: /zoom level (e.g., /zoom 1.5)', { level: 'warn' });
         return;
       }
       try {
+        localStorage.setItem('zoom', zoomLevel)
         const inWorldScene = this.game.scene.getScene('InWorldObjects');
         if (inWorldScene && inWorldScene.cameras && inWorldScene.cameras.main) {
           inWorldScene.cameras.main.setZoom(zoomLevel);
@@ -84,14 +90,17 @@ export class UI extends Phaser.Scene {
     if (command === '/uiscale') {
       let zoomLevel = parseFloat(parts[1]);
       if (!zoomLevel) {
-        zoomLevel = 1;
+        zoomLevel = localStorage.getItem('uiscale') || 1;
       }
       if (isNaN(zoomLevel) || zoomLevel <= 0) {
-        this.console.log('Usage: /uiscale level (e.g., /uiscale 0.5)', { level: 'warn' });
+        this.console.log('Usage: /uiscale level (e.g., /zoom 1.5)', { level: 'warn' });
         return;
       }
       try {
-        this.console.style.fontSize = String(Math.round(zoomLevel*28))+ 'px';
+        localStorage.setItem('uiscale', zoomLevel)
+        this.console.style.fontSize = String(Math.round(localStorage.getItem('uiscale')*28 || 28))+ 'px';
+        this.console.log(`uiscale set to ${zoomLevel}x`, { level: 'info' });
+
       } catch (err) {
         this.console.log(`Zoom failed: ${err.message}`, { level: 'error' });
       }
