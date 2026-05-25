@@ -5,7 +5,7 @@ import { Sword } from "./components/Sword.js";
 import { configurableInputs } from "../../shared/inputsListing.js";
 import { Dash } from "./components/Dash.js";
 
-import { addRandomGunToComponentList, BlockMinigun } from "./components/BlockGuns.js";
+import { addRandomGunToComponentList, BlockMinigun, BlockSniper } from "./components/BlockGuns.js";
 import { SwordBig } from "./components/SwordBig.js";
 import { TitaniumCore } from "./components/TitaniumCore.js";
 import { componentMap, componentList } from "./componentMap.js";
@@ -17,7 +17,7 @@ function chance(chance) {
 export class Player {
   constructor(ws, game, components = [HoverSphere, Dash]) {
     // choose components (kept original logic)
-    if (chance(0.2)) {
+    if (chance(0)) {
       if (chance(0.3)) {
         components.push(SwordBig);
         components.push(TitaniumCore);
@@ -412,9 +412,7 @@ export class Player {
         requiredRole: 'player',
         function: (targetId) => {
           if (!targetId) {
-            this.ws.send(JSON.stringify({ type: 'cameraFocusId', id: null }));
-            this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Camera focus reset to your player', nameOfSender: 'SERVER' }));
-            return;
+            targetId = '@s'
           }
           const p = resolvePlayer(targetId);
           if (!p || !p.body) { this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Player not found or has no body', nameOfSender: 'SERVER' })); return; }
@@ -435,7 +433,7 @@ export class Player {
             this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Spec failed: ${err.message}`, nameOfSender: 'SERVER' }));
           }
         },
-        description: 'Focus your camera on a player. Usage: /spec username (or /spec to return to your player)'
+        description: 'Focus your camera on a player. No input = @s'
       },
       '/listAllComponents': {
         requiredRole: 'player',
@@ -486,7 +484,10 @@ export class Player {
           this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `${cmd}: ${entry.description}`, nameOfSender: 'SERVER' }));
         }
       }
+      this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `@s refererences self`, nameOfSender: 'SERVER' }));
+      this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `/zoom /uiscale`, nameOfSender: 'CLIENT' }));
       return;
+
     }
 
     const commandEntry = commands[commandToken];

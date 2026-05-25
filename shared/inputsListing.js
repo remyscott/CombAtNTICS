@@ -8,6 +8,7 @@ export const configurableInputs = {
   SWORD_SLOW: 6,
   FIRE_GUN: 7,
   DASH: 8,
+  GUN_SLOW: 6,
 }
 
 export const defaultBindings = {
@@ -20,4 +21,5 @@ export const defaultBindings = {
   SWORD_SLOW: 'Space',
   FIRE_GUN: 'Mouse0',
   DASH: 'ShiftLeft',
+  GUN_SLOW: 'Space'
 };

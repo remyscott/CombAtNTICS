@@ -22,6 +22,8 @@ export class UI extends Phaser.Scene {
   _onKey(e) {
     if (!this._chatActive) {
       if (e.key === '/' || e.key === 'Enter') { e.preventDefault(); this._open(); }
+      if (e.key === '/') this._chatBuf += e.key;
+      this._update();
       return;
     }
 
@@ -60,7 +62,7 @@ export class UI extends Phaser.Scene {
     const command = parts[0];
 
     if (command === '/zoom') {
-      const zoomLevel = parseFloat(parts[1]);
+      let zoomLevel = parseFloat(parts[1]);
       if (!zoomLevel) {
         zoomLevel = 1;
       }
@@ -79,7 +81,23 @@ export class UI extends Phaser.Scene {
       }
       return;
     }
-
+    if (command === '/uiscale') {
+      let zoomLevel = parseFloat(parts[1]);
+      if (!zoomLevel) {
+        zoomLevel = 1;
+      }
+      if (isNaN(zoomLevel) || zoomLevel <= 0) {
+        this.console.log('Usage: /uiscale level (e.g., /uiscale 0.5)', { level: 'warn' });
+        return;
+      }
+      try {
+        this.console.style.fontSize = String(Math.round(zoomLevel*28))+ 'px';
+      } catch (err) {
+        this.console.log(`Zoom failed: ${err.message}`, { level: 'error' });
+      }
+      return;
+    }
+    
     // Send other messages to server
     const payload = { type: 'chatMsg', msg: text };
     try {

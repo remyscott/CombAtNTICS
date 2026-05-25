@@ -21,6 +21,7 @@
     "express": "^5.2.1",
     "express-basic-auth": "^1.2.1",
     "http": "^0.0.1-security",
+    "nodemailer": "^8.0.8",
     "phaser": "^4.1.0",
     "planck": "^1.5.0",
     "ws": "^8.20.0"

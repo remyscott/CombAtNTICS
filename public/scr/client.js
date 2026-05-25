@@ -275,7 +275,7 @@ export class Client{
     console.log(`Server init recieved at ${Date.now()}`)
     console.log(`clientId: ${this.clientId}`)
     console.info(`Joined game as: ${this.name}`)
-    console.info(`Enter or / to chat`)
+    console.info(`Enter to chat, / for commands`)
     this.startTimeSync();
   }
 

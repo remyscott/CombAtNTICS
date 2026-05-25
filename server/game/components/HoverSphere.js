@@ -15,7 +15,7 @@ export class HoverSphere {
       restitution: 0.2,
 
       // upright controller (PD)
-      uprightKp: 8.0,         // proportional gain (torque per radian)
+      uprightKp: 80,         // proportional gain (torque per radian)
       uprightKd: 1.5,         // derivative gain (torque per rad/s)
       uprightMaxTorque: 60.0, // clamp for applied torque
       uprightDeadzone: 0.01,   // radians below which we won't bother
