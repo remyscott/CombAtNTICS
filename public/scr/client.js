@@ -1,6 +1,7 @@
+
 import { IDEAL_TICK_RATE, TICKS_PER_SNAPSHOT } from '../../shared/settings.js';
 import wsClient from '../ws-client.js';
-
+import { lerpStatesFast } from './statelerper.js';
 
 const DEFAULT_BUFFER = 100;
 const inputInterval = 1000/60;
@@ -236,7 +237,7 @@ export class Client{
       })();
   
       // use p90 (scaled) as the network buffer, keep a minimum floor
-      this.networkBuffer = Math.max(Math.ceil(p90), TICKS_PER_SNAPSHOT*1000/IDEAL_TICK_RATE);
+      this.networkBuffer = Math.max(50,Math.ceil(p90), TICKS_PER_SNAPSHOT*1000/IDEAL_TICK_RATE);
       this.clockOffset = medianOffset;  
       return { rtts, offsets, validRtts, p90, medianOffset, networkBuffer: this.networkBuffer, clockOffset: this.clockOffset };
     };
@@ -439,9 +440,29 @@ export class Client{
   }
 
   handleMetadataResponse(msg) {
-    if (msg.metadata) {
-      Object.assign(this.game.metadata.bodies, msg.metadata.bodies);
-      Object.assign(this.game.metadata.fixtures, msg.metadata.fixtures);
+    if (!msg || !msg.metadata) return;
+
+    const bodies = msg.metadata.bodies || {};
+    const fixtures = msg.metadata.fixtures || {};
+
+    // ensure metadata containers exist
+    if (!this.game.metadata) this.game.metadata = { bodies: {}, fixtures: {} };
+    if (!this.game.metadata.bodies) this.game.metadata.bodies = {};
+    if (!this.game.metadata.fixtures) this.game.metadata.fixtures = {};
+
+    // Add-only merge for bodies
+    for (const [id, meta] of Object.entries(bodies)) {
+      // only add if key is not already present
+      if (!(id in this.game.metadata.bodies)) {
+        this.game.metadata.bodies[id] = meta;
+      }
+    }
+
+    // Add-only merge for fixtures
+    for (const [id, meta] of Object.entries(fixtures)) {
+      if (!(id in this.game.metadata.fixtures)) {
+        this.game.metadata.fixtures[id] = meta;
+      }
     }
   }
 
@@ -521,7 +542,7 @@ export class Client{
     const alpha = (span > 1e-6 && s0) ? ((renderServerTime - s0.time) / span) : 0;
 
     // now lerp s0 and s1 states
-    const interpolatedState = this.lerpStates(s0 ? s0.state : null, s1.state, alpha) || {};
+    const interpolatedState = lerpStatesFast(s0 ? s0.state : null, s1.state, alpha) || {};
 
     for (const [, state] of Object.entries(interpolatedState)) {
       if (state != null) result.push(state);
@@ -529,52 +550,4 @@ export class Client{
 
     return result;
   }
-
-  lerp(a, b, alpha) {
-    return a + (b - a) * alpha;
-  }
-
-  lerpStates(s0, s1, alpha) {
-    // If one side is missing, prefer a clone of the present side (no interpolation possible).
-    if (s0 == null && s1 == null) return null;
-    if (s0 == null) return deepClone(s1);
-    if (s1 == null) return deepClone(s0);
-
-    // numbers
-    if (typeof s0 === 'number' && typeof s1 === 'number') {
-      return this.lerp(s0, s1, alpha);
-    }
-
-    // non-object fallback: choose the more recent (s1)
-    if (typeof s0 !== 'object' || typeof s1 !== 'object' || s0 === null || s1 === null) {
-      return deepClone(s1);
-    }
-
-    const out = Array.isArray(s0) ? [] : {};
-    const keys = new Set([...Object.keys(s0), ...Object.keys(s1)]);
-    for (const k of keys) {
-      const a = s0[k];
-      const b = s1[k];
-
-      if (typeof a === 'number' && typeof b === 'number') {
-        out[k] = this.lerp(a, b, alpha);
-      } else if (a != null && b != null && typeof a === 'object' && typeof b === 'object') {
-        out[k] = this.lerpStates(a, b, alpha);
-      } else {
-        // if cannot interpolate or one side missing, choose the more recent (b) if defined else a
-        out[k] = deepClone(b !== undefined ? b : a);
-      }
-    }
-
-    return out;
-  }
-}
-
-function deepClone(obj) {
-  if (obj == null) return obj;
-  if (typeof obj !== 'object') return obj;
-  if (Array.isArray(obj)) return obj.map(deepClone);
-  const out = {};
-  for (const k of Object.keys(obj)) out[k] = deepClone(obj[k]);
-  return out;
 }

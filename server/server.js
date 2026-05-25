@@ -26,8 +26,11 @@ const games = new Map();
 
 function getOrCreateGame(gameId, map = maps[Math.floor(Math.random()*maps.length)]) {
   if (!games.has(gameId)) {
-    const newGame = new Game(map);
-    games.set(gameId, newGame);
+    const game = new Game(map, gameId, (id) => {
+      games.delete(id);
+      console.log(`🛑 Game ${id} stopped (removed from registry)`);
+    });
+    games.set(gameId, game);
     console.log(`🎮 Created new game: ${gameId}`);
   }
   return games.get(gameId);
@@ -102,48 +105,40 @@ wss.on('connection', (ws, req) => {
   }
 
   async function joinGame(gameId) {
-    if (!assertLoggedIn()) return;
-    if (!gameId) {
-      ws.send(JSON.stringify({ type: 'joinAck', ok: false, reason: 'no_gameId' }));
+    if (!assertLoggedIn()) {
+      ws.send(JSON.stringify({ type: 'joinAck', ok: false, reason: 'not_logged_in', gameId: gameId || null }));
       return;
     }
-    if (ws.joinedGameId === gameId) {
+    if (!gameId) {
+      ws.send(JSON.stringify({ type: 'joinAck', ok: false, reason: 'no_gameId', gameId: null }));
+      return;
+    }
+    try {
+      if (ws.joinedGameId === gameId) {
+        ws.send(JSON.stringify({ type: 'joinAck', ok: true, gameId, clientId }));
+        return;
+      }
+      if (ws.joinedGameId) {
+        const prev = games.get(ws.joinedGameId);
+        if (prev) prev.disconnectPlayer(ws.account.email);
+        ws.joinedGameId = null;
+      }
+      const game = getOrCreateGame(gameId);
+      game.addPlayer(ws);
+      ws.joinedGameId = gameId;
       ws.send(JSON.stringify({ type: 'joinAck', ok: true, gameId, clientId }));
-      return; // already in game
+      console.log(`🟢 Player joined: ${ws.displayName} -> ${gameId}`);
+    } catch (err) {
+      console.error('joinGame error', err);
+      ws.send(JSON.stringify({ type: 'joinAck', ok: false, reason: 'internal_error', gameId: gameId || null }));
     }
-
-    if (ws.joinedGameId) {
-      const prev = games.get(ws.joinedGameId);
-      if (prev) prev.removePlayer(clientId);
-      ws.joinedGameId = null;
-    }
-
-    const game = getOrCreateGame(gameId);
-
-    // If Game.addPlayer expects ws, ensure ws has clientName/account fields
-    const playerName = (ws.account && ws.account.displayName) ? ws.account.displayName : (ws.account && ws.account.email) || 'MysteriousBro';
-    ws.clientName = playerName;
-
-    // call addPlayer - your Game.addPlayer(ws) should construct Player from ws
-    game.addPlayer(ws);
-
-    ws.joinedGameId = gameId;
-
-    ws.send(JSON.stringify({ type: 'joinAck', ok: true, gameId, clientId }));
-
-    console.log(`🟢 Player joined: ${playerName} (clientId=${clientId}) -> ${gameId}`);
   }
 
   function leaveGame() {
     if (!ws.joinedGameId) return;
     const game = games.get(ws.joinedGameId);
     if (game) {
-      game.removePlayer(clientId);
-      if (game.players.size === 0) {
-        game.stop();
-        games.delete(ws.joinedGameId);
-        console.log(`🛑 Game ${ws.joinedGameId} stopped (empty)`);
-      }
+      game.disconnectPlayer(ws.account.email);
     }
     ws.joinedGameId = null;
   }

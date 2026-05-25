@@ -250,8 +250,8 @@ maps.push({
   name: 'big',
   planckConfig: { gravity: { x: 0, y: 0 } },
   objects: [
-    ...makeScatter(100, 50, 0.9, { objectType: 'circle', scaleMin: 0.4, scaleMax: 1.2 }),
-    ...makeScatter(100, 50, 0.9, { objectType: 'box', scaleMin: 0.4, scaleMax: .9 })
+    ...makeScatter(10, 50, 0.9, { objectType: 'circle', scaleMin: 0.4, scaleMax: 1.2 }),
+    ...makeScatter(10, 50, 0.9, { objectType: 'box', scaleMin: 0.4, scaleMax: .9 })
   ]
 });
 

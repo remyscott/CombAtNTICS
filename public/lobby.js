@@ -108,13 +108,32 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   refreshGames();
-  setInterval(refreshGames, 5000);
+  setInterval(refreshGames, 500);
 
   joinBtn?.addEventListener('click', async () => {
-    const gameId = 'game' + Math.floor(Math.random()*1000);
+    const gameId = 'game' + Math.floor(Math.random() * 1000);
     setStatus('Creating and joining ' + gameId + '...', 'muted');
     log('Creating game', gameId);
-    window.location.href = `game.html?game=${encodeURIComponent(gameId)}`;
 
+    try {
+      const res = await wsClient.join(gameId);
+      if (res.ok) {
+        // update URL without reloading the page
+        const newUrl = `game.html?game=${encodeURIComponent(gameId)}`;
+
+        setStatus(`Joined ${gameId}`, 'success');
+        log('Joined game', res);
+        window.location.href = newUrl;
+      } else {
+        setStatus(`Failed to join: ${res.reason}`, 'error');
+        if (res.reason === 'not_logged_in') {
+          window.location.href = 'login.html';
+        }
+        console.warn('join failed', res);
+      }
+    } catch (err) {
+      setStatus('Join error', 'error');
+      console.error('join() threw', err);
+    }
   });
 });

@@ -5,14 +5,14 @@ import { GameWorld } from './gameWorld.js';
 import { Filter } from 'bad-words';
 
 export class Game {
-  constructor(map) {
+  constructor(map, id, onClose) {
     this.map = map;
+    this.id = id;
+    this.onClose = onClose;
     this.world = new GameWorld(map);
     this.chatFilter = new Filter();
-    this._id = 0;
-    this.idToBody = new Map();
     this._lastFrameMeta = {bodies: {}, fixtures: {}};
-
+    this._stopped = false;
     this.players = new Map();
     this._tickTimeout = null;
     this._ticksSinceSnapshot = 0;
@@ -21,33 +21,46 @@ export class Game {
     this.startTickRateTracker();
   }
 
-  onClientChat(payload, clientId) {
+  onClientChat(payload, email) {
     if (!payload || payload.type !== 'chatMsg') return;
 
     const raw = String(payload.msg || '');
     const containsSwear = this.chatFilter.isProfane(raw);
     
     if (containsSwear) {
-      this.players.get(clientId).chatBanned = true;
+      this.players.get(email).chatBanned = true;
       this.broadcast({type: 'chatMsg', msg: `Player ${payload.nameOfSender} has been banned from chat for swearing`, nameOfSender: 'SERVER'});
       return;
     }
-
-
 
     this.broadcast(payload);
   }
 
   addPlayer(ws) {
-    const newPlayer = new Player(ws, this);
+    if (!this.firstPlayerJoined) this.firstPlayerJoined = true;
+    const existingPlayer = this.players.get(ws.account.email);
+    if (existingPlayer) {
+      existingPlayer.attachWS(ws);
+      existingPlayer.sendInit(ws);
+    } else {
+      const newPlayer = new Player(ws, this);
 
-    this.players.set(ws.clientId, newPlayer);
-    newPlayer.sendInit();
+      this.players.set(ws.account.email, newPlayer);
+      newPlayer.sendInit();
+    }
+    
   }
 
-  removePlayer(clientId) {
-    this.players.get(clientId).destroy();
-    this.players.delete(clientId);
+  disconnectPlayer(email) {
+    this.players.get(email).detachWS();
+  }
+
+  removePlayer(email) {
+    this.players.get(email).destroy();
+    this.players.delete(email);
+    if (this.players.size <= 0) {
+      this.stop();
+    }
   }
 
   broadcast(msg) {
@@ -58,8 +71,12 @@ export class Game {
   }
 
   tick() {
+    if (this._stopped) return;
+    if (!this.world) return;
+
     for (const player of this.players.values()) {
       player.applyInputs();
+      player.update();
     }
 
     this.world.step(TIMESTEP, 8, 8);
@@ -103,15 +120,11 @@ export class Game {
   }
 
   broadcastSnapshotDecision() {
-    // Collect tick state and the new metadata (bodies that have appeared since last frame)
     const { overallState, newMeta } = this.collectTickState();
 
-    // Always send partial state for newly spawned items so they appear immediately
     const partialState = this.makePartialState(overallState, newMeta);
 
-    // If an entity was added, we should still send its metadata as JSON
     if (Object.keys(newMeta.bodies).length > 0 || Object.keys(newMeta.fixtures).length > 0) {
-      // send the metadata JSON first (so client knows how to construct entities)
       this.broadcast({ type: 'newMetadata', newMetadata: newMeta });
     }
 
@@ -121,7 +134,9 @@ export class Game {
       this._ticksSinceSnapshot = 0;
       const buf = this.encodeState(overallState);
       for (const client of this.players.values()) {
-        client.ws.send(buf);
+        if (client.ws) {
+          client.ws.send(buf);
+        }
       }
 
       // update lastFrameMeta after full snapshot so next partials use correct baseline
@@ -131,7 +146,9 @@ export class Game {
       if (Object.keys(partialState).length > 0) {
         const buf = this.encodeState(partialState, true);
         for (const client of this.players.values()) {
-          client.ws.send(buf);
+          if (client.ws) {
+            client.ws.send(buf);
+          }
         }
       }
     }
@@ -204,16 +221,28 @@ export class Game {
   }
 
   stop() {
+    if (this._stopped) return;
+    this._stopped = true;
+
     if (this._tickTimeout) {
-        clearTimeout(this._tickTimeout);
-        this._tickTimeout = null;
+      clearTimeout(this._tickTimeout);
+      this._tickTimeout = null;
     }
 
     if (this._tickRateInterval) {
-        clearInterval(this._tickRateInterval);
-        this._tickRateInterval = null;
+      clearInterval(this._tickRateInterval);
+      this._tickRateInterval = null;
     }
-    this.players = null;
+
+    if (typeof this.onClose === 'function') {
+      try { this.onClose(this.id); } catch (err) { console.error('onClose threw:', err); }
+    }
+
+    for (const p of this.players?.values() || []) {
+      try { p.detachWS?.(); } catch (_) {}
+    }
+    this.players.clear();
+    this.world = null;
   }
 
   startTickRateTracker() {
@@ -234,41 +263,48 @@ export class Game {
   } 
 
   startTickLoop() {
-    const IDEAL_DT = 1000 / IDEAL_TICK_RATE;
-    let lastTickTime = performance.now();
-    let accumulator = 0;
-  
-    // cancel any existing loop
+    const IDEAL_DT = 1000 / IDEAL_TICK_RATE; // ms per tick
+    let nextTickTime = performance.now() + IDEAL_DT;
+
+    // cancel existing loop if any
     if (this._tickTimeout) {
       clearTimeout(this._tickTimeout);
       this._tickTimeout = null;
     }
-  
+
     const loop = () => {
-      const now = performance.now();
-      let frameTime = now - lastTickTime;
-      lastTickTime = now;
-
-      if (frameTime > 250) frameTime = 250;
-
-      accumulator += frameTime;
-  
-      while (accumulator >= IDEAL_DT) {
-        try {
-          this.tick();
-        } catch (err) {
-          console.error('tick() threw:', err);
-        }
-        accumulator -= IDEAL_DT;
+      // bail if stopped
+      if (this._stopped) {
+        this._tickTimeout = null;
+        return;
       }
-  
-      const nextDelay = Math.max(0, IDEAL_DT - ( performance.now() + lastTickTime ));
-      const safeDelay = Number.isFinite(nextDelay) && nextDelay <= 1000 ? Math.round(nextDelay) : Math.round(IDEAL_DT);
-  
-      this._tickTimeout = setTimeout(loop, safeDelay);
+
+      try {
+        this.tick();
+      } catch (err) {
+        console.error('tick() threw:', err);
+      }
+
+      // advance the schedule by one step
+      nextTickTime += IDEAL_DT;
+
+      // if we're very far behind, snap the schedule forward so we don't queue a large backlog
+      const now = performance.now();
+      if (nextTickTime < now - 1000) {
+        // more than 1s behind: reset to avoid huge negative delays
+        nextTickTime = now + IDEAL_DT;
+      }
+
+      // compute delay until next scheduled tick
+      let delay = Math.max(0, Math.round(nextTickTime - performance.now()));
+
+      // optional safety bound so setTimeout doesn't receive a too-large value
+      if (!Number.isFinite(delay) || delay > 1000) delay = Math.round(IDEAL_DT);
+
+      this._tickTimeout = setTimeout(loop, delay);
     };
-  
-    // kick off
+
+    // kick off the loop after one ideal dt
     this._tickTimeout = setTimeout(loop, Math.round(IDEAL_DT));
   }
 }

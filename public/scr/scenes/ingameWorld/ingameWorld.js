@@ -21,7 +21,7 @@ export class IngameWorld extends Phaser.Scene {
   }
 
   applyState(state) {
-    if (state.objects) this.imageManager.applyBodyStates(state.objects);
+    if (state && state.objects) this.imageManager.applyBodyStates(state.objects);
   }
 
   update() {

@@ -38,7 +38,8 @@ export class HoverSphere {
         id: this.body.getUserData().id,
         type: "hoversphere",
         scale: this.opts.radius * 2,
-        name: player.name
+        name: player.name,
+        alwaysVisible: true,
       }
     });
 

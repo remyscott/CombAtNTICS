@@ -145,24 +145,27 @@ class WSClient {
     });
   }
 
-  async join(gameId, name) {
+  async join(gameId) {
     await this.connect();
     return new Promise((resolve) => {
       const onAck = (msg) => {
-        if (msg && msg.gameId === gameId) {
+        if (!msg || msg.type !== 'joinAck') return;
+        // if server explicitly failed the join, resolve immediately
+        if (msg.ok === false) {
+          cleanup();
+          resolve({ ok: false, reason: msg.reason, gameId: msg.gameId || null });
+          return;
+        }
+        // success matching our requested game
+        if (msg.ok === true && msg.gameId === gameId) {
           cleanup();
           resolve({ ok: true, gameId: msg.gameId, clientId: msg.clientId });
         }
       };
       const cleanup = () => { this.off('joinAck', onAck); clearTimeout(timer); };
       this.on('joinAck', onAck);
-      const timer = setTimeout(() => {
-        this.off('joinAck', onAck);
-        resolve({ ok: false, reason: 'timeout' });
-      }, 5000);
-      const payload = { type: 'join', gameId };
-      if (name) payload.name = name;
-      this.send(payload);
+      const timer = setTimeout(() => { cleanup(); resolve({ ok: false, reason: 'timeout' }); }, 5000);
+      this.send({ type: 'join', gameId });
     });
   }
 
@@ -203,6 +206,7 @@ class WSClient {
         localStorage.removeItem('sessionToken');
         this.account = null;
         localStorage.removeItem('account');
+        window.location.href = 'login.html';
       }
     });
   }

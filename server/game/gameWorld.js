@@ -156,7 +156,7 @@ export class GameWorld extends World {
       : bodyMetadata;
 
     // Ensure fixtures array exists so pushes won't fail
-    if (!Array.isArray(storedMeta.fixtures)) storedMeta.fixtures = [];
+    storedMeta.fixtures = [];
 
     // Save to canonical store
     this.metadata.bodies[bodyMetadata.id] = storedMeta;
@@ -164,7 +164,7 @@ export class GameWorld extends World {
     // Iterate fixtures on the body and create/reuse fixture meta ids
     let fixture = body.getFixtureList();
     while (fixture) {
-      const fixtureMetadata = fixture.getUserData() || {};
+      const fixtureMetadata = fixture.getUserData() || {}; 
       const metaId = this._findOrCreateFixtureMeta(fixtureMetadata);
 
       // Keep instance-level fixture info within body metadata (if needed)
@@ -256,6 +256,7 @@ export class GameWorld extends World {
       type: fixtureMetadata.type,
       scale: fixtureMetadata.scale,
       name: fixtureMetadata.name,
+      depth: fixtureMetadata.depth || false,
     };
 
     // Remove undefined keys for a cleaner canonical representation

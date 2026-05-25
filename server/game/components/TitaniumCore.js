@@ -10,7 +10,9 @@ export class TitaniumCore {
     this.player.body.createFixture({
       shape: Box(0.25, 0.25),
       density: this.opts.density,
-      userData: {id: this.player.game.world.newFxId(), type: 'titaniumCore', scale: 1 },
+      userData: {depth: 100000, id: this.player.game.world.newFxId(), type: 'titaniumCore', scale: 1 },
     });
+
+    this.player.game.world.registerBody(this.player.body);
   }
 }

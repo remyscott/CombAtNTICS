@@ -10,7 +10,7 @@ const config = {
     width: window.innerWidth,
     height: window.innerHeight
   },
-  scene: [ IngameWorld, UI ]
+  scene: [ IngameWorld, UI ],
 };
 
 const phaserGame = new Phaser.Game(config);
