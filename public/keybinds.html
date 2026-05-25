@@ -3,21 +3,39 @@
 <head>
   <meta charset="utf-8" />
   <title>Keybinds</title>
-  <link rel="stylesheet" href="./css/keybinds.css">
+  <link rel="stylesheet" href="./css/style.css">
+  <link rel="stylesheet" href="./css/lobby.css">
 </head>
 <body>
-  <header>
-    <h2>Configure Keybinds</h2>
-    <a href="/">lobby</a>
-  </header>
+  <div id="lobby-container">
+    <div id="lobby-panel">
+      <a class="site-title">
+        <span class="title-main">CombA</span>
+        <span class="title-accent">N</span>
+        <span class="title-main">T</span>
+        <span class="title-accent">ICS</span>
+      </a>
 
-  <div class="list" id="bindingsList"></div>
+      <div class="panel-header">
+        <h2>Configure Keybinds</h2>
+        <a class="btn small" href="/">Back</a>
+      </div>
 
-  <div class="footer">
-    <button id="resetBtn">Reset to Defaults</button>
-    <button id="exportBtn">Export (console)</button>
-    <button id="importBtn" class="small">Import JSON</button>
-    <div class="note" id="status"></div>
+      <div class="panel-body">
+        <div class="list" id="bindingsList"></div>
+      </div>
+
+      <div class="panel-footer">
+        <div style="display:flex; flex-wrap:wrap; gap:10px;">
+          <button id="saveBtn" class="btn">Save to Account</button>
+          <button id="loadBtn" class="btn">Load from Account</button>
+          <button id="resetBtn" class="btn secondary">Reset to Defaults</button>
+          <button id="exportBtn" class="btn secondary">Export (console)</button>
+          <button id="importBtn" class="btn small">Import JSON</button>
+        </div>
+        <div class="note" id="status"></div>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="./scr/keybinds.js"></script>

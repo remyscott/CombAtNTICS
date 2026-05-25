@@ -11,18 +11,41 @@ export class ImageManager {
     this.scene = scene;
     this.bodies = new Map();
     this.playerImageId = null;
+    this.cameraFocusId = null;
     console.log('ImageManager initiated');
-    this.playerImagePos = {x:0, y:0};
+    this.playerImagePos = { x: 0, y: 0 };
+    this.cameraFocusPos = { x: 0, y: 0 };
     this.requestedMetadata = false;
     this.requestedMetadataFor = [];
   }
 
-  updatePlayerImagePos() {
-    if (!this.playerImageId) {
-      this.playerImageId = this.scene.game.playerBodyId;
+  setImageFocusId(id) {
+    this.cameraFocusId = id === null ? null : id;
+    this.updateImageFocusPos();
+  }
+  
+  _resolveLocalPlayerFixtureId() {
+    const bodyId = this.scene.game.playerBodyId;
+    if (!bodyId || !this.scene.game.metadata || !this.scene.game.metadata.bodies) return null;
+    const bodyMeta = this.scene.game.metadata.bodies[bodyId];
+    if (!bodyMeta || !Array.isArray(bodyMeta.fixtures) || bodyMeta.fixtures.length === 0) return null;
+    return bodyMeta.fixtures[0].id;
+  }
+
+  updateImageFocusPos() {
+    const localFixtureId = this._resolveLocalPlayerFixtureId();
+    if (localFixtureId) {
+      this.playerImageId = localFixtureId;
     }
+
+    if (!this.cameraFocusId) {
+      this.cameraFocusId = this.playerImageId;
+    }
+
     this.playerImagePos.x = this.scene.images.get(this.playerImageId)?.x || 0;
     this.playerImagePos.y = this.scene.images.get(this.playerImageId)?.y || 0;
+    this.cameraFocusPos.x = this.scene.images.get(this.cameraFocusId)?.x ?? this.playerImagePos.x;
+    this.cameraFocusPos.y = this.scene.images.get(this.cameraFocusId)?.y ?? this.playerImagePos.y;
   }
 
   _ensureBody(id) {
@@ -121,7 +144,7 @@ export class ImageManager {
       : this._isWorldPosInCameraWithMargin(state.pos.x, state.pos.y, 96 + Math.max(fixture.image.displayWidth, fixture.image.displayHeight) * 0.5 || 32)
     );
     if (fixture.metadata && fixture.metadata.alwaysVisible) shouldBeVisible = true;
-    if (this.playerImageId === fixture.id) shouldBeVisible = true;
+    if (this.cameraFocusId === fixture.id) shouldBeVisible = true;
 
     // common world coords
     const wx = state.pos.x * (this.scene.pixelsPerMeter || 50);

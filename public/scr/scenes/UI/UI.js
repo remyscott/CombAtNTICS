@@ -53,8 +53,34 @@ export class UI extends Phaser.Scene {
     this._chatBuf = '';
   }
 
-  // Delegate sending to game.client.sendMessage(payload). Do NOT display the message locally here.
+  // Handle local commands on client side, forward others to server
   _send(text) {
+    // Check for local commands
+    const parts = text.trim().split(/\s+/);
+    const command = parts[0];
+
+    if (command === '/zoom') {
+      const zoomLevel = parseFloat(parts[1]);
+      if (!zoomLevel) {
+        zoomLevel = 1;
+      }
+      if (isNaN(zoomLevel) || zoomLevel <= 0) {
+        this.console.log('Usage: /zoom level (e.g., /zoom 1.5)', { level: 'warn' });
+        return;
+      }
+      try {
+        const inWorldScene = this.game.scene.getScene('InWorldObjects');
+        if (inWorldScene && inWorldScene.cameras && inWorldScene.cameras.main) {
+          inWorldScene.cameras.main.setZoom(zoomLevel);
+          this.console.log(`Zoom set to ${zoomLevel}x`, { level: 'info' });
+        }
+      } catch (err) {
+        this.console.log(`Zoom failed: ${err.message}`, { level: 'error' });
+      }
+      return;
+    }
+
+    // Send other messages to server
     const payload = { type: 'chatMsg', msg: text };
     try {
       if (this.client && typeof this.client.sendMessage === 'function') {
@@ -70,13 +96,40 @@ export class UI extends Phaser.Scene {
 
   // Called by external code when a broadcast arrives:
   // game.scene.keys.UI.displayMessage(payload.msg, payload.nameOfSender)
-  displayMessage(msg, nameOfSender) {
+  displayMessage(msg, nameOfSender, senderRoles) {
     const myName = (this && this.game && this.game.client) ? this.game.client.name : null;
     if (myName && nameOfSender === myName) {
-      this.console.log(`you: ${msg}`);
-    } else {
-      this.console.log(`${nameOfSender}: ${msg}`);
+      this.console.log([
+        { text: 'you: ', color: '#78c7ff' },
+        { text: msg, color: '#ffffff' }
+      ]);
+      return;
     }
+
+    const roles = [];
+    if (Array.isArray(senderRoles)) {
+      for (const role of senderRoles) {
+        if (typeof role === 'string') {
+          const trimmed = role.trim().toLowerCase();
+          if (trimmed) roles.push(trimmed);
+        }
+      }
+    } else if (typeof senderRoles === 'string' && senderRoles.trim()) {
+      for (const role of senderRoles.split(',')) {
+        const trimmed = String(role || '').trim().toLowerCase();
+        if (trimmed) roles.push(trimmed);
+      }
+    }
+
+    const uniqueRoles = [...new Set(roles)];
+    const segments = [];
+    const roleColor = uniqueRoles.includes('admin') ? '#ff8a8a' : uniqueRoles.includes('mod') ? '#ffe599' : '#b3d9ff';
+    if (uniqueRoles.length) {
+      segments.push({ text: `{${uniqueRoles.join(', ')}} `, color: roleColor });
+    }
+    segments.push({ text: `${nameOfSender}: `, color: uniqueRoles.length ? roleColor : '#e0e0ff' });
+    segments.push({ text: msg, color: '#ffffff' });
+    this.console.log(segments);
   }
 
   destroy() {

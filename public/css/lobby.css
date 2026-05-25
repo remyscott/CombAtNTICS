@@ -81,12 +81,49 @@ body{
 /* input group: minimal terminal controls */
 .input-group{
   display:flex;
+  flex-wrap: wrap;
   gap:8px;
   margin-bottom:14px;
+  align-items: center;
+}
+
+/* Games panel header with action buttons */
+.games-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.games-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.panel-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.panel-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.input-group.small-row {
+  justify-content: flex-start;
 }
 
 .input-group input{
-  flex:1;
+  flex: 1 1 240px;
+  min-width: 180px;
   background:transparent;
   border:1px solid rgba(255,255,255,0.04);
   border-radius:3px;
@@ -95,6 +132,78 @@ body{
   font-family:inherit;
   font-size:13px;
   outline:none;
+}
+
+.input-group button,
+.input-group a.btn {
+  min-width: 108px;
+}
+
+/* common lobby buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--gold);
+  background: transparent;
+  color: var(--gold);
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.btn:hover,
+.btn:focus {
+  background: rgba(255,210,70,0.08);
+  outline: none;
+}
+
+.btn.secondary {
+  color: var(--text);
+  border-color: rgba(255,255,255,0.12);
+}
+
+.btn.small {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.panel {
+  margin-top: 18px;
+}
+
+.panel-header,
+.panel-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.panel-body {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 6px;
+  padding: 16px;
+}
+
+.list {
+  display: grid;
+  gap: 10px;
+}
+
+.note {
+  color: var(--muted);
+  font-size: 13px;
+  min-height: 20px;
 }
 
 .input-group input::placeholder{
@@ -123,6 +232,35 @@ body{
 
 .input-group button:hover{
   background: rgba(255,210,70,0.04);
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+input[type="email"], input[type="password"], input[type="text"] {
+  width: 100%;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 3px;
+  padding: 8px 10px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+input:focus {
+  border-color: var(--gold);
+  background: rgba(255,210,70,0.08);
 }
 
 /* games panel header */

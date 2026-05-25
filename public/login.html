@@ -3,75 +3,67 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Game — Sign in / Sign up</title>
-  <style>
-    :root { --maxw:720px; --pad:18px; --muted:#666; }
-    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; background:#f5f7fa; }
-    .card { width:100%; max-width:var(--maxw); background:#fff; border:1px solid #e6e9ee; border-radius:8px; padding:24px; box-shadow:0 6px 24px rgba(35,47,63,0.06); }
-    h1 { margin:0 0 12px; font-size:20px; }
-    .cols { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-    label { display:block; font-size:13px; color:#333; margin-bottom:6px; }
-    input[type="email"], input[type="password"], input[type="text"] { width:100%; padding:10px 12px; border:1px solid #dfe6ee; border-radius:6px; box-sizing:border-box; }
-    .btn { padding:10px 14px; border:none; background:#1976d2; color:#fff; border-radius:6px; cursor:pointer; }
-    .btn.secondary { background:#6b7280; }
-    .row { display:flex; gap:8px; align-items:center; margin-top:12px; }
-    .status { margin-top:12px; font-size:14px; color:var(--muted); }
-    .status.good { color:green; }
-    .status.bad { color:#c53030; }
-    #log { margin-top:12px; background:#0d1117; color:#cbd5e1; padding:10px; border-radius:6px; font-family:monospace; font-size:13px; height:140px; overflow:auto; }
-    .full { grid-column: 1 / -1; }
-    @media (max-width:720px) { .cols { grid-template-columns:1fr; } }
-  </style>
+  <title>CombANTICS — Sign in</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/lobby.css" />
 </head>
 <body>
-  <div class="card">
-    <h1>Sign in or Create account</h1>
 
-    <div class="cols">
-      <div>
-        <h3>Sign in</h3>
-        <label for="signinEmail">Email</label>
-        <input id="signinEmail" type="email" autocomplete="username" />
+  <div id="lobby-container">
+    <div id="lobby-panel">
+      <a class="site-title">
+        <span class="title-main">CombA</span>
+        <span class="title-accent">N</span>
+        <span class="title-main">T</span>
+        <span class="title-accent">ICS</span>
+      </a>
 
-        <label for="signinPassword" style="margin-top:8px">Password</label>
-        <input id="signinPassword" type="password" autocomplete="current-password" />
+      <div class="cols" style="grid-template-columns:1fr 1fr; gap:18px;">
+        <div>
+          <h3 style="margin-top:0;">Sign in</h3>
+          <label for="signinUsername">Username</label>
+          <input id="signinUsername" type="text" autocomplete="username" />
 
-        <div class="row">
-          <button id="btnSignin" class="btn">Sign in</button>
-          <button id="btnSigninClear" class="btn secondary">Clear</button>
-        </div>
+          <label for="signinPassword" style="margin-top:8px">Password</label>
+          <input id="signinPassword" type="password" autocomplete="current-password" />
 
-        <div id="signinStatus" class="status"></div>
-      </div>
-
-      <div>
-        <h3>Create account</h3>
-        <label for="signupEmail">Email</label>
-        <input id="signupEmail" type="email" autocomplete="email" />
-
-        <label for="signupPassword" style="margin-top:8px">Password</label>
-        <input id="signupPassword" type="password" autocomplete="new-password" />
-
-        <label for="signupDisplay" style="margin-top:8px">Display name</label>
-        <input id="signupDisplay" type="text" maxlength="25" />
-
-        <div class="row">
-          <button id="btnSignup" class="btn">Sign up</button>
-          <button id="btnSignupClear" class="btn secondary">Clear</button>
-        </div>
-
-        <div id="signupStatus" class="status"></div>
-      </div>
-
-      <div class="full">
-        <div class="row" style="justify-content:space-between;">
-          <div class="muted">Session token (saved in localStorage): <span id="tokenPreview">none</span></div>
-          <div>
-            <button id="btnClearToken" class="btn secondary">Clear token</button>
+          <div class="row">
+            <button id="btnSignin" class="btn">Sign in</button>
+            <button id="btnSigninClear" class="btn secondary" type="button">Clear</button>
           </div>
+
+          <div id="signinStatus" class="status"></div>
         </div>
 
-        <div id="log" aria-live="polite"></div>
+        <div>
+          <h3 style="margin-top:0;">Create account</h3>
+          <label for="signupUsername">Username</label>
+          <input id="signupUsername" type="text" autocomplete="username" />
+
+          <label for="signupPassword" style="margin-top:8px">Password</label>
+          <input id="signupPassword" type="password" autocomplete="new-password" />
+
+          <label for="signupDisplay" style="margin-top:8px">Display name</label>
+          <input id="signupDisplay" type="text" maxlength="25" />
+
+          <div class="row">
+            <button id="btnSignup" class="btn">Sign up</button>
+            <button id="btnSignupClear" class="btn secondary" type="button">Clear</button>
+          </div>
+
+          <div id="signupStatus" class="status"></div>
+        </div>
+
+        <div class="full" style="margin-top:12px;">
+          <div class="row" style="justify-content:space-between; align-items:center;">
+            <div class="muted">Session token: <span id="tokenPreview">none</span></div>
+            <div>
+              <button id="btnClearToken" class="btn secondary" type="button">Clear token</button>
+            </div>
+          </div>
+
+          <div id="log" aria-live="polite"></div>
+        </div>
       </div>
     </div>
   </div>

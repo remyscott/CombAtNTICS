@@ -1,9 +1,10 @@
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS accounts (
-  email TEXT PRIMARY KEY,       -- normalized email
+  username TEXT PRIMARY KEY,
   password_hash TEXT NOT NULL,
   display_name TEXT DEFAULT 'NoName',
+  roles TEXT DEFAULT 'player',
   created_at INTEGER NOT NULL,      -- unix ms
   updated_at INTEGER,
   -- optional fields:
@@ -12,4 +13,4 @@ CREATE TABLE IF NOT EXISTS accounts (
   verify_token_expires INTEGER
 );
 
-CREATE INDEX IF NOT EXISTS idx_accounts_email ON accounts(email);
+CREATE INDEX IF NOT EXISTS idx_accounts_username ON accounts(username);

@@ -1,12 +1,12 @@
 // public/login.js
 import wsClient from './ws-client.js';
 
-const signinEmail = document.getElementById('signinEmail');
+const signinEmail = document.getElementById('signinUsername');
 const signinPassword = document.getElementById('signinPassword');
 const btnSignin = document.getElementById('btnSignin');
 const signinStatus = document.getElementById('signinStatus');
 
-const signupEmail = document.getElementById('signupEmail');
+const signupEmail = document.getElementById('signupUsername');
 const signupPassword = document.getElementById('signupPassword');
 const signupDisplay = document.getElementById('signupDisplay');
 const btnSignup = document.getElementById('btnSignup');
@@ -26,10 +26,12 @@ function setToken() { if (!tokenPreview) return; tokenPreview.textContent = wsCl
   await wsClient.connect();
   setToken();
 
-  // Optional: listen for global auth.ok event to redirect
+  // Optional: listen for global auth.ok event and redirect to lobby
   wsClient.on('auth.ok', (msg) => {
-    log('Authenticated: ' + (msg.account?.displayName || msg.account?.email));
-    // redirect to lobby
+    log('Authenticated: ' + (msg.account?.displayName || msg.account?.username));
+    setSigninStatus('Signed in as ' + (msg.account?.displayName || msg.account?.username), true);
+    setSignupStatus('Signed in as ' + (msg.account?.displayName || msg.account?.username), true);
+    // always redirect on auth.ok (auto-auth now returns to lobby)
     window.location.href = '/lobby.html';
   });
 
@@ -42,11 +44,11 @@ function setToken() { if (!tokenPreview) return; tokenPreview.textContent = wsCl
   });
 
   btnSignin?.addEventListener('click', async () => {
-    const email = (signinEmail?.value || '').trim();
+    const username = (signinEmail?.value || '').trim();
     const password = signinPassword?.value || '';
-    if (!email || !password) { setSigninStatus('email & password required', false); return; }
+    if (!username || !password) { setSigninStatus('username & password required', false); return; }
     setSigninStatus('Signing in...', null);
-    const res = await wsClient.signin(email, password);
+    const res = await wsClient.signin(username, password);
     if (res.ok) {
       setToken();
       setSigninStatus('Signed in', true);
@@ -56,19 +58,39 @@ function setToken() { if (!tokenPreview) return; tokenPreview.textContent = wsCl
     }
   });
 
+  btnSigninClear?.addEventListener('click', () => {
+    if (signinEmail) signinEmail.value = '';
+    if (signinPassword) signinPassword.value = '';
+    if (signinStatus) {
+      signinStatus.textContent = '';
+      signinStatus.className = 'status';
+    }
+  });
+
   btnSignup?.addEventListener('click', async () => {
-    const email = (signupEmail?.value || '').trim();
+    const username = (signupEmail?.value || '').trim();
     const password = signupPassword?.value || '';
     const display = (signupDisplay?.value || '').trim() || undefined;
-    if (!email || !password) { setSignupStatus('email & password required', false); return; }
+    if (!username || !password) { setSignupStatus('username & password required', false); return; }
+    if (!/^[A-Za-z0-9]+$/.test(username)) { setSignupStatus('Username must be alphanumeric only', false); return; }
     setSignupStatus('Creating account...', null);
-    const res = await wsClient.signup(email, password, display);
+    const res = await wsClient.signup(username, password, display);
     if (res.ok) {
       setToken();
       setSignupStatus('Account created', true);
       // auth.ok handler will redirect
     } else {
       setSignupStatus('Sign up failed: ' + (res.reason || 'error'), false);
+    }
+  });
+
+  btnSignupClear?.addEventListener('click', () => {
+    if (signupEmail) signupEmail.value = '';
+    if (signupPassword) signupPassword.value = '';
+    if (signupDisplay) signupDisplay.value = '';
+    if (signupStatus) {
+      signupStatus.textContent = '';
+      signupStatus.className = 'status';
     }
   });
 

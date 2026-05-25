@@ -21,14 +21,14 @@ export class Game {
     this.startTickRateTracker();
   }
 
-  onClientChat(payload, email) {
+  onClientChat(payload, username) {
     if (!payload || payload.type !== 'chatMsg') return;
 
     const raw = String(payload.msg || '');
     const containsSwear = this.chatFilter.isProfane(raw);
     
     if (containsSwear) {
-      this.players.get(email).chatBanned = true;
+      this.players.get(username).chatBanned = true;
       this.broadcast({type: 'chatMsg', msg: `Player ${payload.nameOfSender} has been banned from chat for swearing`, nameOfSender: 'SERVER'});
       return;
     }
@@ -38,26 +38,35 @@ export class Game {
 
   addPlayer(ws) {
     if (!this.firstPlayerJoined) this.firstPlayerJoined = true;
-    const existingPlayer = this.players.get(ws.account.email);
+    const existingPlayer = this.players.get(ws.account.username);
     if (existingPlayer) {
       existingPlayer.attachWS(ws);
       existingPlayer.sendInit(ws);
     } else {
       const newPlayer = new Player(ws, this);
-
-      this.players.set(ws.account.email, newPlayer);
+      this.players.set(ws.account.username, newPlayer);
       newPlayer.sendInit();
+      this.broadcast({ type: 'chatMsg', msg: `${newPlayer.name || ws.account.username} has joined the game.`, nameOfSender: 'SERVER' });
     }
-    
   }
 
-  disconnectPlayer(email) {
-    this.players.get(email).detachWS();
+  disconnectPlayer(username) {
+    const player = this.players.get(username);
+    if (!player) return;
+    player.detachWS();
   }
 
-  removePlayer(email) {
-    this.players.get(email).destroy();
-    this.players.delete(email);
+  removePlayer(username) {
+    const player = this.players.get(username);
+    if (!player) return;
+    const playerName = player.name || player.account?.username || username;
+    try {
+      player.destroy();
+    } catch (err) {
+      console.warn('Failed to destroy player during removePlayer', err);
+    }
+    this.players.delete(username);
+    this.broadcast({ type: 'chatMsg', msg: `${playerName} has left the game.`, nameOfSender: 'SERVER' });
     if (this.players.size <= 0) {
       this.stop();
     }
@@ -66,7 +75,14 @@ export class Game {
   broadcast(msg) {
     const data = JSON.stringify(msg);
     for (const client of this.players.values()) {
-      client.ws.send(data);
+      if (!client?.ws || typeof client.ws.send !== 'function') continue;
+      const OPEN = client.ws.OPEN ?? 1;
+      if (client.ws.readyState !== OPEN) continue;
+      try {
+        client.ws.send(data);
+      } catch (err) {
+        console.warn('Failed to broadcast to client', err);
+      }
     }
   }
 

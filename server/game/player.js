@@ -1,4 +1,5 @@
 import tryHandleMessage from "../utilities/tryHandleMessage.js";
+import accounts from "../accounts-sqlite.js";
 import { HoverSphere } from "./components/HoverSphere.js";
 import { Sword } from "./components/Sword.js";
 import { configurableInputs } from "../../shared/inputsListing.js";
@@ -7,6 +8,7 @@ import { Dash } from "./components/Dash.js";
 import { addRandomGunToComponentList, BlockMinigun } from "./components/BlockGuns.js";
 import { SwordBig } from "./components/SwordBig.js";
 import { TitaniumCore } from "./components/TitaniumCore.js";
+import { componentMap, componentList } from "./componentMap.js";
 
 function chance(chance) {
   return (Math.random() < chance);
@@ -23,8 +25,7 @@ export class Player {
         components.push(Sword);
       }
     } else {
-      components.push(BlockMinigun)
-      //addRandomGunToComponentList(components);
+      addRandomGunToComponentList(components);
     }
 
     this.ws = null;
@@ -40,8 +41,49 @@ export class Player {
       this.attachWS(ws);
     }
 
-    this.setUpComponents(components);
+    this.componentClasses = (components || []).slice();
+    this.setUpComponents(this.componentClasses);
 
+  }
+
+  // Respawn the player's physical body and components without detaching WS
+  respawn() {
+    try {
+      // Call onDestroy for existing component instances (but keep ws/account)
+      for (const component of this.components) {
+        try {
+          if (typeof component.onDestroy === 'function') component.onDestroy(this);
+        } catch (e) {
+          console.error('component onDestroy error during respawn', e);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // Destroy existing physics body if present
+    try {
+      if (this.body) {
+        try {
+          if (this.world && typeof this.world.destroyBody === 'function') {
+            this.world.destroyBody(this.body);
+          } else if (this.body && typeof this.body.getWorld === 'function') {
+            const w = this.body.getWorld();
+            if (w && typeof w.destroyBody === 'function') w.destroyBody(this.body);
+          }
+        } catch (e) {
+          console.warn('Failed to destroy old body during respawn', e);
+        }
+        this.body = null;
+      }
+    } catch (e) {}
+
+    // Recreate components and body
+    try {
+      this.setUpComponents(this.componentClasses || [HoverSphere, Dash]);
+    } catch (e) {
+      console.error('Failed to set up components during respawn', e);
+    }
   }
 
   attachWS(ws) {
@@ -58,7 +100,9 @@ export class Player {
         this.name = ws.account.displayName || this.name;
         this.chatBanned = !!ws.account.chatBanned;
         this.account = ws.account;
-
+        if (!Array.isArray(this.account.roles) && this.account.role) {
+          this.account.roles = String(this.account.role).split(',').map((r) => String(r || '').trim().toLowerCase()).filter(Boolean);
+        }
       }
     } catch (e) {
     }
@@ -174,14 +218,297 @@ export class Player {
   handleMessage(msg) {
     if (!msg) return;
     if (msg.type === 'chatMsg') {
+      if (msg.msg.startsWith('/')) {
+        this.interpretCommand(msg.msg);
+        return;
+      }
       if (this.chatBanned) return;
-      this.game.onClientChat({ type: 'chatMsg', msg: msg.msg, nameOfSender: this.name }, this.account.email);
+
+      this.game.onClientChat({ type: 'chatMsg', msg: msg.msg, nameOfSender: this.name, senderRoles: this.account.roles }, this.account.username);
     } else if (msg.type === 'input') {
       this.inputs = msg.inputs;
     } else if (msg.type === 'timeSync') {
       this.ws.send(JSON.stringify({ type: 'timeSyncResp', serverTime: Date.now(), id: msg.id }));
     } else if (msg.type === 'metadataRequest') {
       this.ws.send(JSON.stringify({ type: 'metadataResponse', metadata: this.world.metadata }));
+    }
+    
+  }
+
+  interpretCommand(string) {
+    const roleRank = (r) => ({ player: 0, mod: 1, admin: 2 }[r] ?? 0);
+    const normalizeRoleInput = (raw) => {
+      if (Array.isArray(raw)) return raw;
+      if (!raw) return ['player'];
+      return String(raw).split(',').map((role) => String(role || '').trim().toLowerCase()).filter(Boolean);
+    };
+    const highestRoleRank = (roles) => Math.max(0, ...normalizeRoleInput(roles).map(roleRank));
+    const hasRole = (userRoles, requiredRole) => highestRoleRank(userRoles) >= roleRank(requiredRole);
+    const resolvePlayer = (identifier) => {
+      if (!identifier) return null;
+      const key = String(identifier).trim();
+      // Support @s for self
+      if (key === '@s') return this;
+      if (this.game.players.has(key)) return this.game.players.get(key);
+      const lower = key.toLowerCase();
+      for (const player of this.game.players.values()) {
+        if (player.account?.username?.toLowerCase() === lower) return player;
+        if (player.account?.displayName?.toLowerCase() === lower) return player;
+        if (player.name?.toLowerCase() === lower) return player;
+      }
+      return null;
+    };
+
+    const commands = {
+      '/spawn': {
+        requiredRole: 'player',
+        function: () => {
+          try {
+            this.respawn();
+            this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'You have been respawned.', nameOfSender: 'SERVER' }));
+          } catch (err) {
+            console.error('spawn command failed', err);
+            this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Respawn failed: ' + (err.message || 'error'), nameOfSender: 'SERVER' }));
+          }
+         },
+        description: 'delete current player and build a new one'
+      },
+      '/leave': {
+        requiredRole: 'player',
+        function: () => {
+          if (!this.game.players.has(this.account.username)) {
+            try {
+              this.ws?.send(JSON.stringify({ type: 'chatMsg', msg: 'You have left the game.', nameOfSender: 'SERVER' }));
+            } catch (err) {
+              // ignore
+            }
+            return;
+          }
+          this.game.removePlayer(this.account.username);
+        },
+        description: 'Leave the game and return to the lobby'
+      },
+      '/whisper': {
+        requiredRole: 'player',
+        function: (recipientId, ...messageParts) => {
+          const message = messageParts.join(' ');
+          const target = resolvePlayer(recipientId);
+          if (!target || !target.ws) {
+            this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Player not found', nameOfSender: 'SERVER' }));
+            return;
+          }
+          target.ws.send(JSON.stringify({ type: 'chatMsg', msg: `(Whisper from ${this.name}): ${message}`, nameOfSender: '.' }));
+        },
+        description: 'Send a private message to another player. Usage: /whisper username message',
+      },
+      '/listplayers': {
+        requiredRole: 'player',
+        function: () => {
+          const names = [...this.game.players.entries()]
+            .map(([u, p]) => `${u}: ${p.name || p.account?.displayName || 'NoName'} [${(p.account?.roles || ['player']).join(', ')}]`)
+            .join(', ');
+          this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Players: ${names}`, nameOfSender: 'SERVER' }));
+        },
+        description: 'List players in the current game as username: displayName [roles]'
+      },
+      '/kick': {
+        requiredRole: 'mod',
+        function: (targetId) => {
+          if (!targetId) { this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Usage: /kick username', nameOfSender: 'SERVER' })); return; }
+          const p = resolvePlayer(targetId);
+          if (!p) { this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Player not found', nameOfSender: 'SERVER' })); return; }
+          this.game.disconnectPlayer(p.account.username);
+          this.game.broadcast({ type: 'chatMsg', msg: `Player ${p.account.username} was kicked by ${this.name}`, nameOfSender: 'SERVER' });
+        },
+        description: 'Disconnect a player from the game (mod+)'
+      },
+      '/mute': {
+        requiredRole: 'mod',
+        function: (targetId) => {
+          const p = resolvePlayer(targetId);
+          if (!p) { this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Player not found', nameOfSender: 'SERVER' })); return; }
+          p.chatBanned = true;
+          this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Player ${p.account.username} muted by ${this.name}`, nameOfSender: 'SERVER' }));
+        },
+        description: 'Mute a player (mod+)'
+      },
+      '/unmute': {
+        requiredRole: 'mod',
+        function: (targetId) => {
+          const p = resolvePlayer(targetId);
+          if (!p) { this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Player not found', nameOfSender: 'SERVER' })); return; }
+          p.chatBanned = false;
+          this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Player ${p.account.username} unmuted by ${this.name}`, nameOfSender: 'SERVER' }));
+        },
+        description: 'Unmute a player (mod+)'
+      },
+      '/ban': {
+        requiredRole: 'admin',
+        function: (targetId) => {
+          const p = resolvePlayer(targetId);
+          if (!p) { this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Player not found', nameOfSender: 'SERVER' })); return; }
+          p.chatBanned = true;
+          try { if (p.ws) p.ws.close(4003, 'banned by admin'); } catch (e) {}
+          this.game.broadcast({ type: 'chatMsg', msg: `Player ${p.account.username} was banned by ${this.name}`, nameOfSender: 'SERVER' });
+        },
+        description: 'Ban a player (disconnect) (admin only)'
+      },
+      '/role': {
+        requiredRole: 'admin',
+        function: async (targetId, ...newRoleParts) => {
+          const newRole = newRoleParts.join(' ');
+          const p = resolvePlayer(targetId);
+          if (!p || !p.account) { this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Player not found', nameOfSender: 'SERVER' })); return; }
+          if (!newRole) { this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Usage: /role username role1,role2', nameOfSender: 'SERVER' })); return; }
+          try {
+            const updated = await accounts.updateRole(p.account.username, newRole);
+            if (p && p.account) p.account.roles = updated.roles;
+            this.game.broadcast({ type: 'chatMsg', msg: `Player ${p.account.username} roles set to ${updated.roles.join(', ')} by ${this.name}`, nameOfSender: 'SERVER' });
+          } catch (err) {
+            this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Failed to set roles: ${err.message}`, nameOfSender: 'SERVER' }));
+          }
+        },
+        description: 'Set roles for a user (admin only). Example: /role username mod,player'
+      },
+      '/whois': {
+        requiredRole: 'admin',
+        function: (targetId) => {
+          const p = resolvePlayer(targetId);
+          const acct = p?.account || accounts.getAccountByUsername(targetId);
+          if (!acct) { this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Account not found', nameOfSender: 'SERVER' })); return; }
+          this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `User: ${acct.username}, displayName: ${acct.displayName}, roles: ${acct.roles.join(', ')}`, nameOfSender: 'SERVER' }));
+        },
+        description: 'Get account details (admin)'
+      },
+      '/setComponents': {
+        requiredRole: 'mod',
+        function: (targetId, ...componentNames) => {
+          const p = resolvePlayer(targetId);
+          if (!p) { this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Player not found', nameOfSender: 'SERVER' })); return; }
+          if (componentNames.length === 0) { this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Usage: /setComponents username HoverSphere,Dash,Sword', nameOfSender: 'SERVER' })); return; }
+          
+          const componentString = componentNames.join(' ');
+          const requestedNames = componentString.split(',').map(n => n.trim()).filter(Boolean);
+          const validComponents = requestedNames.filter(n => n in componentMap).map(n => componentMap[n]);
+          
+          if (validComponents.length === 0) {
+            this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `No valid components. Available: ${componentList.join(', ')}`, nameOfSender: 'SERVER' }));
+            return;
+          }
+          
+          try {
+            p.componentClasses = validComponents;
+            p.respawn();
+            p.sendInit();
+            this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `${p.account.username}'s components set to ${validComponents.map(c => c.name).join(', ')}`, nameOfSender: 'SERVER' }));
+            p.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Your components have been changed to ${validComponents.map(c => c.name).join(', ')}`, nameOfSender: 'SERVER' }));
+          } catch (err) {
+            this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Failed to set components: ${err.message}`, nameOfSender: 'SERVER' }));
+          }
+        },
+        description: 'Set components for a player (mod+). Example: /setComponents username HoverSphere,Dash,Sword'
+      },
+      '/spec': {
+        requiredRole: 'player',
+        function: (targetId) => {
+          if (!targetId) {
+            this.ws.send(JSON.stringify({ type: 'cameraFocusId', id: null }));
+            this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Camera focus reset to your player', nameOfSender: 'SERVER' }));
+            return;
+          }
+          const p = resolvePlayer(targetId);
+          if (!p || !p.body) { this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Player not found or has no body', nameOfSender: 'SERVER' })); return; }
+          try {
+            const fixture = (typeof p.body.getFixtureList === 'function') ? p.body.getFixtureList() : null;
+            if (!fixture) {
+              this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Player body has no fixtures', nameOfSender: 'SERVER' }));
+              return;
+            }
+            const fixtureId = fixture.getUserData && fixture.getUserData().id ? fixture.getUserData().id : null;
+            if (fixtureId == null) {
+              this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Fixture has no id metadata', nameOfSender: 'SERVER' }));
+              return;
+            }
+            this.ws.send(JSON.stringify({ type: 'cameraFocusId', id: fixtureId }));
+            this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Camera focus on ${p.name}`, nameOfSender: 'SERVER' }));
+          } catch (err) {
+            this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Spec failed: ${err.message}`, nameOfSender: 'SERVER' }));
+          }
+        },
+        description: 'Focus your camera on a player. Usage: /spec username (or /spec to return to your player)'
+      },
+      '/listAllComponents': {
+        requiredRole: 'player',
+        function: () => {
+          const components = componentList.join(', ');
+          this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Available components: ${components}`, nameOfSender: 'SERVER' }));
+        },
+        description: 'List all available components'
+      },
+      '/tp': {
+        requiredRole: 'mod',
+        function: (targetId, destinationId) => {
+          if (!targetId || !destinationId) {
+            this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Usage: /tp player destination (use @s for self)', nameOfSender: 'SERVER' }));
+            return;
+          }
+          const p = resolvePlayer(targetId);
+          const dest = resolvePlayer(destinationId);
+          if (!p) { this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Target player not found', nameOfSender: 'SERVER' })); return; }
+          if (!dest || !dest.body) { this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Destination player not found or has no body', nameOfSender: 'SERVER' })); return; }
+          
+          try {
+            if (p.body) {
+              const destPos = dest.body.getPosition();
+              p.body.setPosition(destPos);
+              p.body.setLinearVelocity({ x: 0, y: 0 });
+              p.ws.send(JSON.stringify({ type: 'chatMsg', msg: `You were teleported by ${this.name}`, nameOfSender: 'SERVER' }));
+              this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Teleported ${p.account.username} to ${dest.account.username}`, nameOfSender: 'SERVER' }));
+              this.game.broadcast({ type: 'chatMsg', msg: `${p.account.username} was teleported to ${dest.account.username}`, nameOfSender: 'SERVER' });
+            }
+          } catch (err) {
+            this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Teleport failed: ${err.message}`, nameOfSender: 'SERVER' }));
+          }
+        },
+        description: 'Teleport a player to another player. Usage: /tp player destination (use @s for self)'
+      }
+    };
+
+    if (!string) return;
+
+    const parts = string.trim().split(/\s+/);
+    const commandToken = parts.shift();
+
+    if (commandToken === '/help') {
+      for (const cmd in commands) {
+        const entry = commands[cmd];
+        if (!entry.requiredRole || hasRole(this.account?.roles || ['player'], entry.requiredRole)) {
+          this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `${cmd}: ${entry.description}`, nameOfSender: 'SERVER' }));
+        }
+      }
+      return;
+    }
+
+    const commandEntry = commands[commandToken];
+    if (commandEntry) {
+      const required = commandEntry.requiredRole || 'player';
+      const userRoles = this.account?.roles || ['player'];
+      if (!hasRole(userRoles, required)) {
+        this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Insufficient permissions to run ${commandToken} (requires ${required})`, nameOfSender: 'SERVER' }));
+        return;
+      }
+      try {
+        const result = commandEntry.function(...parts);
+        if (result && typeof result.then === 'function') {
+          result.catch((err) => {
+            this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Command error: ${err.message}`, nameOfSender: 'SERVER' }));
+          });
+        }
+      } catch (err) {
+        this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Command error: ${err.message}`, nameOfSender: 'SERVER' }));
+      }
+    } else {
+      this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Unknown command. Type /help for a list of commands.`, nameOfSender: 'SERVER' }));
     }
   }
 
@@ -224,7 +551,7 @@ export class Player {
     if (!this.ws) {
       this._disconnectTimer -= 1/60;
       if (this._disconnectTimer <= 0) {
-        this.game.removePlayer(this.account.email);
+        this.game.removePlayer(this.account.username);
       }
     } else {
       this._disconnectTimer = 5;

@@ -105,7 +105,7 @@ class WSClient {
 
   // --- high-level operations ---
 
-  async signin(email, password) {
+  async signin(username, password) {
     await this.connect();
     return new Promise((resolve) => {
       const onOk = (msg) => {
@@ -121,11 +121,11 @@ class WSClient {
       };
       this.on('auth.ok', onOk);
       this.on('signin.fail', onFail);
-      this.send({ type: 'signin', email, password });
+      this.send({ type: 'signin', username, password });
     });
   }
 
-  async signup(email, password, displayName) {
+  async signup(username, password, displayName) {
     await this.connect();
     return new Promise((resolve) => {
       const onOk = (msg) => {
@@ -141,7 +141,7 @@ class WSClient {
       };
       this.on('auth.ok', onOk);
       this.on('signup.fail', onFail);
-      this.send({ type: 'signup', email, password, displayName });
+      this.send({ type: 'signup', username, password, displayName });
     });
   }
 

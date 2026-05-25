@@ -97,7 +97,9 @@ export class GameConsole {
 
     let totalHeight = 0;
     for (let i = 0; i < this.active.length; i++) {
-      totalHeight += this.active[i].text.height;
+      const rec = this.active[i];
+      const recHeight = rec.elements.reduce((max, text) => Math.max(max, text.height || 0), 0);
+      totalHeight += recHeight;
       if (i < this.active.length - 1) totalHeight += spacing;
     }
 
@@ -106,11 +108,15 @@ export class GameConsole {
 
     for (let i = 0; i < this.active.length; i++) {
       const rec = this.active[i];
-      const t = rec.text;
-      t.setOrigin(0, 0);
-      t.setPosition(x, Math.round(y));
-      t.setAlpha(1);
-      y += t.height + spacing;
+      const recHeight = rec.elements.reduce((max, text) => Math.max(max, text.height || 0), 0);
+      let offsetX = x;
+      for (const text of rec.elements) {
+        text.setOrigin(0, 0);
+        text.setPosition(Math.round(offsetX), Math.round(y + Math.max(0, (recHeight - (text.height || 0)) / 2)));
+        text.setAlpha(1);
+        offsetX += text.width || 0;
+      }
+      y += recHeight + spacing;
     }
   }
 
@@ -139,56 +145,109 @@ export class GameConsole {
     } catch (e) { /* ignore */ }
   }
 
+  /* ---------- message splitting utility ---------- */
+
+  _splitSegmentForWidth(segment, availableWidth) {
+    if (!segment || !segment.text) return [segment];
+
+    const tempText = this.scene.add.text(0, 0, '', Object.assign({}, this.style, segment.style || {}));
+    tempText.setText(String(segment.text));
+
+    if (tempText.width <= availableWidth) {
+      tempText.destroy();
+      return [segment];
+    }
+
+    const words = String(segment.text).split(' ');
+    const result = [];
+    let currentLine = '';
+
+    for (const word of words) {
+      const testLine = currentLine ? currentLine + ' ' + word : word;
+      tempText.setText(testLine);
+
+      if (tempText.width <= availableWidth) {
+        currentLine = testLine;
+      } else {
+        if (currentLine) {
+          result.push({ text: currentLine, color: segment.color, style: segment.style });
+        }
+        currentLine = word;
+      }
+    }
+
+    if (currentLine) {
+      result.push({ text: currentLine, color: segment.color, style: segment.style });
+    }
+
+    tempText.destroy();
+    return result;
+  }
+
   /* ---------- public API ---------- */
 
   log(message, { level = 'log', ttl } = {}) {
-    // normalize lifetime: treat 0 as "persistent"
     const lifetime = (typeof ttl === 'number') ? (ttl === 0 ? Infinity : ttl) : this.ttl;
+    const availableWidth = Math.max(100, (typeof this.gameWidth === 'number' ? this.gameWidth : 800) - 2 * this.pad);
+    const segmentColor = (level === 'error') ? '#ff6666' :
+                         (level === 'warn')  ? '#ffcc66' :
+                         (level === 'info')  ? '#3be025' : '#ffffff';
 
-    // Evict oldest if at capacity
-    if (this.active.length >= this.maxMessages) {
-      const oldest = this.active.shift();
-      if (oldest && oldest.timer) {
-        clearTimeout(oldest.timer);
-        oldest.timer = null;
+    const segments = Array.isArray(message) ? message : [{ text: String(message), color: segmentColor }];
+    
+    // Split each segment if it would exceed available width
+    const splitSegments = [];
+    for (const segment of segments) {
+      const color = segment.color || segmentColor;
+      const withColor = { ...segment, color };
+      splitSegments.push(...this._splitSegmentForWidth(withColor, availableWidth));
+    }
+
+    // Create a separate record for each split segment (each becomes a console line)
+    const records = [];
+    for (const segment of splitSegments) {
+      if (this.active.length >= this.maxMessages) {
+        const oldest = this.active.shift();
+        if (oldest && oldest.timer) {
+          clearTimeout(oldest.timer);
+          oldest.timer = null;
+        }
+        if (oldest && oldest.elements) {
+          for (const element of oldest.elements) this._releaseText(element);
+        }
       }
-      this._releaseText(oldest.text);
-      this._layoutMessages();
+
+      const text = this._acquireText();
+      const style = Object.assign({}, this.style, segment.style || {});
+      const color = segment.color || style.color || segmentColor;
+      try {
+        text.setStyle && text.setStyle(style);
+      } catch (e) { /* ignore style errors */ }
+      try {
+        if (typeof text.setColor === 'function') text.setColor(color);
+        else text.setStyle && text.setStyle({ fill: color });
+      } catch (e) {}
+      text.setText && text.setText(String(segment.text || ''));
+
+      const rec = {
+        elements: [text],
+        level,
+        expiresAt: (lifetime === Infinity) ? Infinity : (Date.now() + lifetime),
+        timer: null
+      };
+
+      this.active.push(rec);
+      records.push(rec);
+
+      if (lifetime !== Infinity) {
+        rec.timer = setTimeout(() => { this._removeRecord(rec); }, Math.max(0, lifetime));
+      } else {
+        rec.timer = null;
+      }
     }
 
-    // Acquire text object and style it
-    const text = this._acquireText();
-    const color = (level === 'error') ? '#ff6666' :
-                  (level === 'warn')  ? '#ffcc66' :
-                  (level === 'info')  ? '#3be025' : '#ffffff';
-
-    try {
-      if (typeof text.setColor === 'function') text.setColor(color);
-      else text.setStyle && text.setStyle({ fill: color });
-    } catch (e) { /* ignore styling errors */ }
-
-    text.setText && text.setText(String(message));
-
-    // Create record
-    const rec = {
-      text,
-      level,
-      expiresAt: (lifetime === Infinity) ? Infinity : (Date.now() + lifetime),
-      timer: null
-    };
-
-    // Push and layout
-    this.active.push(rec);
     this._layoutMessages();
-
-    // If lifetime is finite, schedule removal
-    if (lifetime !== Infinity) {
-      rec.timer = setTimeout(() => { this._removeRecord(rec); }, Math.max(0, lifetime));
-    } else {
-      rec.timer = null;
-    }
-
-    return rec;
+    return records.length > 0 ? records[records.length - 1] : null;
   }
 
   info(msg, opts) { return this.log(msg, Object.assign({ level: 'info' }, opts)); }
@@ -200,19 +259,22 @@ export class GameConsole {
     if (idx === -1) return;
     if (rec.timer) { clearTimeout(rec.timer); rec.timer = null; }
     this.active.splice(idx, 1);
-    this._releaseText(rec.text);
+    if (rec.elements) {
+      for (const element of rec.elements) this._releaseText(element);
+    }
     this._layoutMessages();
   }
 
   updateRecord(rec, text, { level, ttl } = {}) {
-    if (!rec || !rec.text) return;
-    rec.text.setText(String(text));
+    if (!rec || !rec.elements || rec.elements.length !== 1) return;
+    const element = rec.elements[0];
+    element.setText(String(text));
     if (level) {
       rec.level = level;
       const color = (level === 'error') ? '#ff6666' : (level === 'warn') ? '#ffcc66' : (level === 'info') ? '#3be025' : '#ffffff';
       try {
-        if (typeof rec.text.setColor === 'function') rec.text.setColor(color);
-        else rec.text.setStyle && rec.text.setStyle({ fill: color });
+        if (typeof element.setColor === 'function') element.setColor(color);
+        else element.setStyle && element.setStyle({ fill: color });
       } catch (e) {}
     }
 
@@ -233,7 +295,9 @@ export class GameConsole {
   clear() {
     for (const rec of this.active) {
       clearTimeout(rec.timer);
-      this._releaseText(rec.text);
+      if (rec.elements) {
+        for (const element of rec.elements) this._releaseText(element);
+      }
     }
     this.active.length = 0;
   }

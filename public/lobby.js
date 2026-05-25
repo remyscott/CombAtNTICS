@@ -4,6 +4,7 @@ import wsClient from './ws-client.js';
 const nameInput = document.getElementById('nameInput');
 const saveNameBtn = document.getElementById('saveNameBtn');
 const joinBtn = document.getElementById('joinBtn');
+const logoutBtn = document.getElementById('logoutBtn');
 const gameList = document.getElementById('gameList');
 const statusEl = document.getElementById('lobbyStatus');
 const logEl = document.getElementById('lobbyLog');
@@ -74,9 +75,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     log('WS connected');
 
     wsClient.on('auth.ok', (msg) => {
-      setStatus('Signed in as ' + (msg.account?.displayName || msg.account?.email), 'good');
+      setStatus('Signed in as ' + (msg.account?.displayName || msg.account?.username), 'good');
       log('auth.ok', msg.account);
       const acct = msg.account || {};
+      nameInput.value = acct.displayName || acct.username || '';
     });
 
     wsClient.on('auth.fail', (msg) => {
@@ -105,6 +107,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       setStatus('Failed to save name', 'bad');
       log('updateDisplayName error', e);
     }
+  });
+
+  logoutBtn?.addEventListener('click', () => {
+    wsClient.logout();
+    setStatus('Signed out', 'good');
+    log('Signed out and cleared session');
+    window.location.href = 'login.html';
   });
 
   refreshGames();

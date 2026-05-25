@@ -8,7 +8,7 @@ import crypto from "crypto";
 import { Game } from './game/game.js';
 import { httpAuthMiddleware, upgradeAuthHandler } from './auth.js';
 import { authorizedUsers } from './config/authorizedusers.js';
-import { maps } from './config/maps.js';
+import { maps, makeCrystalMap } from './config/maps.js';
 import accounts from './accounts-sqlite.js';
 import sessions from './sessions.js'
 const app = express();
@@ -25,6 +25,7 @@ const wss = new WebSocketServer({ noServer: true });
 const games = new Map();
 
 function getOrCreateGame(gameId, map = maps[Math.floor(Math.random()*maps.length)]) {
+  if (Math.random() < 0.3) map = makeCrystalMap();
   if (!games.has(gameId)) {
     const game = new Game(map, gameId, (id) => {
       games.delete(id);
@@ -84,19 +85,19 @@ wss.on('connection', (ws, req) => {
     return false;
   }
 
-  // Helper: close other sockets for the same account email (force-logout older sessions)
-  function closeOtherSocketsForEmail(accountEmail, keepToken) {
+  // Helper: close other sockets for the same account username (force-logout older sessions)
+  function closeOtherSocketsForUsername(accountUsername, keepToken) {
     for (const client of wss.clients) {
       if (client === ws) continue;
       if (client.readyState !== client.OPEN) continue;
-      // if client.account exists and matches email, and its sessionToken differs from keepToken, close it
+      // if client.account exists and matches username, and its sessionToken differs from keepToken, close it
       try {
-        const clientEmail = client.account && client.account.email;
-        if (clientEmail && clientEmail === accountEmail) {
+        const clientUsername = client.account && client.account.username;
+        if (clientUsername && clientUsername === accountUsername) {
           // Optionally notify the client
           try { client.send(JSON.stringify({ type: 'session.invalidated', reason: 'new_session' })); } catch (e) {}
           try { client.close(4000, 'session invalidated by new login'); } catch (e) {}
-          console.log(`🔒 Closed previous socket for ${accountEmail}`);
+          console.log(`🔒 Closed previous socket for ${accountUsername}`);
         }
       } catch (e) {
         // ignore
@@ -120,14 +121,14 @@ wss.on('connection', (ws, req) => {
       }
       if (ws.joinedGameId) {
         const prev = games.get(ws.joinedGameId);
-        if (prev) prev.disconnectPlayer(ws.account.email);
+        if (prev) prev.disconnectPlayer(ws.account.username);
         ws.joinedGameId = null;
       }
       const game = getOrCreateGame(gameId);
       game.addPlayer(ws);
       ws.joinedGameId = gameId;
       ws.send(JSON.stringify({ type: 'joinAck', ok: true, gameId, clientId }));
-      console.log(`🟢 Player joined: ${ws.displayName} -> ${gameId}`);
+      console.log(`🟢 Player joined: ${ws.account.username} -> ${gameId}`);
     } catch (err) {
       console.error('joinGame error', err);
       ws.send(JSON.stringify({ type: 'joinAck', ok: false, reason: 'internal_error', gameId: gameId || null }));
@@ -138,7 +139,7 @@ wss.on('connection', (ws, req) => {
     if (!ws.joinedGameId) return;
     const game = games.get(ws.joinedGameId);
     if (game) {
-      game.disconnectPlayer(ws.account.email);
+      game.disconnectPlayer(ws.account.username);
     }
     ws.joinedGameId = null;
   }
@@ -170,15 +171,15 @@ wss.on('connection', (ws, req) => {
         const sess = sessions.getSession(token);
         if (!sess) { ws.send(JSON.stringify({ type: 'auth.fail', reason: 'invalid_or_expired' })); break; }
 
-        const acct = await accounts.getAccountByEmail(sess.accountEmail);
+          const acct = await accounts.getAccountByUsername(sess.accountUsername);
         if (!acct) { ws.send(JSON.stringify({ type: 'auth.fail', reason: 'no_account' })); break; }
 
         // OK - attach account and token
         ws.account = acct;
         ws.sessionToken = token;
 
-        // Because we enforce single-session-per-email, when a new session is created on signin/signup
-        // we close older sockets; but also ensure here that no other live socket is using the same account email.
+        // Because we enforce single-session-per-username, when a new session is created on signin/signup
+        // we close older sockets; but also ensure here that no other live socket is using the same account username.
         // (This is redundant with the isTokenInUse check above, but we'll be safe.)
         for (const client of wss.clients) {
           if (client !== ws && client.readyState === client.OPEN && client.sessionToken === token) {
@@ -189,26 +190,26 @@ wss.on('connection', (ws, req) => {
         }
 
         ws.send(JSON.stringify({ type: 'auth.ok', account: acct, sessionToken: token, expiresAt: sess.expiresAt }));
-        console.log(`🔐 Re-authenticated via token: ${acct.email} (clientId=${clientId})`);
+        console.log(`🔐 Re-authenticated via token: ${acct.username} (clientId=${clientId})`);
         break;
       }
 
       case 'signup': {
-        const { email, password, displayName } = msg;
-        if (!email || !password) { ws.send(JSON.stringify({ type:'signup.fail', reason:'email and password required' })); break; }
+        const { username, password, displayName } = msg;
+        if (!username || !password) { ws.send(JSON.stringify({ type:'signup.fail', reason:'username and password required' })); break; }
         try {
-          const acct = await accounts.createAccount(email, password, displayName);
+          const acct = await accounts.createAccount(username, password, displayName);
           // create a new session and invalidate previous sessions in DB
-          const sess = sessions.createSession(acct.email);
+          const sess = sessions.createSession(acct.username);
 
-          // Close other live sockets for this account email so the new session is the only live one
-          closeOtherSocketsForEmail(acct.email, sess.token);
+          // Close other live sockets for this account username so the new session is the only live one
+          closeOtherSocketsForUsername(acct.username, sess.token);
 
           // attach to this ws
           ws.account = acct;
           ws.sessionToken = sess.token;
           ws.send(JSON.stringify({ type: 'auth.ok', account: acct, sessionToken: sess.token, expiresAt: sess.expiresAt }));
-          console.log(`🔐 SignUp + session created: ${acct.email} (clientId=${clientId})`);
+          console.log(`🔐 SignUp + session created: ${acct.username} (clientId=${clientId})`);
         } catch (err) {
           console.error('signup error', err);
           ws.send(JSON.stringify({ type:'signup.fail', reason: err.message || 'failed' }));
@@ -217,22 +218,22 @@ wss.on('connection', (ws, req) => {
       }
 
       case 'signin': {
-        const { email, password } = msg;
-        if (!email || !password) { ws.send(JSON.stringify({ type:'signin.fail', reason:'email and password required' })); break; }
+        const { username, password } = msg;
+        if (!username || !password) { ws.send(JSON.stringify({ type:'signin.fail', reason:'username and password required' })); break; }
         try {
-          const acct = await accounts.authenticate(email, password);
+          const acct = await accounts.authenticate(username, password);
           if (!acct) { ws.send(JSON.stringify({ type:'signin.fail', reason:'invalid credentials' })); break; }
 
           // create fresh session (this deletes previous sessions in DB)
-          const sess = sessions.createSession(acct.email);
+          const sess = sessions.createSession(acct.username);
 
-          // close other live sockets for this account email so new session is sole live connection
-          closeOtherSocketsForEmail(acct.email, sess.token);
+          // close other live sockets for this account username so new session is sole live connection
+          closeOtherSocketsForUsername(acct.username, sess.token);
 
           ws.account = acct;
           ws.sessionToken = sess.token;
           ws.send(JSON.stringify({ type:'auth.ok', account: acct, sessionToken: sess.token, expiresAt: sess.expiresAt }));
-          console.log(`🔐 SignIn + session created: ${acct.email} (clientId=${clientId})`);
+          console.log(`🔐 SignIn + session created: ${acct.username} (clientId=${clientId})`);
         } catch (err) {
           console.error('signin error', err);
           ws.send(JSON.stringify({ type:'signin.fail', reason: err.message || 'failed' }));
@@ -253,7 +254,7 @@ wss.on('connection', (ws, req) => {
         if (!assertLoggedIn()) break;
         try {
           const display = String(msg.displayName || '').slice(0,25);
-          const updated = await accounts.updateDisplayName(ws.account.email, display);
+          const updated = await accounts.updateDisplayName(ws.account.username, display);
           // update in-memory account and inform client
           ws.account.displayName = updated.displayName;
           ws.send(JSON.stringify({ type: 'updateDisplayName.ok', displayName: updated.displayName }));
@@ -266,6 +267,33 @@ wss.on('connection', (ws, req) => {
 
       case 'join': {
         await joinGame(msg.gameId);
+        break;
+      }
+
+      case 'saveKeybinds': {
+        if (!assertLoggedIn()) break;
+        try {
+          const keybinds = msg.keybinds || {};
+          const updated = await accounts.updateKeybinds(ws.account.username, keybinds);
+          // reflect in-memory account
+          if (ws.account) ws.account.keybinds = updated.keybinds;
+          ws.send(JSON.stringify({ type: 'saveKeybinds.ok', keybinds: updated.keybinds }));
+        } catch (err) {
+          console.error('saveKeybinds error', err);
+          ws.send(JSON.stringify({ type: 'saveKeybinds.fail', reason: err.message || 'failed' }));
+        }
+        break;
+      }
+
+      case 'loadKeybinds': {
+        if (!assertLoggedIn()) break;
+        try {
+          const acct = await accounts.getAccountByUsername(ws.account.username);
+          ws.send(JSON.stringify({ type: 'loadKeybinds.ok', keybinds: acct.keybinds || {} }));
+        } catch (err) {
+          console.error('loadKeybinds error', err);
+          ws.send(JSON.stringify({ type: 'loadKeybinds.fail', reason: err.message || 'failed' }));
+        }
         break;
       }
 

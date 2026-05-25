@@ -49,7 +49,7 @@ export class Client{
       window.location.href = '/login.html';
       return;
     } else {
-      console.log('Authenticated via session token:', auth.msg?.account?.email);
+      console.log('Authenticated via session token:', auth.msg?.account?.username);
     }
 
     // Wire up incoming server messages
@@ -64,7 +64,9 @@ export class Client{
       if (!parsed) return;
       this.handleMessage(parsed);
     };
-
+    this.ws.addEventListener('close', () => {
+      window.location.href = 'lobby.html';
+    });
 
     // Optionally, auto-join based on URL query
     const url = new URL(window.location.href);
@@ -279,7 +281,7 @@ export class Client{
 
   handleMessage(msg) {
     if (msg.type === 'chatMsg') {
-      this.game.scene.getScene('UI').displayMessage(msg.msg, msg.nameOfSender)
+      this.game.scene.getScene('UI').displayMessage(msg.msg, msg.nameOfSender, msg.senderRoles)
     }
     if (msg.type === 'init') {
       this.init(msg)
@@ -291,6 +293,11 @@ export class Client{
 
     if (msg.type === 'metadataResponse') {
       this.handleMetadataResponse(msg)
+    }
+
+    if (msg.type === 'cameraFocusId') {
+      const id = msg.id === null ? null : msg.id;
+      this.game.scene.getScene('InWorldObjects').setCameraFocusId(id);
     }
   }
 
@@ -361,23 +368,23 @@ export class Client{
       return baseline;
     }
     // Use the most recent inserted state as baseline
-    return deepClone(this.history[this.history.length - 1].state);
+    return structuredClone(this.history[this.history.length - 1].state);
   }
 
   // Merge partial (subset) into baseline (both are keyed objects). Returns a NEW object.
   mergePartialIntoBaseline(baseline, partial) {
-    if (!baseline || Object.keys(baseline).length === 0) return deepClone(partial || {});
-    if (!partial || Object.keys(partial).length === 0) return deepClone(baseline);
+    if (!baseline || Object.keys(baseline).length === 0) return structuredClone(partial || {});
+    if (!partial || Object.keys(partial).length === 0) return structuredClone(baseline);
 
     // copy baseline shallowly and then overwrite keys from partial (deep clone values)
     const out = {};
     for (const [id, entry] of Object.entries(baseline)) {
-      out[id] = deepClone(entry);
+      out[id] = structuredClone(entry);
     }
 
     for (const [id, entry] of Object.entries(partial)) {
       // replace entire entity entry with the partial entity info (server sends full per-entity state)
-      out[id] = deepClone(entry);
+      out[id] = structuredClone(entry);
     }
 
     return out;

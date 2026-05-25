@@ -111,7 +111,7 @@ export class BlockShotgunBase {
       const proj = this.world.createBody({
         type: "dynamic",
         position: { x: px, y: py },
-        bullet: false,
+        bullet: true,
         userData: { owner: this, ttl: ttl },
         angle: Math.random() *3.14
       });

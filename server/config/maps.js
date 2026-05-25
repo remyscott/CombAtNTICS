@@ -266,23 +266,41 @@ for (let i = 1.5; i < 10; i++) {
   cum += i*3.5;
 }
 
+export function makeCrystalMap() {
+  const res = ({
+    name: '2',
+    planckConfig: { gravity: { x: 0, y: 0 } },
+    objects: [
+    ...makeCircleArc(100, 36, 0, 360, { objectType: 'lockbox', scale: 15, cx: 0, cy: 0 })  ,
+    ...makeCircleArc(90, 36, 5, 360, { objectType: 'lockbox', scale: 12, cx: 0, cy: 0 })  ]
+  });
+
+  cum = 0;
+  for (let i = 2; i < 7; i++) {
+    res.objects.push(...makeCircleArc(i*10+cum, 4, Math.random()*360, 200, { objectType: 'lockbox', scale: i*7, cx: -15+i*5, cy: 0 }));
+    cum += i*2;
+  }
+  cum = 0;
+  for (let i = 2; i < 7; i++) {
+    res.objects.push(...makeCircleArc(i*10+cum, 4, Math.random()*360, 200, { objectType: 'lockbox', scale: i*7, cx: 15-i*5, cy: 5 }));
+    cum += i*2;
+  }
+  return res;
+}
+
+
+
+
 maps.push({
-  name: '2',
+  name: 'soccerField',
   planckConfig: { gravity: { x: 0, y: 0 } },
   objects: [
-  ...makeCircleArc(100, 36, 0, 360, { objectType: 'lockbox', scale: 15, cx: 0, cy: 0 })  ,
-  ...makeCircleArc(90, 36, 5, 360, { objectType: 'lockbox', scale: 12, cx: 0, cy: 0 })  ]
+    ...makeCircleArc(100, 32, 10, 360, { objectType: 'lockbox', scale: 40, cx: 0, cy: 0 }),
+    { objectType: 'ball', scale: 4, position: { x: 0, y: 0 } },
+    { objectType: 'ball', scale: 10, position: { x: 0, y: 0 } },
+    { objectType: 'ball', scale: 3, position: { x: 0, y: 0 } },
+    { objectType: 'ball', scale: 2, position: { x: 0, y: 0 } },
+  ]
 });
-
-cum = 0;
-for (let i = 2; i < 7; i++) {
-  maps[3].objects.push(...makeCircleArc(i*10+cum, 4, Math.random()*360, 200, { objectType: 'lockbox', scale: i*7, cx: -15+i*5, cy: 0 }));
-  cum += i*2;
-}
-cum = 0;
-for (let i = 2; i < 7; i++) {
-  maps[3].objects.push(...makeCircleArc(i*10+cum, 4, Math.random()*360, 200, { objectType: 'lockbox', scale: i*7, cx: 15-i*5, cy: 5 }));
-  cum += i*2;
-}
 
 export default maps;

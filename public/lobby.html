@@ -3,17 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <title>CombANTICS</title>
+  <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/lobby.css" />
   <link href="assets/img/favicon.ico" rel="icon">
-  <style>
-    /* small debug/status styles added inline for convenience */
-    #lobbyStatus { margin-top: 10px; padding: 8px; border-radius: 6px; background:#f3f4f6; color:#111; font-size:14px; }
-    #lobbyStatus.good { background:#e6ffed; color:#04660d; }
-    #lobbyStatus.bad { background:#ffe6e6; color:#8b0000; }
-    #lobbyLog { margin-top:10px; height:160px; overflow:auto; background:#0f1724; color:#cbd5e1; padding:8px; font-family:monospace; font-size:13px; border-radius:6px; }
-    .game-entry { cursor:pointer; padding:6px; border-bottom:1px solid #eee; }
-    .game-entry:hover { background:#f8fafc; }
-  </style>
 </head>
 <body>
 
@@ -25,11 +17,12 @@
         <span class="title-main">T</span>
         <span class="title-accent">ICS</span>
       </a>
-      <a href='keybinds.html'>Keybinds</a>
-      <div class="input-group">     
+      <div class="input-group">
+        <a class="btn small" href="keybinds.html">Keybinds</a>
         <input id="nameInput" type="text" placeholder="Name" maxlength="25" />
         <button id="saveNameBtn">Save Name</button>
         <button id="joinBtn">Start New Game</button>
+        <button id="logoutBtn" type="button">Sign Out</button>
       </div>
 
       <div id="games-panel">

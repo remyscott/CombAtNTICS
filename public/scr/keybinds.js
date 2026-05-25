@@ -2,6 +2,7 @@
 // UI module for editing keybindings. Uses shared/configurableInputs and bindingsManager functions.
 
 import { configurableInputs } from '/shared/inputslisting.js';
+import wsClient from '../ws-client.js';
 import {
   loadBindings,
   saveBindings,
@@ -13,6 +14,8 @@ import {
 } from './bindingsManager.js'; // adjust path if bindingsManager is located elsewhere
 
 const listEl = document.getElementById('bindingsList');
+const saveBtn = document.getElementById('saveBtn');
+const loadBtn = document.getElementById('loadBtn');
 const resetBtn = document.getElementById('resetBtn');
 const exportBtn = document.getElementById('exportBtn');
 const importBtn = document.getElementById('importBtn');
@@ -149,6 +152,58 @@ resetBtn.addEventListener('click', () => {
   window.dispatchEvent(new CustomEvent('bindings-changed', { detail: currentBindings }));
   status('Reset to defaults');
   render();
+});
+
+// Save to account via WebSocket
+if (saveBtn) saveBtn.addEventListener('click', async () => {
+  try {
+    await wsClient.connect();
+    const onOk = (msg) => {
+      status('Saved to account');
+      wsClient.off('saveKeybinds.ok', onOk);
+      wsClient.off('saveKeybinds.fail', onFail);
+    };
+    const onFail = (msg) => {
+      status('Save failed: ' + (msg.reason || 'error'));
+      wsClient.off('saveKeybinds.ok', onOk);
+      wsClient.off('saveKeybinds.fail', onFail);
+    };
+    wsClient.on('saveKeybinds.ok', onOk);
+    wsClient.on('saveKeybinds.fail', onFail);
+    wsClient.send({ type: 'saveKeybinds', keybinds: currentBindings });
+    status('Saving...');
+  } catch (e) {
+    console.error('saveKeybinds error', e);
+    status('Save failed: offline');
+  }
+});
+
+// Load from account via WebSocket
+if (loadBtn) loadBtn.addEventListener('click', async () => {
+  try {
+    await wsClient.connect();
+    const onOk = (msg) => {
+      const kb = msg.keybinds || {};
+      currentBindings = importBindings(JSON.stringify(kb));
+      window.dispatchEvent(new CustomEvent('bindings-changed', { detail: currentBindings }));
+      status('Loaded from account');
+      render();
+      wsClient.off('loadKeybinds.ok', onOk);
+      wsClient.off('loadKeybinds.fail', onFail);
+    };
+    const onFail = (msg) => {
+      status('Load failed: ' + (msg.reason || 'error'));
+      wsClient.off('loadKeybinds.ok', onOk);
+      wsClient.off('loadKeybinds.fail', onFail);
+    };
+    wsClient.on('loadKeybinds.ok', onOk);
+    wsClient.on('loadKeybinds.fail', onFail);
+    wsClient.send({ type: 'loadKeybinds' });
+    status('Loading...');
+  } catch (e) {
+    console.error('loadKeybinds error', e);
+    status('Load failed: offline');
+  }
 });
 
 // Export to console (and copy to clipboard)

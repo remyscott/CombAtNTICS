@@ -26,12 +26,16 @@ export class IngameWorld extends Phaser.Scene {
 
   update() {
     this.applyState(this.game.currentState);
-    this.imageManager.updatePlayerImagePos();
+    this.imageManager.updateImageFocusPos();
     this.centerCamera();
     this.inputManager.tick();
   }
 
   centerCamera() {
-    this.cameras.main.centerOn(this.imageManager.playerImagePos.x, this.imageManager.playerImagePos.y);
+    this.cameras.main.centerOn(this.imageManager.cameraFocusPos.x, this.imageManager.cameraFocusPos.y);
+  }
+
+  setCameraFocusId(id) {
+    this.imageManager.setImageFocusId(id);
   }
 }
