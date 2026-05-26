@@ -301,6 +301,17 @@ export class ImageManager {
             }
             fixture.nameImage = null;
           }
+          if (fixture.edgeMarker) {
+            try {
+              if (typeof fixture.edgeMarker.destroy === 'function') {
+                fixture.edgeMarker.destroy();
+              }
+            } catch (e) {}
+            if (fixture.edgeMarker && fixture.edgeMarker.id) {
+              this.scene.images && this.scene.images.delete(fixture.edgeMarker.id);
+            }
+            fixture.nameImage = null;
+          }
         }
 
         if (this.playerImageId === bodyId) {
