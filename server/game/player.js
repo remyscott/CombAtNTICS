@@ -49,7 +49,6 @@ export class Player {
     this.clientId = null;
     this.chatBanned = false;
     this._disconnectTimer = 5;
-    this.mainFixtureId = null;
 
     if (ws) {
       this.attachWS(ws);
@@ -217,7 +216,6 @@ export class Player {
       position: { x: 0, y: 0 },
       userData: { owner: this }
     });
-    this.playerImageId = this.body.getUserData().id;
 
     this.components = [];
     for (const component of components) {
@@ -226,15 +224,14 @@ export class Player {
 
     const fixture = this.body.getFixtureList();
     if (fixture) fixture.setUserData({...fixture.getUserData(), name: this.name})
-    
     this.world.registerBody(this.body);
+
     const mainGravityScale = this.body.getGravityScale();
     for (const component of this.components) {
       if (component.body) component.body.setGravityScale(mainGravityScale);
     }
 
-    this.ws.send(JSON.stringify({ type: 'cameraFocusId', id: this.mainFixtureId }));
-
+    this.ws.send(JSON.stringify({ type: 'cameraFocusId', id: this.body.getUserData().id }));
   }
 
   handleMessage(msg) {
@@ -544,13 +541,7 @@ export class Player {
           const p = resolvePlayer(targetId);
           if (!p || !p.body) { this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Player not found or has no body', nameOfSender: 'SERVER' })); return; }
           try {
-            const fixture = (typeof p.body.getFixtureList === 'function') ? p.body.getFixtureList() : null;
-            if (!fixture) {
-              this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Player body has no fixtures', nameOfSender: 'SERVER' }));
-              return;
-            }
-
-            this.ws.send(JSON.stringify({ type: 'cameraFocusId', id: this.mainFixtureId }));
+            this.ws.send(JSON.stringify({ type: 'cameraFocusId', id: p.body.getUserData().id }));
 
             this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Camera focus on ${p.name}`, nameOfSender: 'SERVER' }));
           } catch (err) {

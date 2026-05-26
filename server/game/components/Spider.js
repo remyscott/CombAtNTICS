@@ -66,7 +66,6 @@ export class Spider {
           id: this.body.getUserData && this.body.getUserData().id,
           type: "spider",
           scale: this.opts.playerFixtureRadius * 2,
-          name: this.player.name
         }
       });
     } catch (e) {
