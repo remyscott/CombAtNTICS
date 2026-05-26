@@ -12,6 +12,49 @@ export class GameWorld extends World {
     this._fixtureMetaCache = new Map();
     this._time = 0;
     this.loadMapObjects(map.objects);
+    this.setUpDamageListeners();
+  }
+  setUpDamageListeners() {
+    this.on('post-solve', function(contact, impulse) {
+      // get the two fixtures/bodies involved
+      const fA = contact.getFixtureA();
+      const fB = contact.getFixtureB();
+
+      // your app stores custom data on the body
+      const dataA = fA.getUserData(); // e.g. { id: 'enemy', health: 100 }
+      const dataB = fB.getUserData(); // e.g. { id: 'ball', damageMultiplier: 2 }
+
+      // defensive checks
+      if (!impulse || !impulse.normalImpulses) return;
+
+      // choose an impulse scalar: sum or max of contact points are common choices
+      // Here we use the maximum normal impulse across contact points:
+      const maxImpulse = Math.max(...impulse.normalImpulses);
+
+      // helper to apply damage from source -> target
+      
+
+      // apply damage both ways if desired (A hit by B, B hit by A)
+      this.tryApplyDamage(dataA, dataB, impulse); // B damages A
+      this.tryApplyDamage(dataB, dataA, impulse); // A damages B
+    });
+  }
+
+  tryApplyDamage(targetData, sourceData, impulse) {
+    if (!targetData || typeof targetData.health !== 'number') return;
+    const damageMultiplier = (sourceData && typeof sourceData.damageMultiplier === 'number')
+      ? sourceData.damageMultiplier
+      : 1;
+    const rawDamage = maxImpulse * damageMultiplier;
+
+    // apply rounding/clamping as you prefer
+    const damage = Math.max(0, rawDamage);
+    targetData.health -= damage;
+
+    // optional: clamp to zero and emit event / mark for removal
+    if (targetData.health <= 0) {
+      targetData.health = 0;
+    }
   }
 
   loadMapObjects(objects) {
