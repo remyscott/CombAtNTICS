@@ -474,7 +474,7 @@ export class THE_ULTRA_CANNON extends BlockShotgunBase {
       cooldown: 600,          // frames between shots
       motorMaxTorque: 20000000000,
       motorMaxSpeed: 5000,    // rad/s
-      kp: 180,               // P gain
+      kp: 18,               // P gain
       kd: 0.4,              // D gain (damping)
       projectileSize: 2.5,
       projectileDensity: 2,

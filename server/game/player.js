@@ -9,15 +9,25 @@ import { addRandomGunToComponentList, BlockMinigun, BlockSniper } from "./compon
 import { SwordBig } from "./components/SwordBig.js";
 import { TitaniumCore } from "./components/TitaniumCore.js";
 import { componentMap, componentList } from "./componentMap.js";
+import { Spider } from "./components/Spider.js";
 
 function chance(chance) {
   return (Math.random() < chance);
 }
 
 export class Player {
-  constructor(ws, game, components = [HoverSphere, Dash]) {
+  constructor(ws, game, components = []) {
     // choose components (kept original logic)
-    if (chance(0)) {
+    if (chance(0.8)) {
+      components.push(HoverSphere);
+    } else {
+      components.push(Spider) 
+      if (chance(0.5)) {
+        components.push(TitaniumCore);
+      }
+    }
+
+    if (chance(0.3)) {
       if (chance(0.3)) {
         components.push(SwordBig);
         components.push(TitaniumCore);
@@ -28,6 +38,9 @@ export class Player {
       addRandomGunToComponentList(components);
     }
 
+    if (chance(0.5)) {
+      components.push(Dash)
+    }
     this.ws = null;
     this.name = null;
     this.world = game.world;
@@ -36,6 +49,7 @@ export class Player {
     this.clientId = null;
     this.chatBanned = false;
     this._disconnectTimer = 5;
+    this.mainFixtureId = null;
 
     if (ws) {
       this.attachWS(ws);
@@ -203,16 +217,24 @@ export class Player {
       position: { x: 0, y: 0 },
       userData: { owner: this }
     });
+    this.playerImageId = this.body.getUserData().id;
 
     this.components = [];
     for (const component of components) {
       this.components.push(new component(this));
     }
 
+    const fixture = this.body.getFixtureList();
+    if (fixture) fixture.setUserData({...fixture.getUserData(), name: this.name})
+    
+    this.world.registerBody(this.body);
     const mainGravityScale = this.body.getGravityScale();
     for (const component of this.components) {
       if (component.body) component.body.setGravityScale(mainGravityScale);
     }
+
+    this.ws.send(JSON.stringify({ type: 'cameraFocusId', id: this.mainFixtureId }));
+
   }
 
   handleMessage(msg) {
@@ -258,6 +280,22 @@ export class Player {
       }
       return null;
     };
+
+    const leave = {
+      requiredRole: 'player',
+      function: () => {
+        if (!this.game.players.has(this.account.username)) {
+          try {
+            this.ws?.send(JSON.stringify({ type: 'chatMsg', msg: 'You have left the game.', nameOfSender: 'SERVER' }));
+          } catch (err) {
+            // ignore
+          }
+          return;
+        }
+        this.game.removePlayer(this.account.username);
+      },
+      description: 'Leave the game and return to the lobby'
+    }
 
     const commands = {
       '/banWord': {
@@ -377,21 +415,8 @@ export class Player {
          },
         description: 'end the game'
       },
-      '/leave': {
-        requiredRole: 'player',
-        function: () => {
-          if (!this.game.players.has(this.account.username)) {
-            try {
-              this.ws?.send(JSON.stringify({ type: 'chatMsg', msg: 'You have left the game.', nameOfSender: 'SERVER' }));
-            } catch (err) {
-              // ignore
-            }
-            return;
-          }
-          this.game.removePlayer(this.account.username);
-        },
-        description: 'Leave the game and return to the lobby'
-      },
+      '/leave': leave,
+      '/l': leave,
       '/whisper': {
         requiredRole: 'player',
         function: (recipientId, ...messageParts) => {
@@ -474,17 +499,16 @@ export class Player {
         },
         description: 'Set roles for a user (admin only). Example: /role username mod,player'
       },
-      '/whois': {
-        requiredRole: 'admin',
+      '/info': {
         function: (targetId) => {
           const p = resolvePlayer(targetId);
           const acct = p?.account || accounts.getAccountByUsername(targetId);
           if (!acct) { this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Account not found', nameOfSender: 'SERVER' })); return; }
           this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `User: ${acct.username}, displayName: ${acct.displayName}, roles: ${acct.roles.join(', ')}`, nameOfSender: 'SERVER' }));
         },
-        description: 'Get account details (admin)'
+        description: 'Get account details of player'
       },
-      '/setComponents': {
+      '/setComps': {
         requiredRole: 'mod',
         function: (targetId, ...componentNames) => {
           const p = resolvePlayer(targetId);
@@ -492,7 +516,7 @@ export class Player {
           if (componentNames.length === 0) { this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Usage: /setComponents username HoverSphere,Dash,Sword', nameOfSender: 'SERVER' })); return; }
           
           const componentString = componentNames.join(' ');
-          const requestedNames = componentString.split(',').map(n => n.trim()).filter(Boolean);
+          const requestedNames = componentString.split(' ').map(n => n.trim()).filter(Boolean);
           const validComponents = requestedNames.filter(n => n in componentMap).map(n => componentMap[n]);
           
           if (validComponents.length === 0) {
@@ -503,7 +527,6 @@ export class Player {
           try {
             p.componentClasses = validComponents;
             p.respawn();
-            p.sendInit();
             this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `${p.account.username}'s components set to ${validComponents.map(c => c.name).join(', ')}`, nameOfSender: 'SERVER' }));
             p.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Your components have been changed to ${validComponents.map(c => c.name).join(', ')}`, nameOfSender: 'SERVER' }));
           } catch (err) {
@@ -526,12 +549,9 @@ export class Player {
               this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Player body has no fixtures', nameOfSender: 'SERVER' }));
               return;
             }
-            const fixtureId = fixture.getUserData && fixture.getUserData().id ? fixture.getUserData().id : null;
-            if (fixtureId == null) {
-              this.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Fixture has no id metadata', nameOfSender: 'SERVER' }));
-              return;
-            }
-            this.ws.send(JSON.stringify({ type: 'cameraFocusId', id: fixtureId }));
+
+            this.ws.send(JSON.stringify({ type: 'cameraFocusId', id: this.mainFixtureId }));
+
             this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Camera focus on ${p.name}`, nameOfSender: 'SERVER' }));
           } catch (err) {
             this.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Spec failed: ${err.message}`, nameOfSender: 'SERVER' }));
@@ -539,7 +559,7 @@ export class Player {
         },
         description: 'Focus your camera on a player. No input = @s'
       },
-      '/listAllComponents': {
+      '/listComps': {
         requiredRole: 'player',
         function: () => {
           const components = componentList.join(', ');

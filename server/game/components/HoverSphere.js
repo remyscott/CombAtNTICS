@@ -27,7 +27,7 @@ export class HoverSphere {
     this.body = player.body;
 
     this.body.setGravityScale(0);
-
+    player.mainFixtureId = this.body.getUserData().id;
 
     this.body.createFixture({
       shape: new Circle(new Vec2(0, 0), this.opts.radius),
@@ -38,8 +38,6 @@ export class HoverSphere {
         id: this.body.getUserData().id,
         type: "hoversphere",
         scale: this.opts.radius * 2,
-        name: player.name,
-        alwaysVisible: true,
       }
     });
 

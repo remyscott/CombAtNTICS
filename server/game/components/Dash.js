@@ -1,5 +1,5 @@
 // components/Dash.js
-import { Vec2 } from 'planck';
+import { Vec2, Box } from 'planck';
 import { length, normalize } from '../../utilities/vec2helpers.js';
 import { configurableInputs } from '../../../shared/inputsListing.js';
 
@@ -26,6 +26,12 @@ export class Dash {
 
     this._lastDash = 0;
     this._tmp = Vec2(0, 0);
+
+    this.player.body.createFixture({
+      shape: Box(0.2, 0.2),
+      density: 0.2,
+      userData: {depth: 1000, id: this.player.game.world.newFxId(), type: 'dashCore', scale: 1 },
+    });
   }
 
   canDash() {

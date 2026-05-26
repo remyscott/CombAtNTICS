@@ -4,11 +4,11 @@ export class TitaniumCore {
   constructor(player, opts = {}) {
     this.player = player;
     this.opts = Object.assign({
-      density: 10
+      density: 40
     }, opts);
 
     this.player.body.createFixture({
-      shape: Box(0.25, 0.25),
+      shape: Box(0.1, 0.1),
       density: this.opts.density,
       userData: {depth: 100000, id: this.player.game.world.newFxId(), type: 'titaniumCore', scale: 1 },
     });
