@@ -69,7 +69,7 @@ export class UI extends Phaser.Scene {
     if (command === '/zoom') {
       let zoomLevel = parseFloat(parts[1]);
       if (!zoomLevel) {
-        zoomLevel = localStorage.getItem('zoom') || 1;
+        zoomLevel = 1;
       }
       if (isNaN(zoomLevel) || zoomLevel <= 0) {
         this.console.log('Usage: /zoom level (e.g., /zoom 1.5)', { level: 'warn' });
@@ -90,7 +90,7 @@ export class UI extends Phaser.Scene {
     if (command === '/uiscale') {
       let zoomLevel = parseFloat(parts[1]);
       if (!zoomLevel) {
-        zoomLevel = localStorage.getItem('uiscale') || 1;
+        zoomLevel = 1;
       }
       if (isNaN(zoomLevel) || zoomLevel <= 0) {
         this.console.log('Usage: /uiscale level (e.g., /zoom 1.5)', { level: 'warn' });

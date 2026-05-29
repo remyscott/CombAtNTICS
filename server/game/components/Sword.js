@@ -1,5 +1,5 @@
 // sword.js
-import { Box, Vec2, RevoluteJoint } from "planck";
+import { Polygon, Vec2, RevoluteJoint } from "planck";
 import { configurableInputs } from "../../../shared/inputsListing.js";
 
 // destructure numeric indices once (cheap at module init)
@@ -19,11 +19,17 @@ export class Sword {
     });
 
     this.body.createFixture({
-      shape: Box(this.opts.swordLength / 2, 0.1),
+      shape: Polygon([
+              Vec2(-1.2,0.22),
+              Vec2(-1.2,-0.22),
+              Vec2(1.39,-0.22),
+              Vec2(1.55, 0),
+              Vec2(1.39,0.22),
+            ]),
       density: this.opts.density,
       friction: this.opts.friction,
       restitution: this.opts.restitution,
-      userData: { id: this.body.getUserData().id, type: 'sword', scale: this.opts.radius * 2 },
+      userData: { id: this.body.getUserData().id, type: 'sword', scale: 1},
       angularDamping: this.opts.angularDamping
     });
 

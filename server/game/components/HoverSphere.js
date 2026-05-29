@@ -2,6 +2,7 @@
 import { Circle, Vec2 } from "planck";
 import { length, mulScalar, normalize } from "../../utilities/vec2helpers.js";
 import { configurableInputs } from "../../../shared/inputsListing.js";
+import { PLAYER_RENDER_DEPTH } from "../../../shared/consts.js";
 
 const { UP, DOWN, LEFT, RIGHT } = configurableInputs;
 
@@ -37,6 +38,7 @@ export class HoverSphere {
         id: this.body.getUserData().id,
         type: "hoversphere",
         scale: this.opts.radius * 2,
+        depth: PLAYER_RENDER_DEPTH
       }
     });
 

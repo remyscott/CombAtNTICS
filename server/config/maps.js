@@ -271,18 +271,23 @@ export function makeCrystalMap() {
     name: '2',
     planckConfig: { gravity: { x: 0, y: 0 } },
     objects: [
-    ...makeCircleArc(100, 36, 0, 360, { objectType: 'lockbox', scale: 15, cx: 0, cy: 0 })  ,
-    ...makeCircleArc(90, 36, 5, 360, { objectType: 'lockbox', scale: 12, cx: 0, cy: 0 })  ]
+    ...makeCircleArc(200, 36, 0, 360, { objectType: 'lockbox', scale: 30, cx: 0, cy: 0 })  ,
+    ...makeCircleArc(180, 36, 5, 360, { objectType: 'lockbox', scale: 24, cx: 0, cy: 0 })  ]
   });
 
   cum = 0;
-  for (let i = 2; i < 7; i++) {
-    res.objects.push(...makeCircleArc(i*10+cum, 4, Math.random()*360, 200, { objectType: 'lockbox', scale: i*7, cx: -15+i*5, cy: 0 }));
+  for (let i = 2; i < 10; i++) {
+    res.objects.push(...makeCircleArc(i*10+cum, i-1, Math.random()*360, 200+Math.random()*100, { objectType: 'lockbox', scale: 2+i*5, cx: -15+i*5, cy: 0 }));
     cum += i*2;
   }
   cum = 0;
-  for (let i = 2; i < 7; i++) {
-    res.objects.push(...makeCircleArc(i*10+cum, 4, Math.random()*360, 200, { objectType: 'lockbox', scale: i*7, cx: 15-i*5, cy: 5 }));
+  for (let i = 2; i < 10; i++) {
+    res.objects.push(...makeCircleArc(i*10+cum, i, Math.random()*360, 200+Math.random()*100, { objectType: 'lockbox', scale: 2+i*4, cx: 15-i*5, cy: 5 }));
+    cum += i*2;
+  }
+  cum = 0;
+  for (let i = 1; i < 10; i++) {
+    res.objects.push(...makeCircleArc(i*10+cum, i, Math.random()*360, 200+Math.random()*100, { objectType: 'lockbox', scale: 1+i*3, cx: Math.random()*30, cy: 5*i-15 }));
     cum += i*2;
   }
   return res;

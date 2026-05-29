@@ -23,14 +23,14 @@ export class Spider {
 
       // movement tuning when grounded
       moveForce: 60,          // force magnitude applied while grounded
-      maxGroundSpeed: 15,    // max linear speed while grounded
+      maxGroundSpeed: 50,    // max linear speed while grounded
       groundedDampingFactor: 0.1, // damping when no input on ground
 
       // whether kinematic bodies count as ground
       allowKinematicAsGround: true,
 
       // pull-to-walls behavior when idle (no inputs)
-      pullStrength: 20,
+      pullStrength: 60,
       pullMax: 40,
       pullDistanceThreshold: 2.0,
 

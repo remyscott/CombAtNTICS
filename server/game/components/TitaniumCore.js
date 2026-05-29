@@ -4,7 +4,7 @@ export class TitaniumCore {
   constructor(player, opts = {}) {
     this.player = player;
     this.opts = Object.assign({
-      density: 40
+      density: 80,
     }, opts);
 
     this.player.body.createFixture({
