@@ -2,6 +2,7 @@
 import { IDEAL_TICK_RATE, TICKS_PER_SNAPSHOT } from '../../shared/settings.js';
 import wsClient from '../ws-client.js';
 import { lerpStatesFast } from './statelerper.js';
+import { StateManager } from './stateManager.js';
 
 const DEFAULT_BUFFER = 100;
 const inputInterval = 1000/60;
@@ -12,13 +13,8 @@ export class Client{
     this.game.metadata = {bodies: {}, fixtures: {}};
     this.game.client = this;
 
-    this.history = []; //time -> [id -> {state, id}]
-    this.networkBuffer = Number(DEFAULT_BUFFER);
-    this.clockOffset = 100
-    this.HISTORY_TIME = 2500;
     this.timeSinceInputs = 0;
     this.lastInputsSent = null;
-
     this.start();
 
     this.game.events.on('step', (time, delta) => this._onStep(time, delta));
@@ -26,7 +22,6 @@ export class Client{
 
   _onStep(time, delta) {
     if (!this.recievedInit) return;
-    this.game.currentState = this.getCurrentState();
     this.sendInputsIfItsTimeTo(delta);
   }
 
@@ -42,6 +37,8 @@ export class Client{
   async start() {
     await wsClient.connect();
     this.ws = wsClient.ws;
+    this.stateManager = new StateManager(this.ws, this.game);
+
     // Wait briefly for auth result (auto-auth on connect). If you need to require auth:
     const auth = await wsClient.waitForAuth(500);
     if (!auth.ok) {
@@ -56,10 +53,9 @@ export class Client{
     this.ws.binaryType = 'arraybuffer';
     this.ws.onmessage = (event) => {
       if (event.data instanceof ArrayBuffer) {
-        this.handleBinarySnapshot(event.data);
+        this.stateManager.handleBinarySnapshot(event.data);
         return;
       }
-      // text messages
       const parsed = this.parseMessage(event.data);
       if (!parsed) return;
       this.handleMessage(parsed);
@@ -68,20 +64,19 @@ export class Client{
       window.location.href = 'lobby.html';
     });
 
-    // Optionally, auto-join based on URL query
     const url = new URL(window.location.href);
     const gameId = url.searchParams.get('game');
-    const qName = url.searchParams.get('name');
-    if (gameId) {
-      // send join via ws-client
-      const joinRes = await wsClient.join(gameId, qName);
-      if (!joinRes.ok) {
-        console.warn('Join failed', joinRes.reason);
-      } else {
-        console.log('Joined game', gameId);
-      }
-    }
+    if (gameId) this.joinGame(gameId);
   }
+
+  async joinGame(id) {
+    const joinRes = await wsClient.join(id);
+    if (!joinRes.ok) {
+      console.warn('Join failed', joinRes.reason);
+    } else {
+      console.log('Joined game', id);
+    }
+  } 
 
 
   startTimeSync({count = 25, interval = 1, timeout = 1000 } = {}) {
@@ -99,6 +94,7 @@ export class Client{
     
     const promise = result && result.promise ? result.promise : result;
     promise.then(stats => {
+      this.stateManager.updateNetworkBufferAndClockOffset(stats.networkBuffer, stats.clockOffset);
       let ext = stats.networkBuffer === 50 ? ' (minimum buffer)' : '';
       this.game.console.updateRecord(calibRec, `Calibrated: buffer ${stats.networkBuffer}ms${ext}`, { level: 'info' });
     }).catch(err => {
@@ -309,105 +305,6 @@ export class Client{
     }
   }
 
-  handleBinarySnapshot(buffer) {
-    const dv = new DataView(buffer);
-    let offset = 0;
-
-    // header byte
-    if (dv.byteLength < 1) return;
-    const kind = dv.getUint8(offset); offset += 1; // 0 = full, 1 = partial
-
-    // read 8-byte serverTimeMs
-    if (offset + 8 > dv.byteLength) return;
-    let serverTimeMs;
-    if (typeof dv.getBigUint64 === 'function') {
-      serverTimeMs = Number(dv.getBigUint64(offset, true)); // safe to Number() for ms range
-    } else {
-      // fallback: read two uint32 low/high
-      const low = dv.getUint32(offset, true);
-      const high = dv.getUint32(offset + 4, true);
-      serverTimeMs = (high * 0x100000000) + low; // Number is okay here
-    }
-    offset += 8;
-
-    // read count
-    if (offset + 2 > dv.byteLength) return;
-    const N = dv.getUint16(offset, true); offset += 2;
-
-    const parsed = {};
-    for (let i = 0; i < N; i++) {
-      if (offset + 16 > dv.byteLength) break;
-      const id = dv.getUint32(offset, true); offset += 4;
-      const x = dv.getFloat32(offset, true); offset += 4;
-      const y = dv.getFloat32(offset, true); offset += 4;
-      const angle = dv.getFloat32(offset, true); offset += 4;
-      parsed[id] = { id, state: { pos: { x, y }, angle } };
-    }
-
-    if (kind === 0) { // full
-      this.insertStateIntoHistory({ state: parsed, time: serverTimeMs });
-    } else if (kind === 1) { // partial
-      const baseline = this.getLatestBaselineState();
-      const full = this.mergePartialIntoBaseline(baseline, parsed);
-      this.insertStateIntoHistory({ state: full, time: serverTimeMs });
-    } else {
-      console.warn('Unknown binary snapshot kind:', kind);
-    }
-  }
-
-  // Returns the most recent full-state from the history, or constructs one from game.metadata if none.
-  getLatestBaselineState() {
-    // Look from the end of history for the most recent state that appears "full".
-    // We treat any history entry as a baseline candidate. The server sends full snapshots every TICKS_PER_SNAPSHOT,
-    // but if you prefer, you could tag full snapshots with a flag and search for that.
-    if (!this.history || this.history.length === 0) {
-      // Build a baseline from metadata: instantiate zeroed states for known metadata entries
-      const baseline = {};
-      for (const idStr of Object.keys(this.game.metadata.bodies || {})) {
-        const id = Number(idStr);
-        baseline[id] = {
-          id,
-          state: {
-            pos: { x: 0, y: 0 },
-            angle: 0
-          }
-        };
-      }
-      return baseline;
-    }
-    // Use the most recent inserted state as baseline
-    return structuredClone(this.history[this.history.length - 1].state);
-  }
-
-  // Merge partial (subset) into baseline (both are keyed objects). Returns a NEW object.
-  mergePartialIntoBaseline(baseline, partial) {
-    if (!baseline || Object.keys(baseline).length === 0) return structuredClone(partial || {});
-    if (!partial || Object.keys(partial).length === 0) return structuredClone(baseline);
-
-    // copy baseline shallowly and then overwrite keys from partial (deep clone values)
-    const out = {};
-    for (const [id, entry] of Object.entries(baseline)) {
-      out[id] = structuredClone(entry);
-    }
-
-    for (const [id, entry] of Object.entries(partial)) {
-      // replace entire entity entry with the partial entity info (server sends full per-entity state)
-      out[id] = structuredClone(entry);
-    }
-
-    return out;
-  }
-
-  // Called when we receive a binary snapshot buffer; decodes, merges with baseline, and inserts into history
-  insertMergedStateFromBuffer(buffer, serverTime = Date.now()) {
-    const partialState = this.decodeOverallState(buffer); // keyed object id -> {id, state}
-    // If this partial looks like a full snapshot (i.e., contains a superset of known IDs), you could detect and skip merge.
-    // For now, always merge so partials become full.
-    const baseline = this.getLatestBaselineState();
-    const fullState = this.mergePartialIntoBaseline(baseline, partialState);
-    this.insertStateIntoHistory({ state: fullState, time: serverTime });
-  }
-
   handleNewMetadata(msg) {
     if (msg.newMetadata) {
       this.game.metadata.bodies = {
@@ -420,34 +317,6 @@ export class Client{
         ...msg.newMetadata.fixtures
       };
     }
-  }
-
-  decodeOverallState(buffer) {
-    const dv = new DataView(buffer);
-    let offset = 0;
-    const result = {};
-
-    // number of entities (uint16)
-    if (dv.byteLength < 2) return result;
-    const N = dv.getUint16(offset, true); offset += 2;
-
-    for (let i = 0; i < N; i++) {
-      if (offset + 16 > dv.byteLength) break; // safety
-      const id = dv.getUint32(offset, true); offset += 4;
-      const x = dv.getFloat32(offset, true); offset += 4;
-      const y = dv.getFloat32(offset, true); offset += 4;
-      const angle = dv.getFloat32(offset, true); offset += 4;
-
-      result[id] = {
-        id,
-        state: {
-          pos: { x, y },
-          angle
-        }
-      };
-    }
-
-    return result;
   }
 
   requestMetadata() {
@@ -479,90 +348,5 @@ export class Client{
         this.game.metadata.fixtures[id] = meta;
       }
     }
-  }
-
-  findIdxBinarySearch(sortedArr, val, comparator) {
-    let low = 0, high = sortedArr.length;
-    while (low < high) {
-      const mid = (low + high) >>> 1;
-      const cmp = comparator(sortedArr[mid], val);
-      if (cmp < 0) low = mid + 1;
-      else if (cmp > 0) high = mid;
-      else return mid;
-    }
-    return low;
-  }
-
-  insertStateIntoHistory(timeStatePair) {
-    const idx = this.findIdxBinarySearch(this.history, timeStatePair, this.timeComparator.bind(this));
-    if (idx < this.history.length && this.history[idx].time === timeStatePair.time) {
-      this.history[idx] = timeStatePair;
-    } else {
-      this.history.splice(idx, 0, timeStatePair);
-    }
-
-    const cutoff = timeStatePair.time - this.HISTORY_TIME;
-    while (this.history.length && this.history[0].time < cutoff) this.history.shift();
-  }
-
-  cutoffHistory() {
-    
-  }
-
-  timeComparator(a, b) {
-    return a.time - b.time;
-  }
-
-  getCurrentState() {
-    return({objects: this.getCurrentObjectStates()});
-  }
-
-  getCurrentObjectStates() {
-    const renderServerTime = Date.now() + (this.clockOffset || 0) - this.networkBuffer;
-    const result = [];
-
-    if (!this.history || this.history.length === 0) return result;
-
-    // if render time is before first sample, clamp to first sample (no interpolation)
-    if (renderServerTime <= this.history[0].time) {
-      const interpolatedState = this.history[0].state;
-      for (const [, state] of Object.entries(interpolatedState)) {
-        if (state != null) result.push(state);
-      }
-      return result;
-    }
-
-    // if render time is after last sample, optionally extrapolate small amount, or clamp to last
-    const last = this.history[this.history.length - 1];
-    if (renderServerTime >= last.time) {
-      // Option A: clamp to last sample (safe)
-      const interpolatedState = last.state;
-      for (const [, state] of Object.entries(interpolatedState)) {
-        if (state != null) result.push(state);
-      }
-      return result;
-
-      // Option B: small extrapolation could be attempted here if you have velocity data
-    }
-
-    // find index of first history entry with time >= renderServerTime
-    const idx = this.findIdxBinarySearch(this.history, { time: renderServerTime }, this.timeComparator.bind(this));
-
-    // s1 is the sample at or after render time, s0 is the sample before
-    const s1 = this.history[idx];
-    const s0 = (idx > 0) ? this.history[idx - 1] : null;
-    if (!s1) return result; // defensive
-
-    const span = s0 ? (s1.time - s0.time) : 0;
-    const alpha = (span > 1e-6 && s0) ? ((renderServerTime - s0.time) / span) : 0;
-
-    // now lerp s0 and s1 states
-    const interpolatedState = lerpStatesFast(s0 ? s0.state : null, s1.state, alpha) || {};
-
-    for (const [, state] of Object.entries(interpolatedState)) {
-      if (state != null) result.push(state);
-    }
-
-    return result;
   }
 }
