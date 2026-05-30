@@ -31,38 +31,29 @@ export class GameWorld extends World {
       // defensive checks
       if (!impulse || !impulse.normalImpulses) return;
 
-      // choose an impulse scalar: sum or max of contact points are common choices
-      // Here we use the maximum normal impulse across contact points:
       const totalImpulse = sum(...impulse.normalImpulses);
 
-      // helper to apply damage from source -> target
       
 
-      // apply damage both ways if desired (A hit by B, B hit by A)
-      if (this.tryApplyDamage(dataA, dataB, totalImpulse)) {
-        this.createSparks(contact, totalImpulse)
-        dataA.damageMultiplier = 0;
-      } // B damages A
-      if (this.tryApplyDamage(dataB, dataA, totalImpulse)) {
-        this.createSparks(contact, totalImpulse)
-        dataB.damageMultiplier = 0;
-      } // A damages B
+      this.createSparks(contact, this.tryApplyDamage(dataA, dataB, totalImpulse))
+      this.createSparks(contact, this.tryApplyDamage(dataB, dataA, totalImpulse))
     });
   }
 
-  createSparks(contact, impulse) {
+  createSparks(contact, damage) {
       // Get the world manifold for this contact
     const wm = contact.getWorldManifold();
     const count = wm.pointCount;
     // wm.points is an array of Vec2 world positions (length >= count)
     for (let i = 0; i < count; i++) {
       const p = wm.points[i];
-      let impulseLeft = Number(impulse);
+      let damageLeft = Number(damage)-5;
       
-      while (impulseLeft > 0) {
-        const scale = Math.max(1, Math.random()*impulseLeft)
+      
+      while (damageLeft > 0) {
+        const scale = Math.max(1, Math.round(Math.random()*damageLeft))
         this.pendingSparks.push({p, scale});
-        impulseLeft -= scale;
+        damageLeft -= scale;
       }
     }
   }
@@ -97,7 +88,7 @@ export class GameWorld extends World {
     console.log(damage)
     targetData.health -= damage;
  
-    if (damage > 0) return damage;
+    if (damage >= 0) return damage;
   }
 
   loadMapObjects(objects) {
