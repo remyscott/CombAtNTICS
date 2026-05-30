@@ -5,7 +5,7 @@ import { Sword } from "./components/Sword.js";
 import { configurableInputs } from "../../shared/inputsListing.js";
 import { Dash } from "./components/Dash.js";
 
-import { addRandomGunToComponentList, BlockMinigun, BlockSniper } from "./components/BlockGuns.js";
+import { addRandomGunToComponentList } from "./components/Guns.js";
 import { SwordBig } from "./components/SwordBig.js";
 import { TitaniumCore } from "./components/TitaniumCore.js";
 import { componentMap, componentList } from "./componentMap.js";

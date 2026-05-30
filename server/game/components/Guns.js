@@ -5,7 +5,7 @@ import { configurableInputs } from "../../../shared/inputsListing.js";
 const { FIRE_GUN, GUN_SLOW } = configurableInputs;
 
 // Generic base weapon class
-export class BlockShotgunBase {
+export class ShotgunBase {
   constructor(player, opts = {}) {
     const o = opts;
     this.opts = o;
@@ -119,16 +119,16 @@ export class BlockShotgunBase {
         position: { x: px, y: py },
         bullet: true,
         userData: { owner: this, ttl: ttl },
-        angle: Math.random() *3.14
+        angle: projAngle
       });
 
       const s = this.opts.projectileSize;
       proj.createFixture({
-        shape: Box(s / 2, s / 2),
+        shape: Box(s / 2, s / 4),
         density: this.opts.projectileDensity,
         friction: 0.2,
         restitution: 0.0,
-        userData: { type: "redbox", scale: s, damageMultiplier: 4, minDamage: 0.1 }
+        userData: { type: "bullet", scale: s, damageMultiplier: 16, minDamage: 0.1 }
       });
 
       // impulse vector for this projectile
@@ -202,110 +202,110 @@ export class BlockShotgunBase {
 }
 
 // Thin wrappers with different defaults
-export class BlockGunBasic extends BlockShotgunBase {
+export class GunBasic extends ShotgunBase {
   constructor(player, opts = {}) {
     super(player, Object.assign({
       barrelLength: 1,
-      launchForce: 2,
+      launchForce: 0.5,
       cooldown: 20,
       motorMaxTorque: 20000000,
       motorMaxSpeed: 500,
       kp: 18,
       kd: 0.4,
       projectileSize: 0.25,
-      projectileDensity: 1,
+      projectileDensity: 0.25,
       radius: 0.2,
       multiShotCount: 1,
       multiShotSpread: 0,
       multiShotRandomness: 0,
       projectileTTL: 5.0,
       angularDampingWhenSlow: 20,
-      objectType: 'blockGun',
+      objectType: 'Gun',
     }, opts));
   }
 }
 
-export class BlockShotgun extends BlockShotgunBase {
+export class Shotgun extends ShotgunBase {
   constructor(player, opts = {}) {
     super(player, Object.assign({
       barrelLength: 1,
-      launchForce: 2,
+      launchForce: 0.5,
       cooldown: 60,
       motorMaxTorque: 20000000,
       motorMaxSpeed: 500,
       kp: 18,
       kd: 0.4,
       projectileSize: 0.25,
-      projectileDensity: 1,
+      projectileDensity: 0.25,
       radius: 0.2,
       multiShotCount: 8,
       multiShotSpread: Math.PI / 8,
       multiShotRandomness: 0.15,
       projectileTTL: 5.0,
       angularDampingWhenSlow: 20,
-objectType: 'blockShotgun'
+objectType: 'Shotgun'
     }, opts));
   }
 }
 
-export class BlockSawedOff extends BlockShotgunBase {
+export class SawedOff extends ShotgunBase {
   constructor(player, opts = {}) {
     super(player, Object.assign({
       barrelLength: 1,
-      launchForce: 1,
+      launchForce: 0.5,
       cooldown: 60,
       motorMaxTorque: 20000000,
       motorMaxSpeed: 500,
       kp: 18,
       kd: 0.4,
       projectileSize: 0.125,
-      projectileDensity: 1,
+      projectileDensity: 0.25,
       radius: 0.2,
       multiShotCount: 32,
       multiShotSpread: Math.PI / 2,
       multiShotRandomness: 0.15,
       projectileTTL: 2.5,
       angularDampingWhenSlow: 20,
-objectType: 'blockSawedOff'
+objectType: 'SawedOff'
     }, opts));
   }
 }
 
-export class BlockUltraShotgun extends BlockShotgunBase {
+export class UltraShotgun extends ShotgunBase {
   constructor(player, opts = {}) {
     super(player, Object.assign({
       barrelLength: 2,
-      launchForce: 4,
+      launchForce: 1,
       cooldown: 60,
       motorMaxTorque: 20000000,
       motorMaxSpeed: 500,
       kp: 18,
       kd: 0.4,
       projectileSize: 0.25,
-      projectileDensity: 1,
+      projectileDensity: 0.25,
       radius: 0.2,
       multiShotCount: 32,
       multiShotSpread: Math.PI / 8,
       multiShotRandomness: 0.15,
       projectileTTL: 5.0,
       angularDampingWhenSlow: 20,
-objectType: 'blockUltraShotgun'
+objectType: 'UltraShotgun'
     }, opts));
   }
 }
 
-export class BlockUltraUltraShotgun extends BlockShotgunBase {
+export class UltraUltraShotgun extends ShotgunBase {
   constructor(player, opts = {}) {
     super(player, Object.assign({
       barrelLength: 3,
-      launchForce: 4,           // impulse magnitude applied to each projectile
+      launchForce: 1,           // impulse magnitude applied to each projectile
       cooldown: 60,             // frames between shots
       motorMaxTorque: 20000000,
       motorMaxSpeed: 500,       // rad/s
       kp: 18,                   // P gain for aiming motor
       kd: 0.4,                  // D gain (damping)
       projectileSize: 0.25,
-      projectileDensity: 1,
+      projectileDensity: 0.25,
       radius: 0.2,
 
       // Multi-shot-specific
@@ -314,48 +314,24 @@ export class BlockUltraUltraShotgun extends BlockShotgunBase {
       multiShotRandomness: 1,    // fraction of spread for jitter (0..1)
       projectileTTL: 5.0     ,
       angularDampingWhenSlow: 20,
-objectType: 'blockUltraUltraShotgun'
+objectType: 'UltraUltraShotgun'
     }, opts));
   }
 }
 
-export class BlockShinigun extends BlockShotgunBase {
-  constructor(player, opts = {}) {
-    super(player, Object.assign({
-      barrelLength: 1,
-      launchForce: 1,           // impulse magnitude applied to each projectile
-      cooldown: 10,             // frames between shots
-      motorMaxTorque: 20000000,
-      motorMaxSpeed: 500,       // rad/s
-      kp: 18,                   // P gain for aiming motor
-      kd: 0.4,                  // D gain (damping)
-      projectileSize: 0.25,
-      projectileDensity: 1,
-      radius: 0.5,
 
-      // Multi-shot-specific
-      multiShotCount: 8,            // number of projectiles per shot
-      multiShotSpread: Math.PI / 8, // total spread angle (radians)
-      multiShotRandomness: 0.15,    // fraction of spread for jitter (0..1)
-      projectileTTL: 0.5  ,
-      angularDampingWhenSlow: 20,
-objectType: 'blockShinigun'
-    }, opts));
-  }
-}
-
-export class BlockMinigun extends BlockShotgunBase {
+export class Minigun extends ShotgunBase {
   constructor(player, opts = {}) {
     super(player, Object.assign({
       barrelLength: 2,
-      launchForce: 2,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
+      launchForce: 0.5,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
       cooldown: 4,          // frames between shots
       motorMaxTorque: 20000000,
       motorMaxSpeed: 500,    // rad/s
       kp: 18,               // P gain
       kd: 0.4,              // D gain (damping)
       projectileSize: 0.25,
-      projectileDensity: 1,
+      projectileDensity: 0.25,
       radius: 0.25,
 
       multiShotCount: 1,            // number of projectiles per shot
@@ -363,23 +339,23 @@ export class BlockMinigun extends BlockShotgunBase {
       multiShotRandomness: 1,    // fraction of spread for jitter (0..1)
       projectileTTL: 1,
       angularDampingWhenSlow: 20,
-objectType: 'blockMinigun'
+objectType: 'Minigun'
     }, opts));
   }
 }
 
-export class BlockUltraMinigun extends BlockShotgunBase {
+export class UltraMinigun extends ShotgunBase {
   constructor(player, opts = {}) {
     super(player, Object.assign({
       barrelLength: 3,
-      launchForce: 2,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
+      launchForce: 0.5,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
       cooldown: 1,          // frames between shots
       motorMaxTorque: 20000000,
       motorMaxSpeed: 500,    // rad/s
       kp: 18,               // P gain
       kd: 0.4,              // D gain (damping)
       projectileSize: 0.25,
-      projectileDensity: 1,
+      projectileDensity: 0.25,
       radius: 0.25,
 
       multiShotCount: 2,            // number of projectiles per shot
@@ -387,24 +363,24 @@ export class BlockUltraMinigun extends BlockShotgunBase {
       multiShotRandomness: 1,    // fraction of spread for jitter (0..1)
       projectileTTL: 1,
       angularDampingWhenSlow: 20,
-objectType: 'blockUltraMinigun'
+objectType: 'UltraMinigun'
     }, opts));
   }
 }
 
 
-export class BlockSmg extends BlockShotgunBase {
+export class Smg extends ShotgunBase {
   constructor(player, opts = {}) {
     super(player, Object.assign({
       barrelLength: 1,
-      launchForce: 1,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
+      launchForce: 0.15,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
       cooldown: 5,          // frames between shots
       motorMaxTorque: 200000,
       motorMaxSpeed: 500,    // rad/s
       kp: 18,               // P gain
       kd: 0.4,              // D gain (damping)
       projectileSize: .176,
-      projectileDensity: 1,
+      projectileDensity: 0.25,
       radius: .3,
 
       multiShotCount: 1,            // number of projectiles per shot
@@ -412,24 +388,24 @@ export class BlockSmg extends BlockShotgunBase {
       multiShotRandomness: 1,    // fraction of spread for jitter (0..1)
       projectileTTL: 1,
       angularDampingWhenSlow: 20,
-objectType: 'blockSmg'
+objectType: 'Smg'
     }, opts));
   }
 }
 
 
-export class BlockHeavy extends BlockShotgunBase {
+export class Heavy extends ShotgunBase {
   constructor(player, opts = {}) {
     super(player, Object.assign({
       barrelLength: 2,
-      launchForce: 10,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
+      launchForce: 1.25,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
       cooldown: 30,          // frames between shots
       motorMaxTorque: 20000000,
       motorMaxSpeed: 500,    // rad/s
       kp: 18,               // P gain
       kd: 0.4,              // D gain (damping)
       projectileSize: .5,
-      projectileDensity: 1,
+      projectileDensity: 0.25,
       radius: .3,
 
       multiShotCount: 1,            // number of projectiles per shot
@@ -437,23 +413,23 @@ export class BlockHeavy extends BlockShotgunBase {
       multiShotRandomness: 0,    // fraction of spread for jitter (0..1)
       projectileTTL: 10,
       angularDampingWhenSlow: 20,
-objectType: 'blockHeavy'
+objectType: 'Heavy'
     }, opts));
   }
 }
 
-export class BlockCannon extends BlockShotgunBase {
+export class Cannon extends ShotgunBase {
   constructor(player, opts = {}) {
     super(player, Object.assign({
       barrelLength: 5,
-      launchForce: 100,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
+      launchForce: 25,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
       cooldown: 120,          // frames between shots
       motorMaxTorque: 20000000,
       motorMaxSpeed: 500,    // rad/s
       kp: 18,               // P gain
       kd: 0.4,              // D gain (damping)
       projectileSize: 1,
-      projectileDensity: 1,
+      projectileDensity: 0.25,
       radius: .75,
 
       multiShotCount: 1,            // number of projectiles per shot
@@ -461,16 +437,16 @@ export class BlockCannon extends BlockShotgunBase {
       multiShotRandomness: 0,    // fraction of spread for jitter (0..1)
       projectileTTL: 10,
       angularDampingWhenSlow: 100,
-objectType: 'blockCannon'
+objectType: 'Cannon'
     }, opts));
   }
 }
 
-export class THE_ULTRA_CANNON extends BlockShotgunBase {
+export class THE_ULTRA_CANNON extends ShotgunBase {
   constructor(player, opts = {}) {
     super(player, Object.assign({
       barrelLength: 10,
-      launchForce: 1000,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
+      launchForce: 250,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
       cooldown: 600,          // frames between shots
       motorMaxTorque: 20000000000,
       motorMaxSpeed: 5000,    // rad/s
@@ -490,18 +466,18 @@ export class THE_ULTRA_CANNON extends BlockShotgunBase {
   }
 }
 
-export class BlockSniper extends BlockShotgunBase {
+export class Sniper extends ShotgunBase {
   constructor(player, opts = {}) {
     super(player, Object.assign({
       barrelLength: 3,
-      launchForce: 100,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
+      launchForce: 50,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
       cooldown: 60,          // frames between shots
       motorMaxTorque: 20000000,
       motorMaxSpeed: 5000,    // rad/s
       kp: 16,               // P gain
       kd: 0.4,              // D gain (damping)
       projectileSize: 0.25,
-      projectileDensity: 1,
+      projectileDensity: 0.5,
       radius: .2,
 
       multiShotCount: 1,            // number of projectiles per shot
@@ -509,7 +485,7 @@ export class BlockSniper extends BlockShotgunBase {
       multiShotRandomness: 0,    // fraction of spread for jitter (0..1)
       projectileTTL: 10,
       angularDampingWhenSlow: 100,
-objectType: 'blockSniper'
+objectType: 'Sniper'
     }, opts));
   }
 }
@@ -520,19 +496,16 @@ function chance(chance) {
 export function addRandomGunToComponentList(components) {
     if (chance(1/4)) {
       if (chance(1/2)) {
-        components.push(BlockShotgun);
+        components.push(Shotgun);
       } else {
         if (chance(1/2)) {
-          components.push(BlockSawedOff);
+          components.push(SawedOff);
         } else {
           if (chance(.9)) {
-              if (chance(1/2)) {
-              components.push(BlockShinigun);
-            } else {
-              components.push(BlockUltraShotgun)
+              components.push(UltraShotgun)
             }
-          } else {
-            components.push(BlockUltraUltraShotgun)
+           else {
+            components.push(UltraUltraShotgun)
           }
         }
       }
@@ -540,10 +513,10 @@ export function addRandomGunToComponentList(components) {
     } else {
       if (chance(1/5)) {
         if (chance(2/3)) {
-          components.push(BlockHeavy);
+          components.push(Heavy);
         } else {
           if (chance(0.97)) {
-            components.push(BlockCannon);
+            components.push(Cannon);
           } else {
             components.push(THE_ULTRA_CANNON);
           }
@@ -552,19 +525,19 @@ export function addRandomGunToComponentList(components) {
       } else {
         if (chance(1/4)) {
           if (chance(1/2)) {
-            components.push(BlockSmg);
+            components.push(Smg);
           } else {
             if (chance(4/5)) {
-              components.push(BlockMinigun);
+              components.push(Minigun);
             } else {
-              components.push(BlockUltraMinigun);
+              components.push(UltraMinigun);
             }
           }
         } else {
           if (chance(1/3)) {
-            components.push(BlockSniper);
+            components.push(Sniper);
           } else {
-            components.push(BlockGunBasic);
+            components.push(GunBasic);
           }
         }
       }
