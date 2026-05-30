@@ -1,5 +1,7 @@
 import { World, Box, Vec2, Circle} from 'planck';
 
+const sum = (...nums) => nums.reduce((a,b) => a + b, 0);
+
 export class GameWorld extends World {
   constructor(map) {
     super(map.planckConfig);
@@ -13,7 +15,9 @@ export class GameWorld extends World {
     this._time = 0;
     this.loadMapObjects(map.objects);
     this.setUpDamageListeners();
+    this.pendingSparks = [];
   }
+
   setUpDamageListeners() {
     this.on('post-solve', function(contact, impulse) {
       // get the two fixtures/bodies involved
@@ -21,34 +25,79 @@ export class GameWorld extends World {
       const fB = contact.getFixtureB();
 
       // your app stores custom data on the body
-      const dataA = fA.getUserData(); // e.g. { id: 'enemy', health: 100 }
-      const dataB = fB.getUserData(); // e.g. { id: 'ball', damageMultiplier: 2 }
+      const dataA = fA.getUserData();
+      const dataB = fB.getUserData();
 
       // defensive checks
       if (!impulse || !impulse.normalImpulses) return;
 
       // choose an impulse scalar: sum or max of contact points are common choices
       // Here we use the maximum normal impulse across contact points:
-      const maxImpulse = Math.max(...impulse.normalImpulses);
+      const totalImpulse = sum(...impulse.normalImpulses);
 
       // helper to apply damage from source -> target
       
 
       // apply damage both ways if desired (A hit by B, B hit by A)
-      this.tryApplyDamage(dataA, dataB, maxImpulse); // B damages A
-      this.tryApplyDamage(dataB, dataA, maxImpulse); // A damages B
+      if (this.tryApplyDamage(dataA, dataB, totalImpulse)) {
+        this.createSparks(contact, totalImpulse)
+        dataA.damageMultiplier = 0;
+      } // B damages A
+      if (this.tryApplyDamage(dataB, dataA, totalImpulse)) {
+        this.createSparks(contact, totalImpulse)
+        dataB.damageMultiplier = 0;
+      } // A damages B
     });
   }
 
+  createSparks(contact, impulse) {
+      // Get the world manifold for this contact
+    const wm = contact.getWorldManifold();
+    const count = wm.pointCount;
+    // wm.points is an array of Vec2 world positions (length >= count)
+    for (let i = 0; i < count; i++) {
+      const p = wm.points[i];
+      let impulseLeft = Number(impulse);
+      
+      while (impulseLeft > 0) {
+        const scale = Math.max(1, Math.random()*impulseLeft)
+        this.pendingSparks.push({p, scale});
+        impulseLeft -= scale;
+      }
+    }
+  }
+
+  createSparkAt(p, scale) {
+    const body = this.createBody({type: 'dynamic', position: {x:p.x, y:p.y}, angle: Math.random(), userData: {ttl: 1/scale}})
+    body.createFixture({
+      shape: new Circle(Vec2(0,0), 0.01),
+      density: 1,
+      friction: .5,
+      restitution: .9,
+      userData: {id: this.newId(), type: 'spark', scale}
+    });
+    const random = Math.random();
+    body.setLinearVelocity(Vec2(Math.sin(random)*25, Math.cos(random)*25))
+    this.registerBody(body);
+  }
+
+  processPendingSparks() {
+    while (this.pendingSparks.length) {
+      const { p, scale } = this.pendingSparks.shift();
+      this.createSparkAt(p, scale);
+    }
+  }
+
   tryApplyDamage(targetData, sourceData, impulse) {
+    if (impulse <= 0.2) return
     if (!targetData || typeof targetData.health !== 'number') return;
     if (!sourceData || typeof sourceData.damageMultiplier !== 'number') return;
     const rawDamage = impulse * sourceData.damageMultiplier;
     const damage = Math.max(0, rawDamage);
-    if (damage <= 0.25) {
-      return;
-    }
+    console.log(damage)
     targetData.health -= damage;
+ 
+    if (damage > 0) return damage;
   }
 
   loadMapObjects(objects) {
@@ -59,13 +108,10 @@ export class GameWorld extends World {
     } 
   }
 
-  newBodyId() {
+  newId() {
     return this._id++;
   }
 
-  newFxId() {
-    return this._fId++;
-  }
 
   newFxMetaId() {
     while (this._fmId in this.metadata.fixtures) {
@@ -92,7 +138,7 @@ export class GameWorld extends World {
       density: 0.25,
       friction: .5,
       restitution: .2,
-      userData: {id: this.newFxId(), type: config.objectType, scale: config.scale || 1}
+      userData: {id: this.newId(), type: config.objectType, scale: config.scale || 1}
     });
 
     return(body);
@@ -110,7 +156,7 @@ export class GameWorld extends World {
       density: 1,
       friction: .5,
       restitution: .9,
-      userData: {id: this.newFxId(), type: config.objectType, scale: config.scale || 1}
+      userData: {id: this.newId(), type: config.objectType, scale: config.scale || 1}
     });
 
     return(body);
@@ -128,7 +174,7 @@ export class GameWorld extends World {
       density: 0.05,
       friction: .5,
       restitution: .5,
-      userData: {id: this.newFxId(), type: config.objectType, scale: config.scale || 1}
+      userData: {id: this.newId(), type: config.objectType, scale: config.scale || 1}
     });
 
     return(body);
@@ -136,7 +182,7 @@ export class GameWorld extends World {
 
   createLockboxBody(config) {
     // If object wants to move, create a kinematic body so we can drive transform
-    const isMoving = !!config.moving;
+    const isMoving = !!config.moving
     const body = this.createBody({
       type: isMoving ? 'kinematic' : 'static',
       position: config.position,
@@ -148,7 +194,7 @@ export class GameWorld extends World {
       shape: new Box(0.5 * config.scale, 0.5 * config.scale),
       friction: .5,
       restitution: .2,
-      userData: { id: this.newFxId(), type: config.objectType, scale: config.scale || 1 }
+      userData: { id: this.newId(), type: config.objectType, scale: config.scale || 1 }
     });
 
     // If moving, attach motion metadata to the body userData so step() can find it.
@@ -172,14 +218,14 @@ export class GameWorld extends World {
         mag,
         axis
       };
-
     }
+
 
     return body;
   }
 
   createBody(def) {
-    const body = super.createBody({...def, userData: {...def.userData, id: this.newBodyId(), fixtures: []}});
+    const body = super.createBody({...def, userData: {...def.userData, id: this.newId(), fixtures: []}});
     this.registerBody(body);
     return body;
   }
@@ -234,6 +280,7 @@ export class GameWorld extends World {
   step(config) {
     // run physics step first (keeps consistent)
     super.step(config); 
+    this.processPendingSparks()
 
 
     const dt = 1/60;

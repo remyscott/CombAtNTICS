@@ -95,7 +95,7 @@ export class Game {
       player.update();
     }
 
-    this.world.step(TIMESTEP, 8, 8);
+    this.world.step(TIMESTEP, 1, 1);
     this._ticksSinceSnapshot += 1;
     this.broadcastSnapshotDecision();
   }

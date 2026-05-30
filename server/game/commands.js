@@ -1,4 +1,5 @@
 import { componentList, componentMap } from "./componentMap.js";
+import { randomComponents } from "./player.js";
 
 export class CommandInterpretor {
   constructor(player) {
@@ -314,7 +315,10 @@ const commands = {
         return;
       }
       if (componentNames.length === 0) {
-        this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Usage: /setComponents username HoverSphere,Dash,Sword', nameOfSender: 'SERVER' }));
+        p.componentClasses = randomComponents();
+        p.respawn();
+        p.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Your components have been randomized`, nameOfSender: 'SERVER' }));
+
         return;
       }
 

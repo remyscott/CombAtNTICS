@@ -9,23 +9,16 @@ import { addRandomGunToComponentList, BlockMinigun, BlockSniper } from "./compon
 import { SwordBig } from "./components/SwordBig.js";
 import { TitaniumCore } from "./components/TitaniumCore.js";
 import { componentMap, componentList } from "./componentMap.js";
-import { Spider } from "./components/Spider.js";
 import { CommandInterpretor } from "./commands.js"
 function chance(chance) {
   return (Math.random() < chance);
 }
 
-export class Player {
-  constructor(ws, game, components = []) {
-    // choose components (kept original logic)
-    if (chance(0.8)) {
-      components.push(HoverSphere);
-    } else {
-      components.push(Spider) 
-      if (chance(0.5)) {
-        components.push(TitaniumCore);
-      }
-    }
+export function randomComponents() {
+  const components = [];
+
+    components.push(HoverSphere);
+
 
     if (chance(0.2)) {
       if (chance(0.3)) {
@@ -39,8 +32,16 @@ export class Player {
     }
 
     if (chance(0.5)) {
-      components.push(Dash)
+      components.push(Dash);
     }
+
+
+    return components;
+}
+export class Player {
+  constructor(ws, game, components = null) {
+    // choose components (kept original logic)
+    if (!components) components = randomComponents();
     this.ws = null;
     this.name = null;
     this.world = game.world;

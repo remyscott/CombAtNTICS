@@ -128,7 +128,7 @@ export class BlockShotgunBase {
         density: this.opts.projectileDensity,
         friction: 0.2,
         restitution: 0.0,
-        userData: { type: "redbox", scale: s, damageMultiplier: 1 }
+        userData: { type: "redbox", scale: s, damageMultiplier: 4 }
       });
 
       // impulse vector for this projectile
@@ -330,7 +330,7 @@ export class BlockShinigun extends BlockShotgunBase {
       kp: 18,                   // P gain for aiming motor
       kd: 0.4,                  // D gain (damping)
       projectileSize: 0.25,
-      projectileDensity: 0.5,
+      projectileDensity: 1,
       radius: 0.5,
 
       // Multi-shot-specific
@@ -348,14 +348,14 @@ export class BlockMinigun extends BlockShotgunBase {
   constructor(player, opts = {}) {
     super(player, Object.assign({
       barrelLength: 2,
-      launchForce: 1,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
-      cooldown: 2,          // frames between shots
+      launchForce: 2,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
+      cooldown: 4,          // frames between shots
       motorMaxTorque: 20000000,
       motorMaxSpeed: 500,    // rad/s
       kp: 18,               // P gain
       kd: 0.4,              // D gain (damping)
       projectileSize: 0.25,
-      projectileDensity: 0.5,
+      projectileDensity: 1,
       radius: 0.25,
 
       multiShotCount: 1,            // number of projectiles per shot
@@ -372,14 +372,14 @@ export class BlockUltraMinigun extends BlockShotgunBase {
   constructor(player, opts = {}) {
     super(player, Object.assign({
       barrelLength: 3,
-      launchForce: 1,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
+      launchForce: 2,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
       cooldown: 1,          // frames between shots
       motorMaxTorque: 20000000,
       motorMaxSpeed: 500,    // rad/s
       kp: 18,               // P gain
       kd: 0.4,              // D gain (damping)
       projectileSize: 0.25,
-      projectileDensity: 0.5,
+      projectileDensity: 1,
       radius: 0.25,
 
       multiShotCount: 2,            // number of projectiles per shot
@@ -501,7 +501,7 @@ export class BlockSniper extends BlockShotgunBase {
       kp: 16,               // P gain
       kd: 0.4,              // D gain (damping)
       projectileSize: 0.25,
-      projectileDensity: 2,
+      projectileDensity: 1,
       radius: .2,
 
       multiShotCount: 1,            // number of projectiles per shot

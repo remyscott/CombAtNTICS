@@ -30,7 +30,7 @@ export class Dash {
     this.player.body.createFixture({
       shape: Box(0.2, 0.2),
       density: 1,
-      userData: {depth: 1000, id: this.player.game.world.newFxId(), type: 'dashCore', scale: 1 },
+      userData: {depth: 1000, id: this.player.game.world.newId(), type: 'dashCore', scale: 1 },
     });
   }
 
