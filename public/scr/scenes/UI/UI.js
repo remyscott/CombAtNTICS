@@ -152,7 +152,7 @@ export class UI extends Phaser.Scene {
     const segments = [];
     const roleColor = uniqueRoles.includes('admin') ? '#ff8a8a' : uniqueRoles.includes('mod') ? '#ffe599' : '#b3d9ff';
     if (uniqueRoles.length) {
-      segments.push({ text: `{${uniqueRoles.join(', ')}} `, color: roleColor });
+      //segments.push({ text: `{${uniqueRoles.join(', ')}} `, color: roleColor });
     }
     segments.push({ text: `${nameOfSender}: `, color: uniqueRoles.length ? roleColor : '#e0e0ff' });
     segments.push({ text: msg, color: '#ffffff' });

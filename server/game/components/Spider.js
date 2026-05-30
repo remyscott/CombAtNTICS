@@ -333,17 +333,8 @@ export class Spider {
   }
 
   onDestroy() {
-    // destroy sensor fixture only; do not destroy player's body here
-    try {
-      if (this._sensorFixture && this.body && this.body.getWorld) {
-        try {
-          if (typeof this.body.destroyFixture === 'function') this.body.destroyFixture(this._sensorFixture);
-          else if (this.body.getWorld && typeof this.body.getWorld().destroyFixture === 'function') {
-            this.body.getWorld().destroyFixture(this._sensorFixture);
-          }
-        } catch (e) {}
-      }
-    } catch (e) {}
-    this._sensorFixture = null;
+    if (this.body && this.body.getWorld()) {
+      this.body.getWorld().destroyBody(this.body);
+    }
   }
 }

@@ -297,7 +297,15 @@ export class Client{
 
     if (msg.type === 'cameraFocusId') {
       const id = msg.id === null ? null : msg.id;
+      if (id === this.game.playerBodyId) {
+        this.game.scene.getScene('InWorldObjects').setCameraFocusId(null);
+      }
       this.game.scene.getScene('InWorldObjects').setCameraFocusId(id);
+    }
+
+    if (msg.type === 'playerBodyId') {
+      const id = msg.id === null ? null : msg.id;
+      this.game.playerBodyId = id;
     }
   }
 

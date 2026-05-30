@@ -35,26 +35,20 @@ export class GameWorld extends World {
       
 
       // apply damage both ways if desired (A hit by B, B hit by A)
-      this.tryApplyDamage(dataA, dataB, impulse); // B damages A
-      this.tryApplyDamage(dataB, dataA, impulse); // A damages B
+      this.tryApplyDamage(dataA, dataB, maxImpulse); // B damages A
+      this.tryApplyDamage(dataB, dataA, maxImpulse); // A damages B
     });
   }
 
   tryApplyDamage(targetData, sourceData, impulse) {
     if (!targetData || typeof targetData.health !== 'number') return;
-    const damageMultiplier = (sourceData && typeof sourceData.damageMultiplier === 'number')
-      ? sourceData.damageMultiplier
-      : 1;
-    const rawDamage = maxImpulse * damageMultiplier;
-
-    // apply rounding/clamping as you prefer
+    if (!sourceData || typeof sourceData.damageMultiplier !== 'number') return;
+    const rawDamage = impulse * sourceData.damageMultiplier;
     const damage = Math.max(0, rawDamage);
-    targetData.health -= damage;
-
-    // optional: clamp to zero and emit event / mark for removal
-    if (targetData.health <= 0) {
-      targetData.health = 0;
+    if (damage <= 0.25) {
+      return;
     }
+    targetData.health -= damage;
   }
 
   loadMapObjects(objects) {

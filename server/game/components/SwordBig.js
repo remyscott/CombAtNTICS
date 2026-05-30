@@ -30,7 +30,11 @@ export class SwordBig {
       density: this.opts.density,
       friction: this.opts.friction,
       restitution: this.opts.restitution,
-      userData: { id: this.body.getUserData().id, type: 'swordBig', scale: 1, depth: PLAYER_RENDER_DEPTH-1 },
+      userData: { 
+        id: this.body.getUserData().id, 
+        type: 'swordBig', scale: 1, depth: PLAYER_RENDER_DEPTH-1,
+        damageMultiplier: 1
+      },
       angularDamping: this.opts.angularDamping
     });
 

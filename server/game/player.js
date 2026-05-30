@@ -27,7 +27,7 @@ export class Player {
       }
     }
 
-    if (chance(1)) {
+    if (chance(0.2)) {
       if (chance(0.3)) {
         components.push(SwordBig);
         components.push(TitaniumCore);
@@ -60,10 +60,16 @@ export class Player {
 
   }
 
-  // Respawn the player's physical body and components without detaching WS
-  respawn() {
+  getBodyId() {
+    return this.body.getUserData().id;
+  }
+
+  sendBodyId() {
+    this.ws.send(JSON.stringify({ type: 'playerBodyId', id: this.getBodyId() }));
+  }
+
+  destroyComponents() {
     try {
-      // Call onDestroy for existing component instances (but keep ws/account)
       for (const component of this.components) {
         try {
           if (typeof component.onDestroy === 'function') component.onDestroy(this);
@@ -72,32 +78,21 @@ export class Player {
         }
       }
     } catch (e) {
-      // ignore
+      console.log(e)
     }
+  }
 
-    // Destroy existing physics body if present
-    try {
-      if (this.body) {
-        try {
-          if (this.world && typeof this.world.destroyBody === 'function') {
-            this.world.destroyBody(this.body);
-          } else if (this.body && typeof this.body.getWorld === 'function') {
-            const w = this.body.getWorld();
-            if (w && typeof w.destroyBody === 'function') w.destroyBody(this.body);
-          }
-        } catch (e) {
-          console.warn('Failed to destroy old body during respawn', e);
-        }
-        this.body = null;
-      }
-    } catch (e) {}
-
+  respawn() {
+    this.destroyComponents()
+ 
     // Recreate components and body
     try {
       this.setUpComponents(this.componentClasses || [HoverSphere, Dash]);
     } catch (e) {
       console.error('Failed to set up components during respawn', e);
     }
+
+    this.sendBodyId();
   }
 
   attachWS(ws) {
@@ -231,8 +226,6 @@ export class Player {
     for (const component of this.components) {
       if (component.body) component.body.setGravityScale(mainGravityScale);
     }
-
-    this.ws.send(JSON.stringify({ type: 'cameraFocusId', id: this.body.getUserData().id }));
   }
 
   handleMessage(msg) {
@@ -263,7 +256,7 @@ export class Player {
         type: "init",
         clientId: this.clientId,
         name: this.name,
-        bodyId: this.body.getUserData().id
+        bodyId: this.getBodyId()
       };
       this.ws.send(JSON.stringify(payload));
     } catch (e) {
@@ -333,5 +326,9 @@ export class Player {
     }
 
     this.detachWS();
+  }
+
+  die() {
+    this.respawn();
   }
 }

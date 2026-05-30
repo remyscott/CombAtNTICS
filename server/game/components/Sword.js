@@ -29,7 +29,9 @@ export class Sword {
       density: this.opts.density,
       friction: this.opts.friction,
       restitution: this.opts.restitution,
-      userData: { id: this.body.getUserData().id, type: 'sword', scale: 1},
+      userData: { id: this.body.getUserData().id, type: 'sword', scale: 1, 
+        damageMultiplier: 1
+      },
       angularDamping: this.opts.angularDamping
     });
 
@@ -38,7 +40,7 @@ export class Sword {
       bodyB: this.body,
       localAnchorA: Vec2(0, 0),
       localAnchorB: Vec2(-0.5 - this.opts.swordLength / 2, 0),
-      referenceAngle: this.body.getAngle() - playerBody.getAngle()
+      damageMultiplier: 1
     }));
 
     this.body.getWorld().registerBody(this.body);

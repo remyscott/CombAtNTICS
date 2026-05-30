@@ -20,7 +20,7 @@ export class ImageManager {
   }
 
   setImageFocusId(id) {
-    this.cameraFocusId = id === null ? null : id;
+    this.cameraFocusId = id;
     this.updateImageFocusPos();
   }
   

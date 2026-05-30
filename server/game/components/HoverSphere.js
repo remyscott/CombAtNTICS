@@ -24,12 +24,12 @@ export class HoverSphere {
       dampingFactor: 0.98
     };
     this.opts = Object.assign({}, defaults, opts);
-
+    this.player = player;
     this.body = player.body;
 
     this.body.setGravityScale(0);
 
-    this.body.createFixture({
+    this.fixture = this.body.createFixture({
       shape: new Circle(new Vec2(0, 0), this.opts.radius),
       density: this.opts.density,
       friction: this.opts.friction,
@@ -38,7 +38,8 @@ export class HoverSphere {
         id: this.body.getUserData().id,
         type: "hoversphere",
         scale: this.opts.radius * 2,
-        depth: PLAYER_RENDER_DEPTH
+        depth: PLAYER_RENDER_DEPTH,
+        health: 100,
       }
     });
 
@@ -100,11 +101,22 @@ export class HoverSphere {
     }
 
     this.body.setLinearVelocity(mulScalar(this.body.getLinearVelocity(), this.opts.dampingFactor))
+    this.checkIfDead();
   }
 
   onDestroy() {
     if (this.body && this.body.getWorld()) {
       this.body.getWorld().destroyBody(this.body);
     }
+  }
+
+  checkIfDead() {
+    if (this.fixture.getUserData().health <= 0) {
+      this.onDeath();
+    }
+  }
+
+  onDeath() {
+    this.player.die()
   }
 }

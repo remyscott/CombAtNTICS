@@ -128,7 +128,7 @@ export class BlockShotgunBase {
         density: this.opts.projectileDensity,
         friction: 0.2,
         restitution: 0.0,
-        userData: { type: "redbox", scale: s }
+        userData: { type: "redbox", scale: s, damageMultiplier: 1 }
       });
 
       // impulse vector for this projectile
@@ -485,7 +485,7 @@ export class THE_ULTRA_CANNON extends BlockShotgunBase {
       multiShotRandomness: 0.15,    // fraction of spread for jitter (0..1)
       projectileTTL: 25,
       angularDampingWhenSlow: 10,
-objectType: 'THE_ULTRA_CANNON'
+      objectType: 'THE_ULTRA_CANNON'
     }, opts));
   }
 }

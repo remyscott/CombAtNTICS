@@ -220,7 +220,7 @@ const commands = {
         return;
       }
       this.player.game.disconnectPlayer(p.account.username);
-      this.player.game.broadcast({ type: 'chatMsg', msg: `Player ${p.account.username} was kicked by ${this.name}`, nameOfSender: 'SERVER' });
+      this.player.game.broadcast({ type: 'chatMsg', msg: `Player ${p.account.username} was kicked by ${this.player.name}`, nameOfSender: 'SERVER' });
     },
     description: 'Disconnect a player from the game (mod+)'
   },
@@ -234,7 +234,7 @@ const commands = {
         return;
       }
       p.chatBanned = true;
-      this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Player ${p.account.username} muted by ${this.name}`, nameOfSender: 'SERVER' }));
+      this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Player ${p.account.username} muted by ${this.player.name}`, nameOfSender: 'SERVER' }));
     },
     description: 'Mute a player (mod+)'
   },
@@ -248,7 +248,7 @@ const commands = {
         return;
       }
       p.chatBanned = false;
-      this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Player ${p.account.username} unmuted by ${this.name}`, nameOfSender: 'SERVER' }));
+      this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Player ${p.account.username} unmuted by ${this.player.name}`, nameOfSender: 'SERVER' }));
     },
     description: 'Unmute a player (mod+)'
   },
@@ -263,7 +263,7 @@ const commands = {
       }
       p.chatBanned = true;
       try { if (p.ws) p.ws.close(4003, 'banned by admin'); } catch (e) {}
-      this.player.game.broadcast({ type: 'chatMsg', msg: `Player ${p.account.username} was banned by ${this.name}`, nameOfSender: 'SERVER' });
+      this.player.game.broadcast({ type: 'chatMsg', msg: `Player ${p.account.username} was banned by ${this.player.name}`, nameOfSender: 'SERVER' });
     },
     description: 'Ban a player (disconnect) (admin only)'
   },
@@ -284,7 +284,7 @@ const commands = {
       try {
         const updated = await accounts.updateRole(p.account.username, newRole);
         if (p && p.account) p.account.roles = updated.roles;
-        this.player.game.broadcast({ type: 'chatMsg', msg: `Player ${p.account.username} roles set to ${updated.roles.join(', ')} by ${this.name}`, nameOfSender: 'SERVER' });
+        this.player.game.broadcast({ type: 'chatMsg', msg: `Player ${p.account.username} roles set to ${updated.roles.join(', ')} by ${this.player.name}`, nameOfSender: 'SERVER' });
       } catch (err) {
         this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Failed to set roles: ${err.message}`, nameOfSender: 'SERVER' }));
       }
@@ -349,7 +349,7 @@ const commands = {
         return;
       }
       try {
-        this.player.ws.send(JSON.stringify({ type: 'cameraFocusId', id: p.body.getUserData().id }));
+        this.player.ws.send(JSON.stringify({ type: 'cameraFocusId', id: p.getBodyId() }));
         this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Camera focus on ${p.name}`, nameOfSender: 'SERVER' }));
       } catch (err) {
         this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Spec failed: ${err.message}`, nameOfSender: 'SERVER' }));
@@ -395,7 +395,7 @@ const commands = {
 
             }
           }
-          p.ws.send(JSON.stringify({ type: 'chatMsg', msg: `You were teleported by ${this.name}`, nameOfSender: 'SERVER' }));
+          p.ws.send(JSON.stringify({ type: 'chatMsg', msg: `You were teleported by ${this.player.name}`, nameOfSender: 'SERVER' }));
           this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Teleported ${p.account.username} to ${dest.account.username}`, nameOfSender: 'SERVER' }));
           this.player.game.broadcast({ type: 'chatMsg', msg: `${p.account.username} was teleported to ${dest.account.username}`, nameOfSender: 'SERVER' });
         }
