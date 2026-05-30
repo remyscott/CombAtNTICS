@@ -48,7 +48,7 @@ export class GameWorld extends World {
     for (let i = 0; i < count; i++) {
       const p = wm.points[i];
       let damageLeft = Number(damage)-5;
-      
+
       
       while (damageLeft > 0) {
         const scale = Math.max(1, Math.round(Math.random()*damageLeft))
@@ -83,9 +83,8 @@ export class GameWorld extends World {
     if (impulse <= 0.2) return
     if (!targetData || typeof targetData.health !== 'number') return;
     if (!sourceData || typeof sourceData.damageMultiplier !== 'number') return;
-    const rawDamage = impulse * sourceData.damageMultiplier;
-    const damage = Math.max(0, rawDamage);
-    console.log(damage)
+    const damage = impulse * sourceData.damageMultiplier - sourceData.minDamage;
+    if (damage <= 0) return;
     targetData.health -= damage;
  
     if (damage >= 0) return damage;
@@ -129,7 +128,8 @@ export class GameWorld extends World {
       density: 0.25,
       friction: .5,
       restitution: .2,
-      userData: {id: this.newId(), type: config.objectType, scale: config.scale || 1}
+      userData: {id: this.newId(), type: config.objectType, scale: config.scale || 1, damageMultiplier: 1,
+      minDamage: 5,}
     });
 
     return(body);
@@ -185,7 +185,8 @@ export class GameWorld extends World {
       shape: new Box(0.5 * config.scale, 0.5 * config.scale),
       friction: .5,
       restitution: .2,
-      userData: { id: this.newId(), type: config.objectType, scale: config.scale || 1 }
+      userData: { id: this.newId(), type: config.objectType, scale: config.scale || 1,  damageMultiplier: 1,
+      minDamage: 50,}
     });
 
     // If moving, attach motion metadata to the body userData so step() can find it.

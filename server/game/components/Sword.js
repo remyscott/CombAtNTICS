@@ -7,7 +7,7 @@ const { SWORD_CW, SWORD_CCW, SWORD_SLOW } = configurableInputs;
 
 export class Sword {
   constructor(player) {
-    const defaultOpts = { radius: 0.5, swordLength: 3, density: 0.5, friction: 0.5, restitution: .6, torque: 48, angularDampingWhenSlow: 300 };
+    const defaultOpts = { radius: 0.5, swordLength: 3, density: 0.5, friction: 0.5, restitution: .6, torque: 100, angularDampingWhenSlow: 300 };
     this.opts = defaultOpts;
     const playerBody = player.body;
 
@@ -30,7 +30,9 @@ export class Sword {
       friction: this.opts.friction,
       restitution: this.opts.restitution,
       userData: { id: this.body.getUserData().id, type: 'sword', scale: 1, 
-        damageMultiplier: 2
+        damageMultiplier: 1,
+        minDamage: 1,
+        health: 0,
       },
       angularDamping: this.opts.angularDamping
     });
@@ -40,7 +42,6 @@ export class Sword {
       bodyB: this.body,
       localAnchorA: Vec2(0, 0),
       localAnchorB: Vec2(-0.5 - this.opts.swordLength / 2, 0),
-      damageMultiplier: 2
     }));
 
     this.body.getWorld().registerBody(this.body);

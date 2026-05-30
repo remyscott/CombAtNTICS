@@ -20,7 +20,7 @@ export function randomComponents() {
     components.push(HoverSphere);
 
 
-    if (chance(0.2)) {
+    if (chance(0.4)) {
       if (chance(0.3)) {
         components.push(SwordBig);
         components.push(TitaniumCore);
@@ -38,6 +38,7 @@ export function randomComponents() {
 
     return components;
 }
+
 export class Player {
   constructor(ws, game, components = null) {
     // choose components (kept original logic)

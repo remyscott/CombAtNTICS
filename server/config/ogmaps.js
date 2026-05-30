@@ -180,48 +180,102 @@ export function makeWallRows(x1, x2, yStart, rows, spacing = 1, options = {}) {
 }
 
 // -------------------- Maps using circle arcs / rooms --------------------
-export const maps = [makeBallPit, makeRingMap, makeCrystalMap];
+export const maps = [];
 
-export function makeBallPit() {
-  const res = {name: 'balls',
-    planckConfig: { gravity: { x: 0, y: 9.8 } },
-    objects: [
-      ...makeScatter(10, 500, 0, { objectType: 'ball', scaleMin: 0.3, scaleMax: 0.5 }),
-      ...makeCircleArc(15, 36, 0, 360, { objectType: 'lockbox', scale: 3})
-    ]
-  };
+/* Double arena with narrow tunnel */
+maps.push({
+  name: 'doubleArena',
+  planckConfig: { gravity: { x: 0, y: 9.8 } },
+  objects: [
+    ...makeCircleArc(16, 40, 15, 330, { objectType: 'lockbox', scale: 2.4, cx: -28, cy: 0 }),
+    ...makeCircleArc(16, 40, 195, 330, { objectType: 'lockbox', scale: 2.4, cx: 28, cy: 0 }),
 
-  return res;
+    // narrow tunnel as a few boxes forming corridor
+    ...createRow({ start: -12, end: 12, step: 2, y: -4, objectType: 'lockbox', scale: 2 }),
+    ...createRow({ start: -12, end: 12, step: 2, y: 4, objectType: 'lockbox', scale: 2 }),
+
+    // some circles inside each arena
+    ...makeScatter(12, 400, 0, { objectType: 'ball', scaleMin: 0.1, scaleMax: 1 }).map(o => ({ ...o, position: { x: o.position.x - 28, y: o.position.y } })),
+    ...makeScatter(12, 1, 0, { objectType: 'ball', scaleMin: 0.5, scaleMax: 1 }).map(o => ({ ...o, position: { x: o.position.x + 28, y: o.position.y } })),
+  ]
+});
+
+maps.push({
+  name: 'FILTERING APPARATUS',
+  planckConfig: { gravity: { x: 0, y: 9.5 } },
+  objects: [
+    ...makeCircleArc(16, 30, 23, 253, { objectType: 'lockbox', scale: 2.5, cx: -10, cy: 10 }),
+
+    ...makeCircleArc(8, 10, 15, 120, { objectType: 'lockbox', scale: 2.5, cx: -0, cy: 0 }),
+    ...makeCircleArc(8, 10, 175, 120, { objectType: 'lockbox', scale: 2.5, cx: -0, cy: 0 }),
+    {objectType: 'ball', scale: 10},
+    ...createRow({ start: 8, end: 16, step: .8, y: 1, objectType: 'lockbox', scale: .25 }),
+    ...createColumn(3, 7, .6, 12, 'lockbox', .25),
+    ...makeScatter(2, 50, 0, { objectType: 'ball', scaleMin: 0.4, scaleMax: 0.7 }).map(o => ({ ...o, position: { x: o.position.x + 10, y: o.position.y+4 } })),
+    ...createRow({ start: 12, end: 15, step: 1.25, y: 3, objectType: 'lockbox', scale: .3 }),
+    ...makeCircleArc(16, 30, 200, 240, { objectType: 'lockbox', scale: 2.5, cx: 20, cy: -20 }),
+    ...makeCircleArc(25, 5, 160, 10, { objectType: 'lockbox', scale: 2.5, cx: 40, cy: -6 }),
+
+    ...createRow({ start: 24, end: 35, step: 2, y: -20, objectType: 'lockbox', scale: 2 }),
+
+    ...createColumn(-16, 2, 2, 16, 'lockbox', 2),
+    ...createColumn(-24, -7, 3, 4, 'lockbox', 1.5),
+    ...createColumn(-24, -16, 3, 16, 'lockbox', 1.5),
+    ...createColumn(-35, -25, 1.5, 16, 'lockbox', 1.5),
+    ...makeScatter(3, 200, 0, { objectType: 'ball', scaleMin: 0.05, scaleMax: 0.5 }).map(o => ({ ...o, position: { x: o.position.x + 27, y: o.position.y-30 } })),
+
+    ...makeScatter(4, 15, 0, { objectType: 'ball', scaleMin: 1.5, scaleMax: 2 }).map(o => ({ ...o, position: { x: o.position.x + 10, y: o.position.y-25 } })),
+    ...createRow({ start: 4, end: 16, step: 2, y: -16, objectType: 'lockbox', scale: 2 }),
+
+    ...createColumn(-24, 30, 2, 22, 'lockbox', 2),
+    
+    ...createColumn(12, 30, 2, 17, 'lockbox', 2),
+
+    ...createColumn(16, 30, 2, 13.7, 'lockbox', 2),
+    ...createRow({ start: -8, end: 16, step: 2, y: 8, objectType: 'lockbox', scale: 2 }),
+    ...createRow({ start: -8, end: 16, step: 2, y: 12, objectType: 'lockbox', scale: 2 }),
+    ...createRow({ start: 5, end: 14, step: 2, y: 15.2, objectType: 'lockbox', scale: 2 }),
+    ...createRow({ start: 14, end: 23, step: 1, y: 30, objectType: 'lockbox', scale: 1 }),
+  ]
+});
+
+let cu = 0;
+for (let i = 1; i < 20; i++) {
+  maps[1].objects.push(...createRow({ start: 17, end: 22, y: 12+(4/i)+cu, step: (2/(3*i+4))*3, objectType: 'lockbox', scale: Math.min(2/(3*i+4), 0.25), moving: true, freq: 2, phase: Math.random(), mag: 3}));
+  cu += 4/i;
 }
 
-export function makeRingMap() {
-  const res = {name: 'big',
-    planckConfig: { gravity: { x: 0, y: 0 } },
-    objects: [
-      ...makeScatter(10, 50, 0.9, { objectType: 'circle', scaleMin: 0.4, scaleMax: 1.2 }),
-      ...makeScatter(10, 50, 0.9, { objectType: 'box', scaleMin: 0.4, scaleMax: .9 })
-    ]
-  };
+/* Donut-like map using arcs for partial rings (openings) */
+maps.push({
+  name: 'big',
+  planckConfig: { gravity: { x: 0, y: 0 } },
+  objects: [
+    ...makeScatter(10, 50, 0.9, { objectType: 'circle', scaleMin: 0.4, scaleMax: 1.2 }),
+    ...makeScatter(10, 50, 0.9, { objectType: 'box', scaleMin: 0.4, scaleMax: .9 })
+  ]
+});
 
-  let cum = 3.5;
-  for (let i = 1.5; i < 20; i++) {
-    res.objects.push(...makeCircleArc(i*5+cum, 10+i*4, Math.random()*360, 160+i*10, { objectType: 'lockbox', scale: 1.1*i + 1.5, cx: 0, cy: 0 }));
-    cum += i*1.01;
-  }
-  return res;
+let cum = 3.5;
+for (let i = 2; i < 10; i++) {
+  maps[2].objects.push(...makeCircleArc(i*10+cum, 16+i*6, Math.random()*360, 260+i*10, { objectType: 'lockbox', scale: i*2 + .5, cx: 0, cy: 0 }));
+  cum += i*3.5;
 }
-  
+cum = 0.5*3.5;
+for (let i = 1.5; i < 10; i++) {
+  maps[2].objects.push(...makeCircleArc(i*10+cum, 16+i* 6, Math.random()*360, 260+i*10, { objectType: 'lockbox', scale: i*2 + .5, cx: 0, cy: 0 }));
+  cum += i*3.5;
+}
 
 export function makeCrystalMap() {
-  const res = {
+  const res = ({
     name: '2',
     planckConfig: { gravity: { x: 0, y: 0 } },
     objects: [
     ...makeCircleArc(200, 36, 0, 360, { objectType: 'lockbox', scale: 30, cx: 0, cy: 0 })  ,
     ...makeCircleArc(180, 36, 5, 360, { objectType: 'lockbox', scale: 24, cx: 0, cy: 0 })  ]
-  };
+  });
 
-  let cum = 0;
+  cum = 0;
   for (let i = 2; i < 10; i++) {
     res.objects.push(...makeCircleArc(i*10+cum, i-1, Math.random()*360, 200+Math.random()*100, { objectType: 'lockbox', scale: 2+i*5, cx: -15+i*5, cy: 0 }));
     cum += i*2;
@@ -238,5 +292,20 @@ export function makeCrystalMap() {
   }
   return res;
 }
+
+
+
+
+maps.push({
+  name: 'soccerField',
+  planckConfig: { gravity: { x: 0, y: 0 } },
+  objects: [
+    ...makeCircleArc(100, 32, 10, 360, { objectType: 'lockbox', scale: 40, cx: 0, cy: 0 }),
+    { objectType: 'ball', scale: 4, position: { x: 0, y: 0 } },
+    { objectType: 'ball', scale: 10, position: { x: 0, y: 0 } },
+    { objectType: 'ball', scale: 3, position: { x: 0, y: 0 } },
+    { objectType: 'ball', scale: 2, position: { x: 0, y: 0 } },
+  ]
+});
 
 export default maps;

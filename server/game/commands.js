@@ -1,5 +1,6 @@
 import { componentList, componentMap } from "./componentMap.js";
 import { randomComponents } from "./player.js";
+import accounts from '../accounts-sqlite.js';
 
 export class CommandInterpretor {
   constructor(player) {
@@ -354,6 +355,8 @@ const commands = {
       }
       try {
         this.player.ws.send(JSON.stringify({ type: 'cameraFocusId', id: p.getBodyId() }));
+        this.player.ws.send(JSON.stringify({ type: 'playerBodyId', id: p.getBodyId() }));
+
         this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Camera focus on ${p.name}`, nameOfSender: 'SERVER' }));
       } catch (err) {
         this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Spec failed: ${err.message}`, nameOfSender: 'SERVER' }));

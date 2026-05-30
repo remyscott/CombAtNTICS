@@ -8,7 +8,7 @@ const { SWORD_CW, SWORD_CCW, SWORD_SLOW } = configurableInputs;
 
 export class SwordBig {
   constructor(player) {
-    const defaultOpts = { radius: 0.5, swordLength: 3, density: 1, friction: 0.5, restitution: .6, torque: 96, angularDampingWhenSlow: 300 };
+    const defaultOpts = { radius: 0.5, swordLength: 3, density: 1, friction: 0.5, restitution: .6, torque: 200, angularDampingWhenSlow: 300 };
     this.opts = defaultOpts;
     const playerBody = player.body;
 
@@ -33,7 +33,9 @@ export class SwordBig {
       userData: { 
         id: this.body.getUserData().id, 
         type: 'swordBig', scale: 1, depth: PLAYER_RENDER_DEPTH-1,
-        damageMultiplier: 2
+        damageMultiplier: 1,
+        minDamage: 2,
+        health: 0,
       },
       angularDamping: this.opts.angularDamping
     });

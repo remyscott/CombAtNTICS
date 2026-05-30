@@ -25,9 +25,8 @@ const wss = new WebSocketServer({ noServer: true });
 const games = new Map();
 
 function getOrCreateGame(gameId, map = maps[Math.floor(Math.random()*maps.length)]) {
-  if (Math.random() < 0.3) map = makeCrystalMap();
   if (!games.has(gameId)) {
-    const game = new Game(map, gameId, (id) => {
+    const game = new Game(map(), gameId, (id) => {
       games.delete(id);
       console.log(`🛑 Game ${id} stopped (removed from registry)`);
     });

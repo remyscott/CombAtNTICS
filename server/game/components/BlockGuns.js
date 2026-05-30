@@ -128,7 +128,7 @@ export class BlockShotgunBase {
         density: this.opts.projectileDensity,
         friction: 0.2,
         restitution: 0.0,
-        userData: { type: "redbox", scale: s, damageMultiplier: 4 }
+        userData: { type: "redbox", scale: s, damageMultiplier: 4, minDamage: 0.1 }
       });
 
       // impulse vector for this projectile
@@ -219,7 +219,7 @@ export class BlockGunBasic extends BlockShotgunBase {
       multiShotSpread: 0,
       multiShotRandomness: 0,
       projectileTTL: 5.0,
-      angularDampingWhenSlow: 10,
+      angularDampingWhenSlow: 20,
       objectType: 'blockGun',
     }, opts));
   }
@@ -242,7 +242,7 @@ export class BlockShotgun extends BlockShotgunBase {
       multiShotSpread: Math.PI / 8,
       multiShotRandomness: 0.15,
       projectileTTL: 5.0,
-      angularDampingWhenSlow: 10,
+      angularDampingWhenSlow: 20,
 objectType: 'blockShotgun'
     }, opts));
   }
@@ -265,7 +265,7 @@ export class BlockSawedOff extends BlockShotgunBase {
       multiShotSpread: Math.PI / 2,
       multiShotRandomness: 0.15,
       projectileTTL: 2.5,
-      angularDampingWhenSlow: 10,
+      angularDampingWhenSlow: 20,
 objectType: 'blockSawedOff'
     }, opts));
   }
@@ -288,7 +288,7 @@ export class BlockUltraShotgun extends BlockShotgunBase {
       multiShotSpread: Math.PI / 8,
       multiShotRandomness: 0.15,
       projectileTTL: 5.0,
-      angularDampingWhenSlow: 10,
+      angularDampingWhenSlow: 20,
 objectType: 'blockUltraShotgun'
     }, opts));
   }
@@ -313,7 +313,7 @@ export class BlockUltraUltraShotgun extends BlockShotgunBase {
       multiShotSpread: Math.PI / 4, // total spread angle (radians)
       multiShotRandomness: 1,    // fraction of spread for jitter (0..1)
       projectileTTL: 5.0     ,
-      angularDampingWhenSlow: 10,
+      angularDampingWhenSlow: 20,
 objectType: 'blockUltraUltraShotgun'
     }, opts));
   }
@@ -338,7 +338,7 @@ export class BlockShinigun extends BlockShotgunBase {
       multiShotSpread: Math.PI / 8, // total spread angle (radians)
       multiShotRandomness: 0.15,    // fraction of spread for jitter (0..1)
       projectileTTL: 0.5  ,
-      angularDampingWhenSlow: 10,
+      angularDampingWhenSlow: 20,
 objectType: 'blockShinigun'
     }, opts));
   }
@@ -362,7 +362,7 @@ export class BlockMinigun extends BlockShotgunBase {
       multiShotSpread: Math.PI / 16, // total spread angle (radians)
       multiShotRandomness: 1,    // fraction of spread for jitter (0..1)
       projectileTTL: 1,
-      angularDampingWhenSlow: 10,
+      angularDampingWhenSlow: 20,
 objectType: 'blockMinigun'
     }, opts));
   }
@@ -386,7 +386,7 @@ export class BlockUltraMinigun extends BlockShotgunBase {
       multiShotSpread: Math.PI / 16, // total spread angle (radians)
       multiShotRandomness: 1,    // fraction of spread for jitter (0..1)
       projectileTTL: 1,
-      angularDampingWhenSlow: 10,
+      angularDampingWhenSlow: 20,
 objectType: 'blockUltraMinigun'
     }, opts));
   }
@@ -411,7 +411,7 @@ export class BlockSmg extends BlockShotgunBase {
       multiShotSpread: 3.14/16, // total spread angle (radians)
       multiShotRandomness: 1,    // fraction of spread for jitter (0..1)
       projectileTTL: 1,
-      angularDampingWhenSlow: 10,
+      angularDampingWhenSlow: 20,
 objectType: 'blockSmg'
     }, opts));
   }
@@ -436,7 +436,7 @@ export class BlockHeavy extends BlockShotgunBase {
       multiShotSpread: 0, // total spread angle (radians)
       multiShotRandomness: 0,    // fraction of spread for jitter (0..1)
       projectileTTL: 10,
-      angularDampingWhenSlow: 10,
+      angularDampingWhenSlow: 20,
 objectType: 'blockHeavy'
     }, opts));
   }
@@ -460,7 +460,7 @@ export class BlockCannon extends BlockShotgunBase {
       multiShotSpread: 0, // total spread angle (radians)
       multiShotRandomness: 0,    // fraction of spread for jitter (0..1)
       projectileTTL: 10,
-      angularDampingWhenSlow: 10,
+      angularDampingWhenSlow: 100,
 objectType: 'blockCannon'
     }, opts));
   }
@@ -484,7 +484,7 @@ export class THE_ULTRA_CANNON extends BlockShotgunBase {
       multiShotSpread: 3.14/6, // total spread angle (radians)
       multiShotRandomness: 0.15,    // fraction of spread for jitter (0..1)
       projectileTTL: 25,
-      angularDampingWhenSlow: 10,
+      angularDampingWhenSlow: 100,
       objectType: 'THE_ULTRA_CANNON'
     }, opts));
   }
@@ -494,7 +494,7 @@ export class BlockSniper extends BlockShotgunBase {
   constructor(player, opts = {}) {
     super(player, Object.assign({
       barrelLength: 3,
-      launchForce: 50,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
+      launchForce: 100,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
       cooldown: 60,          // frames between shots
       motorMaxTorque: 20000000,
       motorMaxSpeed: 5000,    // rad/s
