@@ -1,3 +1,4 @@
+import { TICKS_PER_SNAPSHOT } from '../../shared/settings.js';
 import { lerpStatesFast } from './statelerper.js';
 
 export class StateManager{
@@ -58,12 +59,57 @@ export class StateManager{
     if (kind === 0) { // full
       this.insertStateIntoHistory({ state: parsed, time: serverTimeMs });
     } else if (kind === 1) { // partial
-      const baseline = this.getLatestBaselineState();
-      const full = this.mergePartialIntoBaseline(baseline, parsed);
-      this.insertStateIntoHistory({ state: full, time: serverTimeMs });
+      const nearest = this.findNearestIndexByTime(serverTimeMs);
+
+      // Threshold: how far away (ms) a partial can be and still be applied to an existing sample.
+      // Adjust this to your network/clock jitter and snapshot spacing. Example: 200ms
+      const MAX_MERGE_DELTA_MS = 200;
+
+      if (nearest.idx >= 0 && nearest.diff <= MAX_MERGE_DELTA_MS) {
+        // Merge partial into that history entry (create new object to avoid mutation of other refs)
+        const existing = structuredClone(this.history[nearest.idx]);
+        existing.state = this.mergePartialIntoBaseline(existing.state, parsed);
+        // keep existing.time (we don't change the sample timestamp)
+        this.history[nearest.idx] = existing;
+      } else {
+        const baseline = this.getLatestBaselineState();
+        const full = this.mergePartialIntoBaseline(baseline, parsed);
+        this.insertStateIntoHistory({ state: full, time: serverTimeMs });
+      }
     } else {
       console.warn('Unknown binary snapshot kind:', kind);
     }
+  }
+
+  findNearestIndexByTime(time) {
+    if (!this.history || this.history.length === 0) return { idx: -1, diff: Infinity };
+
+    // binary search for insertion point
+    let low = 0, high = this.history.length;
+    while (low < high) {
+      const mid = (low + high) >>> 1;
+      if (this.history[mid].time < time) low = mid + 1;
+      else high = mid;
+    }
+
+    // low is first index with time >= time (could be 0..length)
+    let bestIdx = -1;
+    let bestDiff = Infinity;
+
+    // check low and low-1 as closest candidates
+    const candidates = [];
+    if (low < this.history.length) candidates.push(low);
+    if (low - 1 >= 0) candidates.push(low - 1);
+
+    for (const c of candidates) {
+      const d = Math.abs(this.history[c].time - time);
+      if (d < bestDiff) {
+        bestDiff = d;
+        bestIdx = c;
+      }
+    }
+
+    return { idx: bestIdx, diff: bestDiff };
   }
 
   getLatestBaselineState() {
