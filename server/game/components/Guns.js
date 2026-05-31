@@ -7,7 +7,12 @@ const { FIRE_GUN, GUN_SLOW } = configurableInputs;
 // Generic base weapon class
 export class ShotgunBase {
   constructor(player, opts = {}) {
+    const sf = player.sf || 1;
+
     const o = opts;
+    o.projectileSize *= sf;
+    o.launchForce *= sf*sf;
+    o.maxMotorTorque *= sf;
     this.opts = o;
     this.player = player;
     this.world = player.world;
@@ -17,16 +22,16 @@ export class ShotgunBase {
     // launcher body
     this.body = this.world.createBody({
       type: "dynamic",
-      position: { x: o.barrelLength + 0.5, y: 0 },
+      position: { x: (o.barrelLength + 0.5)*sf, y: 0 },
       userData: { owner: this }
     });
 
     this.body.createFixture({
-      shape: Box(o.barrelLength / 2, o.radius),
+      shape: Box(o.barrelLength*sf / 2, o.radius*sf),
       density: o.projectileDensity,
       friction: 0.2,
       restitution: 0.1,
-      userData: { id: this.body.getUserData().id, type: o.objectType}
+      userData: { id: this.body.getUserData().id, type: o.objectType, scale: 1*sf}
     });
 
     // revolute joint (motor)
@@ -34,7 +39,7 @@ export class ShotgunBase {
       bodyA: player.body,
       bodyB: this.body,
       localAnchorA: Vec2(0, 0),
-      localAnchorB: Vec2(-0.55 - o.barrelLength / 2, 0),
+      localAnchorB: Vec2((-0.55 - o.barrelLength / 2)*sf, 0),
       enableMotor: true,
       motorSpeed: 0,
       maxMotorTorque: o.motorMaxTorque
@@ -128,7 +133,7 @@ export class ShotgunBase {
         density: this.opts.projectileDensity,
         friction: 0.2,
         restitution: 0.0,
-        userData: { type: "bullet", scale: s, damageMultiplier: 16, minDamage: 0.1 }
+        userData: { type: "bullet", scale: s, damageMultiplier: this.opts.projDmgMult|| 16, minDamage: this.opts.projMinDmg || 1 }
       });
 
       // impulse vector for this projectile
@@ -240,7 +245,7 @@ export class Shotgun extends ShotgunBase {
       radius: 0.2,
       multiShotCount: 8,
       multiShotSpread: Math.PI / 8,
-      multiShotRandomness: 0.15,
+      multiShotRandomness: 0.0,
       projectileTTL: 5.0,
       angularDampingWhenSlow: 20,
 objectType: 'Shotgun'
@@ -263,7 +268,7 @@ export class SawedOff extends ShotgunBase {
       radius: 0.2,
       multiShotCount: 32,
       multiShotSpread: Math.PI / 2,
-      multiShotRandomness: 0.15,
+      multiShotRandomness: 0,
       projectileTTL: 2.5,
       angularDampingWhenSlow: 20,
 objectType: 'SawedOff'
@@ -286,7 +291,7 @@ export class UltraShotgun extends ShotgunBase {
       radius: 0.2,
       multiShotCount: 32,
       multiShotSpread: Math.PI / 8,
-      multiShotRandomness: 0.15,
+      multiShotRandomness: 0,
       projectileTTL: 5.0,
       angularDampingWhenSlow: 20,
 objectType: 'UltraShotgun'
@@ -311,7 +316,7 @@ export class UltraUltraShotgun extends ShotgunBase {
       // Multi-shot-specific
       multiShotCount: 64,            // number of projectiles per shot
       multiShotSpread: Math.PI / 4, // total spread angle (radians)
-      multiShotRandomness: 1,    // fraction of spread for jitter (0..1)
+      multiShotRandomness: 0,    // fraction of spread for jitter (0..1)
       projectileTTL: 5.0     ,
       angularDampingWhenSlow: 20,
 objectType: 'UltraUltraShotgun'
@@ -373,7 +378,7 @@ export class Smg extends ShotgunBase {
   constructor(player, opts = {}) {
     super(player, Object.assign({
       barrelLength: 1,
-      launchForce: 0.15,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
+      launchForce: 0.3,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
       cooldown: 5,          // frames between shots
       motorMaxTorque: 200000,
       motorMaxSpeed: 500,    // rad/s
@@ -470,7 +475,7 @@ export class Sniper extends ShotgunBase {
   constructor(player, opts = {}) {
     super(player, Object.assign({
       barrelLength: 3,
-      launchForce: 50,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
+      launchForce: 25,      // impulse magnitude applied to projectile (impulse = force * dt or direct impulse)
       cooldown: 60,          // frames between shots
       motorMaxTorque: 20000000,
       motorMaxSpeed: 5000,    // rad/s
@@ -479,7 +484,8 @@ export class Sniper extends ShotgunBase {
       projectileSize: 0.25,
       projectileDensity: 0.5,
       radius: .2,
-
+      projDmgMult: 64,
+      projMinDmg: 30,
       multiShotCount: 1,            // number of projectiles per shot
       multiShotSpread: 0, // total spread angle (radians)
       multiShotRandomness: 0,    // fraction of spread for jitter (0..1)

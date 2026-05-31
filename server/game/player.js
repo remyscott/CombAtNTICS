@@ -20,7 +20,7 @@ export function randomComponents() {
     components.push(HoverSphere);
 
 
-    if (chance(0.4)) {
+    if (chance(0.8)) {
       if (chance(0.3)) {
         components.push(SwordBig);
         components.push(TitaniumCore);
@@ -52,6 +52,7 @@ export class Player {
     this.chatBanned = false;
     this._disconnectTimer = 5;
     this.commandInterpretor = new CommandInterpretor(this);
+    this.sf = 0.975 + Math.random()*0.05
 
     if (ws) {
       this.attachWS(ws);

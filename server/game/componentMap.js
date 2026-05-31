@@ -21,7 +21,6 @@ export const componentMap = {
   Shotgun,
   UltraShotgun,
   UltraMinigun,
-  UltraUltraShotgun,
   THE_ULTRA_CANNON,
 };
 

@@ -15,6 +15,7 @@ export class GameWorld extends World {
     this._time = 0;
     this.loadMapObjects(map.objects);
     this.setUpDamageListeners();
+    this.setUpBulletDecayListener();
     this.pendingSparks = [];
   }
 
@@ -37,6 +38,47 @@ export class GameWorld extends World {
 
       this.createSparks(contact, this.tryApplyDamage(dataA, dataB, totalImpulse))
       this.createSparks(contact, this.tryApplyDamage(dataB, dataA, totalImpulse))
+    });
+  }
+
+  setUpBulletDecayListener() {
+    // threshold in meters per second under which bullets stop being bullets
+    const BULLET_SPEED_THRESHOLD = 10;
+
+    const checkBullet = (body) => {
+        // Planck/Box2D: body.isBullet() returns true if the body is flagged as bullet
+        if (!body || typeof body.isBullet !== 'function') return;
+        if (!body.isBullet()) return;
+
+        const v = body.getLinearVelocity();
+        // compute squared speed to avoid an unnecessary sqrt
+        const speedSq = v.x * v.x + v.y * v.y;
+
+        if (speedSq <= (BULLET_SPEED_THRESHOLD * BULLET_SPEED_THRESHOLD)) {
+          // switch off bullet if slow enough
+          if (typeof body.setBullet === 'function') {
+            body.setBullet(false);
+          }
+        }
+      };
+
+    this.on('post-solve', (contact, impulse) => {
+      // defensive: we only care about resolved impulses / collisions
+      if (!impulse || !impulse.normalImpulses) return;
+
+      const fA = contact.getFixtureA();
+      const fB = contact.getFixtureB();
+      if (!fA || !fB) return;
+
+      const bA = fA.getBody();
+      const bB = fB.getBody();
+
+      // helper to check and possibly clear bullet flag
+      
+
+      // Check both bodies involved in this contact
+      checkBullet(bA);
+      checkBullet(bB);
     });
   }
 
@@ -86,7 +128,6 @@ export class GameWorld extends World {
     const damage = impulse * sourceData.damageMultiplier - sourceData.minDamage;
     if (damage <= 0) return;
     targetData.health -= damage;
- 
     if (damage >= 0) return damage;
   }
 

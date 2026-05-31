@@ -8,16 +8,18 @@ const { UP, DOWN, LEFT, RIGHT } = configurableInputs;
 
 export class HoverSphere {
   constructor(player, opts = {}) {
+    const sf = player.sf || 1;
+
     const defaults = {
-      radius: 0.5,
-      force: 20,
+      radius: 0.5*sf,
+      force: 20*sf*sf,
       density: 1,
       friction: 0.5,
       restitution: 0.2,
 
       // upright controller (PD)
-      uprightKp: 80,         // proportional gain (torque per radian)
-      uprightKd: 1.5,         // derivative gain (torque per rad/s)
+      uprightKp: 80*sf*sf,         // proportional gain (torque per radian)
+      uprightKd: 1.5*sf*sf,         // derivative gain (torque per rad/s)
       uprightMaxTorque: 60.0, // clamp for applied torque
       uprightDeadzone: 0.01,   // radians below which we won't bother
 
@@ -39,7 +41,7 @@ export class HoverSphere {
         type: "hoversphere",
         scale: this.opts.radius * 2,
         depth: PLAYER_RENDER_DEPTH,
-        health: 100,
+        health: 100*sf,
       }
     });
 

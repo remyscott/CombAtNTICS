@@ -365,6 +365,35 @@ const commands = {
     description: 'Focus your camera on a player. No input = @s'
   },
 
+  '/sf' : {
+    requiredRole: 'mod+',
+    function: function (targetId, sf) {
+      if (!targetId) targetId = '@s';
+      const p = this.resolvePlayer(targetId);
+      if (!p) {
+        this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Player not found', nameOfSender: 'SERVER' }));
+        return;
+      }
+      if (!sf) {
+        this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'sf needed', nameOfSender: 'SERVER' }));
+        return;
+      }
+      sf = Number(sf)
+      if (sf < 0.5 || sf > 2) {
+        this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'too small or too big', nameOfSender: 'SERVER' }));
+        return;
+      }
+      try {
+        p.sf = sf;
+        p.respawn();
+        p.ws.send(JSON.stringify({ type: 'chatMsg', msg: `sf set to ${sf} by ${this.player.name}`, nameOfSender: 'SERVER' }));
+      } catch (err) {
+        this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Spec failed: ${err.message}`, nameOfSender: 'SERVER' }));
+      }
+    },
+    description: 'set scale factor for a player /sf #'
+  },
+
   '/listComps': {
     requiredRole: 'player',
     function: function () {

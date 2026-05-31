@@ -16,9 +16,10 @@ export class Dash {
    *   onDash: optional callback (player, info)
    */
   constructor(player, opts = {}) {
+    const sf = player.sf || 1;
     this.player = player;
     this.opts = Object.assign({
-      impulse: 24,
+      impulse: 24*sf*sf,
       cooldown: 1000,
       directionPreference: 'mouse', // 'mouse' preferred, then 'input', then 'facing'
       onDash: null
@@ -28,9 +29,9 @@ export class Dash {
     this._tmp = Vec2(0, 0);
 
     this.player.body.createFixture({
-      shape: Box(0.2, 0.2),
+      shape: Box(0.2*sf, 0.2*sf),
       density: 1,
-      userData: {depth: 1000, id: this.player.game.world.newId(), type: 'dashCore', scale: 1 },
+      userData: {depth: 1000, id: this.player.game.world.newId(), type: 'dashCore', scale: sf },
     });
   }
 
