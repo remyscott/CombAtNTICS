@@ -94,10 +94,18 @@ export class Game {
       player.applyInputs();
       player.update();
     }
-
+    
+    const t0 = performance.now();
     this.world.step(TIMESTEP, 1, 1);
+    const dtMs = performance.now() - t0;
+    if (dtMs > TIMESTEP*1000) console.log('long step:', dtMs);
+
     this._ticksSinceSnapshot += 1;
+    
+    const t1 = performance.now();
     this.broadcastSnapshotDecision();
+    const dtMs2 = performance.now() - t1;
+    if (dtMs2 > TIMESTEP*1000) console.log('long broadcast:', dtMs2);
   }
 
   collectTickState() {
@@ -296,28 +304,21 @@ export class Game {
       }
 
       try {
+        const t0 = performance.now();
         this.tick();
+        const dtMs = performance.now() - t0;
+        if (dtMs > IDEAL_DT) console.log('long tick:', dtMs);
       } catch (err) {
         console.error('tick() threw:', err);
       }
 
-      // advance the schedule by one step
-      nextTickTime += IDEAL_DT;
-
-      // if we're very far behind, snap the schedule forward so we don't queue a large backlog
       const now = performance.now();
-      if (nextTickTime < now - 1000) {
-        // more than 1s behind: reset to avoid huge negative delays
+      if (nextTickTime < now - IDEAL_DT * 4) { // too far behind
         nextTickTime = now + IDEAL_DT;
       }
-
-      // compute delay until next scheduled tick
-      let delay = Math.max(0, Math.round(nextTickTime - performance.now()));
-
-      // optional safety bound so setTimeout doesn't receive a too-large value
-      if (!Number.isFinite(delay) || delay > 1000) delay = Math.round(IDEAL_DT);
-
+      let delay = Math.max(0, Math.round(nextTickTime - now));
       this._tickTimeout = setTimeout(loop, delay);
+      nextTickTime += IDEAL_DT;
     };
 
     // kick off the loop after one ideal dt

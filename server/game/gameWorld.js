@@ -2,9 +2,14 @@ import { World, Box, Vec2, Circle} from 'planck';
 
 const sum = (...nums) => nums.reduce((a,b) => a + b, 0);
 
+const CATEGORY_STATIC  = 0x0001;
+const CATEGORY_DEFAULT = 0x0002;
+const ALL = CATEGORY_STATIC | CATEGORY_DEFAULT
+const MASK_STATIC = ALL & ~CATEGORY_STATIC; // collide with everything except static
+
 export class GameWorld extends World {
   constructor(map) {
-    super(map.planckConfig);
+    super({...map.planckConfig, allowSleep: true});
     this._id = 0;
     this._fId = 0;
     this._fmId = 128;
@@ -17,6 +22,7 @@ export class GameWorld extends World {
     this.setUpDamageListeners();
     this.setUpBulletDecayListener();
     this.pendingSparks = [];
+    this._pendingDestroys = []
   }
 
   setUpDamageListeners() {
@@ -50,7 +56,7 @@ export class GameWorld extends World {
         const speedSq = v.x * v.x + v.y * v.y;
 
         if (speedSq <= (BULLET_SPEED_THRESHOLD_2)) {
-          this.destroyBody(body)
+          this._pendingDestroys.push(body)
         }
       };
 
@@ -70,18 +76,14 @@ export class GameWorld extends World {
   }
 
   createSparks(contact, damage) {
-      // Get the world manifold for this contact
     const wm = contact.getWorldManifold();
-    const count = wm.pointCount;
-    // wm.points is an array of Vec2 world positions (length >= count)
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < wm.pointCount; i++) {
       const p = wm.points[i];
+      const pCopy = { x: p.x, y: p.y }; // clone
       let damageLeft = Number(damage);
-
-      
       while (damageLeft > 0) {
-        const scale = Math.max(1, Math.round(Math.random()*damageLeft))
-        this.pendingSparks.push({p, scale});
+        const scale = Math.max(1, Math.round(Math.random()*damageLeft));
+        this.pendingSparks.push({ p: pCopy, scale });
         damageLeft -= scale;
       }
     }
@@ -126,6 +128,7 @@ export class GameWorld extends World {
         staticObjects.createFixture({
           shape: new Box(0.5 * object.scale, 0.5 * object.scale, object.position, object.angle || 0),
           friction: .5,
+          filter: {categorybits: CATEGORY_STATIC, maskBits: MASK_STATIC},
           restitution: .2,
           userData: { id: this.newId(), type: 'lockbox', scale: object.scale || 1,  damageMultiplier: 1, position: object.position, angle: object.angle, minDamage: 50,}
         });
@@ -255,8 +258,8 @@ export class GameWorld extends World {
   }
 
   createBody(def) {
+    if (!def.filter) def.filter = {categorybits: CATEGORY_DEFAULT, maskBits: ALL}
     const body = super.createBody({...def, userData: {...def.userData, id: this.newId(), fixtures: []}});
-    this.registerBody(body);
     return body;
   }
 
@@ -293,15 +296,14 @@ export class GameWorld extends World {
   }
 
   getBody(id) {
-    const body = this.idToBody.get(id);
-    if (!body) {
-      this.idToBody.delete(id);
-    }
-    return body;
+    return this.idToBody.get(id) || null;
   }
 
   destroyBody(body) {
     const id = body.getUserData().id;
+    delete this.metadata.bodies[id];
+    // if you keep fixture metadata keyed by fixture id, remove those entries too
+    // then call super.destroyBody
     super.destroyBody(body);
     this.idToBody.delete(id);
     this.ttlBodyIds.delete(id);
@@ -309,21 +311,45 @@ export class GameWorld extends World {
 
   step(config) {
     this.processPendingSparks();
+    const t1 = performance.now();
     super.step(config); 
+    const dtMs2 = performance.now() - t1;
+    if (dtMs2 > 1000/60) console.log('long physics step:', dtMs2);
 
-
-    for (const id of this.ttlBodyIds) {
-      const body = this.idToBody.get(id)
+    for (const id of Array.from(this.ttlBodyIds)) {
+      const body = this.idToBody.get(id);
+      if (!body) {
+        // already destroyed or never registered correctly
+        this.ttlBodyIds.delete(id);
+        continue;
+      }
       const ud = body.getUserData();
       if (!ud) continue;
       if (typeof ud.ttl === 'number') {
         ud.ttl -= 1/60;
         if (ud.ttl <= 0) {
-          this.destroyBody(body);
+          // do not destroy inside physics callbacks; queue for after step
+          this._pendingDestroys.push(body);
         }
       }
     }
+
+    if (this._pendingDestroys && this._pendingDestroys.length) {
+      for (const b of this._pendingDestroys) {
+        if (b && typeof b.getUserData === 'function') {
+          const id = b.getUserData().id;
+          super.destroyBody(b);  // call world destroy
+          this.idToBody.delete(id);
+          this.ttlBodyIds.delete(id);
+          delete this.metadata.bodies[id];
+          // also remove any fixture meta cache entries referring to this body
+        }
+      }
+      this._pendingDestroys.length = 0;
+    }
   }
+
+  
 
   _buildFixtureIdentity(fixtureMetadata) {
     if (!fixtureMetadata || typeof fixtureMetadata !== 'object') return {};
