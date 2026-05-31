@@ -100,7 +100,7 @@ export class ShotgunBase {
 
   fireProjectileMulti() {
     const angle = this.body.getAngle();
-    const tipOffset = this.opts.barrelLength / 2;
+    const tipOffset = this.opts.barrelLength / 2.2;
     const muzzleX = this.body.getPosition().x + Math.cos(angle) * tipOffset;
     const muzzleY = this.body.getPosition().y + Math.sin(angle) * tipOffset;
 
@@ -269,7 +269,7 @@ export class SawedOff extends ShotgunBase {
       multiShotCount: 32,
       multiShotSpread: Math.PI / 2,
       multiShotRandomness: 0,
-      projectileTTL: 2.5,
+      projectileTTL: 5,
       angularDampingWhenSlow: 20,
 objectType: 'SawedOff'
     }, opts));
@@ -292,7 +292,7 @@ export class UltraShotgun extends ShotgunBase {
       multiShotCount: 32,
       multiShotSpread: Math.PI / 8,
       multiShotRandomness: 0,
-      projectileTTL: 5.0,
+      projectileTTL: 10,
       angularDampingWhenSlow: 20,
 objectType: 'UltraShotgun'
     }, opts));
@@ -303,21 +303,21 @@ export class UltraUltraShotgun extends ShotgunBase {
   constructor(player, opts = {}) {
     super(player, Object.assign({
       barrelLength: 3,
-      launchForce: 1,           // impulse magnitude applied to each projectile
+      launchForce: 3,           // impulse magnitude applied to each projectile
       cooldown: 60,             // frames between shots
       motorMaxTorque: 20000000,
       motorMaxSpeed: 500,       // rad/s
       kp: 18,                   // P gain for aiming motor
       kd: 0.4,                  // D gain (damping)
-      projectileSize: 0.25,
+      projectileSize: 0.5,
       projectileDensity: 0.125,
-      radius: 0.2,
+      radius: 0.3,
 
       // Multi-shot-specific
-      multiShotCount: 64,            // number of projectiles per shot
+      multiShotCount: 32,            // number of projectiles per shot
       multiShotSpread: Math.PI / 4, // total spread angle (radians)
       multiShotRandomness: 0,    // fraction of spread for jitter (0..1)
-      projectileTTL: 5.0     ,
+      projectileTTL: 10     ,
       angularDampingWhenSlow: 20,
 objectType: 'UltraUltraShotgun'
     }, opts));

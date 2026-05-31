@@ -9,7 +9,7 @@ export class IngameWorld extends Phaser.Scene {
   }
 
   preload() {
-    const names = ['bullet','spark','sheild','dashCore','spider', 'spiderSensor','titaniumCore', 'swordBig','SawedOff', 'UltraMinigun', 'Smg', 'Heavy', 'Shinigun', 'THE_ULTRA_CANNON', 'Minigun','ball', 'hoversphere', 'redbox','missing','box','circle', 'lockbox', 'sword', 'Gun', 'Shotgun', 'UltraShotgun', 'UltraUltraShotgun', 'Cannon', 'Sniper'];
+    const names = ['softbox','bullet','spark','sheild','dashCore','spider', 'spiderSensor','titaniumCore', 'swordBig','SawedOff', 'UltraMinigun', 'Smg', 'Heavy', 'Shinigun', 'THE_ULTRA_CANNON', 'Minigun','ball', 'hoversphere', 'redbox','missing','box','circle', 'lockbox', 'sword', 'Gun', 'Shotgun', 'UltraShotgun', 'UltraUltraShotgun', 'Cannon', 'Sniper'];
     names.forEach(name => this.load.image(name, `../assets/img/${name}.png`));
     this.images = new Map();
   }

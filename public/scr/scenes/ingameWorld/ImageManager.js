@@ -68,64 +68,6 @@ export class ImageManager {
     return (this.bodies.get(id));
   }
   
-  _ensureFixture(fixture) {
-    const fxMeta = structuredClone(this.scene.game.metadata.fixtures[fixture.metaId]);
-    if (fxMeta) {
-      fixture.metadata = fxMeta; // store metadata reference on fixture
-      const metaDepth = (typeof fxMeta.depth === 'number') ? fxMeta.depth : null;
-      if (!fixture.image && fxMeta.type) {
-        const image = this.scene.add.image(0, 0, fxMeta.type)
-          .setOrigin(0.5, 0.5)
-          .setScale(fxMeta.scale || 1);
-        image.id = fixture.id;
-        fixture.image = image;
-        this.scene.images.set(image.id, image);
-
-        // apply depth if specified
-        if (metaDepth !== null) {
-          if (typeof image.setDepth === 'function') image.setDepth(metaDepth);
-          else if (typeof image.setZ === 'function') image.setZ(metaDepth);
-          else image.depth = metaDepth;
-        }
-      } else if (fixture.image && metaDepth !== null) {
-        // update existing image depth if metadata provides it (keeps layering consistent)
-        const image = fixture.image;
-        if (typeof image.setDepth === 'function') image.setDepth(metaDepth);
-        else if (typeof image.setZ === 'function') image.setZ(metaDepth);
-        else image.depth = metaDepth;
-      }
-
-      if (fxMeta.name) {
-        if (!fixture.nameImage) {
-          const nameText = this.scene.add.text(0, 0, fxMeta.name, style)
-            .setOrigin(0.5, 1);
-          fixture.nameImage = nameText;
-
-          // If metaDepth provided, set name slightly above the fixture image
-          if (metaDepth !== null) {
-            const nameDepth = metaDepth + 0.1;
-            if (typeof nameText.setDepth === 'function') nameText.setDepth(nameDepth);
-            else if (typeof nameText.setZ === 'function') nameText.setZ(nameDepth);
-            else nameText.depth = nameDepth;
-          }
-        } else if (fixture.nameImage.text !== fxMeta.name) {
-          fixture.nameImage.setText(fxMeta.name);
-        } else if (fixture.nameImage && metaDepth !== null) {
-          // keep name depth in sync
-          const nameDepth = metaDepth + 0.1;
-          if (typeof fixture.nameImage.setDepth === 'function') fixture.nameImage.setDepth(nameDepth);
-          else if (typeof fixture.nameImage.setZ === 'function') fixture.nameImage.setZ(nameDepth);
-          else fixture.nameImage.depth = nameDepth;
-        }
-      } else if (fixture.nameImage) {
-        fixture.nameImage.destroy();
-        fixture.nameImage = null;
-      }
-    } else {
-      this.requestMetadata();
-    }
-    return fixture;
-  }
 
   // Returns true if the given world position (meters) is within the camera view (with padding)
   _isWorldPosInCameraWithMargin(xMeters, yMeters, marginPx = 64) {
@@ -138,108 +80,155 @@ export class ImageManager {
             py >= view.y - marginPx && py <= view.y + view.height + marginPx);
   }
 
-  _applyStateToFixture(fixture, state) {
-    // bail if no image
-    if (!fixture.image) return;
+    // JavaScript (Phaser-like)
+  _ensureFixture(fixture) {
+    const fxMeta = structuredClone(this.scene.game.metadata.fixtures[fixture.metaId]);
+    if (!fxMeta) {
+      this.requestMetadata();
+      return fixture;
+    }
 
-    
+    fixture.metadata = fxMeta;
 
-    // common world coords
-    let px = state.pos.x;
-    let py = state.pos.y;
+    this._createOrUpdateFixtureImage(fixture, fxMeta);
+    this._createOrUpdateNameImage(fixture, fxMeta);
+
+    return fixture;
+  }
+
+  _createOrUpdateFixtureImage(fixture, fxMeta) {
+    if (!fixture.image && fxMeta.type) {
+      const image = this.scene.add.image(0, 0, fxMeta.type)
+        .setOrigin(0.5, 0.5)
+        .setScale(fxMeta.scale || 1);
+      image.id = fixture.id;
+      fixture.image = image;
+      this.scene.images.set(image.id, image);
+    }
+    // apply depth if specified
+    const metaDepth = (typeof fxMeta.depth === 'number') ? fxMeta.depth : null;
+    if (fixture.image && metaDepth !== null) {
+      if (typeof fixture.image.setDepth === 'function') fixture.image.setDepth(metaDepth);
+      else if (typeof fixture.image.setZ === 'function') fixture.image.setZ(metaDepth);
+      else fixture.image.depth = metaDepth;
+    }
+  }
+
+  _createOrUpdateNameImage(fixture, fxMeta) {
+    if (fxMeta.name) {
+      if (!fixture.nameImage) {
+        const s = fxMeta.nameStyle || style;
+        fixture.nameImage = this.scene.add.text(0, 0, fxMeta.name, s).setOrigin(0.5, 0.5);
+      } else if (fixture.nameImage.text !== fxMeta.name) {
+        fixture.nameImage.setText(fxMeta.name);
+      }
+      // keep name depth in sync with fixture image
+      const metaDepth = (typeof fxMeta.depth === 'number') ? fxMeta.depth : null;
+      if (metaDepth !== null) {
+        const nd = metaDepth + 0.1;
+        if (typeof fixture.nameImage.setDepth === 'function') fixture.nameImage.setDepth(nd);
+        else if (typeof fixture.nameImage.setZ === 'function') fixture.nameImage.setZ(nd);
+        else fixture.nameImage.depth = nd;
+      }
+    } else if (fixture.nameImage) {
+      fixture.nameImage.destroy();
+      fixture.nameImage = null;
+    }
+  }
+
+  // compute world and pixel positions; returns {px,py,wx,wy}
+  _computeFixturePosition(fixture, state) {
+    // base world meters
+    let px = state.pos.x, py = state.pos.y;
     if (fixture.position && (fixture.position.x != null || fixture.position.y != null)) {
-      // metadata.position provides a local offset in meters (or same units as state.pos)
       const offX = (fixture.position.x != null) ? fixture.position.x : 0;
       const offY = (fixture.position.y != null) ? fixture.position.y : 0;
-
-      // use body angle if present, otherwise 0
       const a = (state.angle != null) ? state.angle : 0;
-
-      // rotate offset by angle: (rx,ry) = (offX * cos(a) - offY * sin(a), offX * sin(a) + offY * cos(a))
-      const ca = Math.cos(a);
-      const sa = Math.sin(a);
+      const ca = Math.cos(a), sa = Math.sin(a);
       const rx = offX * ca - offY * sa;
       const ry = offX * sa + offY * ca;
-
-      // add rotated offset to world position
       px = state.pos.x + rx;
       py = state.pos.y + ry;
     }
-    
+    const ppm = (this.scene.pixelsPerMeter || 50);
+    return { px, py, wx: px * ppm, wy: py * ppm };
+  }
 
-    // common world coords (use px/py instead of state.pos.x/state.pos.y)
-    const wx = px * (this.scene.pixelsPerMeter || 50);
-    const wy = py * (this.scene.pixelsPerMeter || 50);
+  _applyStateToFixture(fixture, state) {
+    if (!fixture.image) return;
+    const { px, py, wx, wy } = this._computeFixturePosition(fixture, state);
 
-    // determine visibility using adaptive margins in a single-expression style
-    let shouldBeVisible = (!!fixture._visibleState
-      ? this._isWorldPosInCameraWithMargin(px, py, 96 + Math.max(fixture.image.displayWidth, fixture.image.displayHeight) * 0.5 || 32 + 48)
-      : this._isWorldPosInCameraWithMargin(px, py, 96 + Math.max(fixture.image.displayWidth, fixture.image.displayHeight) * 0.5 || 32)
-    );
+    // choose margin based on previous visible state and image size
+    const size = Math.max(fixture.image.displayWidth || 0, fixture.image.displayHeight || 0);
+    const margin = 96 + Math.max(size * 0.5, 32);
+    let shouldBeVisible = this._isWorldPosInCameraWithMargin(px, py, margin);
     if (fixture.metadata && fixture.metadata.alwaysVisible) shouldBeVisible = true;
     if (this.cameraFocusId === fixture.id) shouldBeVisible = true;
 
-    // ON-SCREEN branch
-    if (shouldBeVisible && this.scene.cameras && this.scene.cameras.main) {
-      const img = fixture.image;
-      if (!img.visible) img.setVisible(true);
-      img.x = wx; img.y = wy;
-      if (state.angle != null) img.setRotation(state.angle+fixture.angle);
-
-      // hide edge marker if present
-      if (fixture.edgeMarker) { fixture.edgeMarker.clear(); if (fixture.edgeMarker.visible) fixture.edgeMarker.setVisible(false); }
-
-      // name: create once, update text only when changed
-      if (fixture.metadata && fixture.metadata.name) {
-        if (!fixture.nameImage) {
-          const s = fixture.metadata.nameStyle || { fontSize: '14px', color: '#ffffff', stroke: '#000000', strokeThickness: 3 };
-          fixture.nameImage = this.scene.add.text(0, 0, fixture.metadata.name, s).setOrigin(0.5, 0.5);
-        } else if (fixture.nameImage.text !== fixture.metadata.name) {
-          fixture.nameImage.setText(fixture.metadata.name);
-        }
-        if (!fixture.nameImage.visible) fixture.nameImage.setVisible(true);
-        const pad = (fixture.metadata.namePadding != null) ? fixture.metadata.namePadding : 6;
-        fixture.nameImage.x = wx;
-        fixture.nameImage.y = wy - (img.displayHeight / 2) - pad;
-      } else if (fixture.nameImage && fixture.nameImage.visible) {
-        fixture.nameImage.setVisible(false);
-      }
-
-      fixture._visibleState = true;
-      return;
+    const cam = this.scene.cameras && this.scene.cameras.main;
+    if (shouldBeVisible && cam) {
+      this._updateOnscreenFixture(fixture, state, wx, wy);
+    } else {
+      this._updateOffscreenFixture(fixture, state, wx, wy);
     }
+  }
 
-    // OFF-SCREEN branch
+  _updateOnscreenFixture(fixture, state, wx, wy) {
+    const img = fixture.image;
+    if (!img.visible) img.setVisible(true);
+    img.x = wx; img.y = wy;
+    if (state.angle != null) img.setRotation(state.angle + (fixture.angle || 0));
+
+    // hide edge marker if present
+    if (fixture.edgeMarker) { fixture.edgeMarker.clear(); if (fixture.edgeMarker.visible) fixture.edgeMarker.setVisible(false); }
+
+    // name image handling (created in ensure step)
+    if (fixture.metadata && fixture.metadata.name) {
+      if (!fixture.nameImage) {
+        const s = fixture.metadata.nameStyle || style;
+        fixture.nameImage = this.scene.add.text(0, 0, fixture.metadata.name, s).setOrigin(0.5, 0.5);
+      } else if (fixture.nameImage.text !== fixture.metadata.name) {
+        fixture.nameImage.setText(fixture.metadata.name);
+      }
+      if (!fixture.nameImage.visible) fixture.nameImage.setVisible(true);
+      const pad = (fixture.metadata.namePadding != null) ? fixture.metadata.namePadding : 6;
+      fixture.nameImage.x = wx;
+      fixture.nameImage.y = wy - (img.displayHeight / 2) - pad;
+    } else if (fixture.nameImage && fixture.nameImage.visible) {
+      fixture.nameImage.setVisible(false);
+    }
+    fixture._visibleState = true;
+  }
+
+  _updateOffscreenFixture(fixture, state, wx, wy) {
+    // hide main image, keep name & edge marker or move them to screen edges
     if (fixture.image.visible) fixture.image.setVisible(false);
 
-    // name presence check
     const name = (fixture.nameImage && fixture.nameImage.text) || (fixture.metadata && fixture.metadata.name);
-    if (!name || !(this.scene.cameras && this.scene.cameras.main)) {
+    const cam = this.scene.cameras && this.scene.cameras.main;
+    if (!name || !cam) {
       if (fixture.nameImage && fixture.nameImage.visible) fixture.nameImage.setVisible(false);
       if (fixture.edgeMarker) { fixture.edgeMarker.clear(); if (fixture.edgeMarker.visible) fixture.edgeMarker.setVisible(false); }
       fixture._visibleState = false;
       return;
     }
 
-    // screen coords and clamping (inline math)
-    const view = this.scene.cameras.main.worldView;
+    // compute screen coords and clamp (same logic you had)
+    const view = cam.worldView;
     const sx = wx - view.x, sy = wy - view.y;
     const w = view.width, h = view.height;
     const pad = 18, inner = 8;
-
     let cx = sx < pad ? pad : (sx > w - pad ? w - pad : sx);
     let cy = sy < pad ? pad : (sy > h - pad ? h - pad : sy);
 
-    // ensure label exists and text up-to-date (create once)
     if (!fixture.nameImage) {
-      const s = (fixture.metadata && fixture.metadata.nameStyle) || style;
+      const s = (fixture.metadata && fixture.metadata.nameStyle) || { fontSize: '14px', color: '#ffffff' };
       fixture.nameImage = this.scene.add.text(0, 0, name, s).setOrigin(0.5, 0.5);
     } else if (fixture.nameImage.text !== name) {
       fixture.nameImage.setText(name);
     }
     if (!fixture.nameImage.visible) fixture.nameImage.setVisible(true);
 
-    // half extents correction (centered origin)
     const halfW = (fixture.nameImage.width || 0) * 0.5;
     const halfH = (fixture.nameImage.height || 0) * 0.5;
     if (cx - halfW < pad) cx = pad + halfW + inner;
@@ -247,23 +236,20 @@ export class ImageManager {
     if (cy - halfH < pad) cy = pad + halfH + inner;
     if (cy + halfH > h - pad) cy = h - pad - halfH - inner;
 
-    // prefer snapping to edge based on which side the object lies
     if (sx < 0) cx = pad + halfW + inner;
     else if (sx > w) cx = w - pad - halfW - inner;
     if (sy < 0) cy = pad + halfH + inner;
     else if (sy > h) cy = h - pad - halfH - inner;
 
-    // position label in world coords (label follows camera)
     fixture.nameImage.x = view.x + cx;
     fixture.nameImage.y = view.y + cy;
 
-    // edge marker create/reuse, draw triangle with numeric args (no temp arrays)
+    // draw edge marker triangle pointing toward object
     if (!fixture.edgeMarker) { const g = this.scene.add.graphics(); g.setDepth(1000); fixture.edgeMarker = g; }
     const g2 = fixture.edgeMarker;
     g2.clear();
     if (!g2.visible) g2.setVisible(true);
     g2.fillStyle(0xffcc00, 1);
-
     const lx = fixture.nameImage.x, ly = fixture.nameImage.y;
     const ox = view.x + sx, oy = view.y + sy;
     const ang = Math.atan2(oy - ly, ox - lx);

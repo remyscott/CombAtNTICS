@@ -80,7 +80,7 @@ export class GameWorld extends World {
     for (let i = 0; i < wm.pointCount; i++) {
       const p = wm.points[i];
       const pCopy = { x: p.x, y: p.y }; // clone
-      let damageLeft = Number(damage);
+      let damageLeft = Math.round(damage);
       while (damageLeft > 0) {
         const scale = Math.max(1, Math.round(Math.random()*damageLeft));
         this.pendingSparks.push({ p: pCopy, scale });
@@ -90,7 +90,7 @@ export class GameWorld extends World {
   }
 
   createSparkAt(p, scale) {
-    const body = this.createBody({type: 'dynamic', position: {x:p.x, y:p.y}, angle: Math.random(), userData: {ttl: 1/scale}})
+    const body = this.createBody({type: 'dynamic', position: {x:p.x, y:p.y}, angle: Math.random(), userData: {ttl: 0.5/scale}})
     body.createFixture({
       shape: new Circle(Vec2(0,0), 0.01),
       density: 1,
@@ -99,7 +99,7 @@ export class GameWorld extends World {
       userData: {id: this.newId(), type: 'spark', scale}
     });
     const random = Math.random();
-    body.setLinearVelocity(Vec2(Math.sin(random)*25, Math.cos(random)*25))
+    body.setLinearVelocity(Vec2(Math.sin(random)*25*scale, Math.cos(random)*25*scale))
     this.registerBody(body);
   }
 
@@ -123,14 +123,20 @@ export class GameWorld extends World {
   loadMapObjects(objects) {
     this.createBodyForType = {'ball': this.createBallBody, 'box': this.createBoxBody, 'lockbox': this.createLockboxBody, 'circle': this.createCircleBody};
     const staticObjects = this.createBody({type: 'static'})
+    let restitution = 0.2;
+    let damageMultiplier = 1;
+
     for (const object of objects) {
-      if (object.objectType === 'lockbox') {
+      if (object.objectType === 'lockbox' || object.objectType === 'softbox') {
+        if (Math.random()>0.85) object.objectType = 'softbox';
+        if (object.objectType === 'lockbox') {restitution = 0.2; damageMultiplier = 1;}
+        else {restitution = 1.1; damageMultiplier = 0.1};
         staticObjects.createFixture({
           shape: new Box(0.5 * object.scale, 0.5 * object.scale, object.position, object.angle || 0),
           friction: .5,
           filter: {categorybits: CATEGORY_STATIC, maskBits: MASK_STATIC},
-          restitution: .2,
-          userData: { id: this.newId(), type: 'lockbox', scale: object.scale || 1,  damageMultiplier: 1, position: object.position, angle: object.angle, minDamage: 50,}
+          restitution: (restitution),
+          userData: { id: this.newId(), type: object.objectType, scale: object.scale || 1,  damageMultiplier: Number(damageMultiplier), position: object.position, angle: object.angle, minDamage: 50,}
         });
       } else {
         this.addNewObject(object);
