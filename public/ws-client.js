@@ -44,7 +44,7 @@ class WSClient {
         this._emit('__any', msg);
       });
 
-      this.ws.addEventListener('close', () => this._emit('__close'));
+      this.ws.addEventListener('close', () => {this._emit('__close'); window.location.href = 'login.html'});
       this.ws.addEventListener('error', (err) => this._emit('__error', err));
     });
 

@@ -9,7 +9,7 @@ export class GameWorld extends World {
     this._fId = 0;
     this._fmId = 128;
     this.idToBody = new Map();
-    this.ttlBodies = new Map();
+    this.ttlBodyIds = new Set();
     this.metadata = {bodies: {}, fixtures: {}};
     this._fixtureMetaCache = new Map();
     this._time = 0;
@@ -43,22 +43,14 @@ export class GameWorld extends World {
 
   setUpBulletDecayListener() {
     // threshold in meters per second under which bullets stop being bullets
-    const BULLET_SPEED_THRESHOLD = 10;
+    const BULLET_SPEED_THRESHOLD_2 = 20*20;
 
     const checkBullet = (body) => {
-        // Planck/Box2D: body.isBullet() returns true if the body is flagged as bullet
-        if (!body || typeof body.isBullet !== 'function') return;
-        if (!body.isBullet()) return;
-
         const v = body.getLinearVelocity();
-        // compute squared speed to avoid an unnecessary sqrt
         const speedSq = v.x * v.x + v.y * v.y;
 
-        if (speedSq <= (BULLET_SPEED_THRESHOLD * BULLET_SPEED_THRESHOLD)) {
-          // switch off bullet if slow enough
-          if (typeof body.setBullet === 'function') {
-            body.setBullet(false);
-          }
+        if (speedSq <= (BULLET_SPEED_THRESHOLD_2)) {
+          this.destroyBody(body)
         }
       };
 
@@ -69,16 +61,11 @@ export class GameWorld extends World {
       const fA = contact.getFixtureA();
       const fB = contact.getFixtureB();
       if (!fA || !fB) return;
-
       const bA = fA.getBody();
       const bB = fB.getBody();
-
-      // helper to check and possibly clear bullet flag
-      
-
-      // Check both bodies involved in this contact
-      checkBullet(bA);
-      checkBullet(bB);
+  
+      if (fA.getUserData().type === 'bullet') checkBullet(bA);
+      if (fB.getUserData().type === 'bullet') checkBullet(bB);
     });
   }
 
@@ -89,7 +76,7 @@ export class GameWorld extends World {
     // wm.points is an array of Vec2 world positions (length >= count)
     for (let i = 0; i < count; i++) {
       const p = wm.points[i];
-      let damageLeft = Number(damage)-5;
+      let damageLeft = Number(damage);
 
       
       while (damageLeft > 0) {
@@ -133,10 +120,20 @@ export class GameWorld extends World {
 
   loadMapObjects(objects) {
     this.createBodyForType = {'ball': this.createBallBody, 'box': this.createBoxBody, 'lockbox': this.createLockboxBody, 'circle': this.createCircleBody};
-
+    const staticObjects = this.createBody({type: 'static'})
     for (const object of objects) {
-      this.addNewObject(object);
-    } 
+      if (object.objectType === 'lockbox') {
+        staticObjects.createFixture({
+          shape: new Box(0.5 * object.scale, 0.5 * object.scale, object.position, object.angle || 0),
+          friction: .5,
+          restitution: .2,
+          userData: { id: this.newId(), type: 'lockbox', scale: object.scale || 1,  damageMultiplier: 1, position: object.position, angle: object.angle, minDamage: 50,}
+        });
+      } else {
+        this.addNewObject(object);
+      }
+    }
+    this.registerBody(staticObjects);
   }
 
   newId() {
@@ -284,14 +281,14 @@ export class GameWorld extends World {
       const metaId = this._findOrCreateFixtureMeta(fixtureMetadata);
 
       // Keep instance-level fixture info within body metadata (if needed)
-      this.metadata.bodies[bodyMetadata.id].fixtures.push({ metaId, ...fixtureMetadata });
+      this.metadata.bodies[bodyMetadata.id].fixtures.push({ metaId, id: fixtureMetadata.id, angle: fixtureMetadata.angle || 0, position: fixtureMetadata.position || null });
 
       fixture = fixture.getNext();
     }
 
     this.idToBody.set(bodyMetadata.id, body);
     if (bodyMetadata.ttl) {
-      this.ttlBodies.set(bodyMetadata.id, body);
+      this.ttlBodyIds.add(bodyMetadata.id);
     }
   }
 
@@ -307,61 +304,24 @@ export class GameWorld extends World {
     const id = body.getUserData().id;
     super.destroyBody(body);
     this.idToBody.delete(id);
-    this.ttlBodies.delete(id);
+    this.ttlBodyIds.delete(id);
   }
 
   step(config) {
-    // run physics step first (keeps consistent)
+    this.processPendingSparks();
     super.step(config); 
-    this.processPendingSparks()
 
 
-    const dt = 1/60;
-    this._time += dt;
-    // handle TTL as before
-    for (const [id, body] of this.ttlBodies) {
+    for (const id of this.ttlBodyIds) {
+      const body = this.idToBody.get(id)
       const ud = body.getUserData();
       if (!ud) continue;
       if (typeof ud.ttl === 'number') {
-        ud.ttl -= dt;
+        ud.ttl -= 1/60;
         if (ud.ttl <= 0) {
           this.destroyBody(body);
         }
       }
-    }
-
-    // Update kinematic moving lockboxes
-    // Iterate idToBody (all bodies) and apply motion where present
-    for (const [id, body] of this.idToBody) {
-      const ud = body.getUserData();
-      if (!ud || !ud.motion) continue;
-      const m = ud.motion; 
-      if (!m.moving) return;
-
-      // compute phase/time-driven offsets
-      // position offset magnitude equals m.mag (== scale) as requested
-      const omega = 2 * Math.PI * (m.freq || 1.0); // radians/sec
-      const t = this._time;
-      const sinv = Math.sin(omega * t + (m.phase || 0));
-
-      // Oscillate both axes; you can alter formula to use distinct sin waves if needed
-      const offX = (m.axis === 'y') ? 0 : sinv * m.mag;
-      const offY = (m.axis === 'x') ? 0 : Math.sin(omega * t + (m.phase || 0) + Math.PI / 2) * m.mag;
-      // above uses a 90deg-shifted sin on Y so motion isn't purely colinear; remove +PI/2 if want identical phase
-
-      const targetX = (m.baseX || 0) + offX;
-      const targetY = (m.baseY || 0) + offY;
-
-      // preserve angle
-      const angle = body.getAngle();
-
-      // Set transform directly for kinematic body (Planckjs)
-      // Use Vec2 from planck import
-      body.setTransform(new Vec2(targetX, targetY), angle);
-
-      // Optionally set zero velocity so collisions behave (kinematic bodies only use transform)
-      body.setLinearVelocity(new Vec2(0, 0));
-      body.setAngularVelocity(0);
     }
   }
 

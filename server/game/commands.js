@@ -366,7 +366,7 @@ const commands = {
   },
 
   '/sf' : {
-    requiredRole: 'mod+',
+    requiredRole: 'mod',
     function: function (targetId, sf) {
       if (!targetId) targetId = '@s';
       const p = this.resolvePlayer(targetId);
@@ -379,8 +379,8 @@ const commands = {
         return;
       }
       sf = Number(sf)
-      if (sf < 0.5 || sf > 2) {
-        this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'too small or too big', nameOfSender: 'SERVER' }));
+      if (sf < 0.25 || sf > 4) {
+        this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'too small or too big, sf @s E[0.25,4]', nameOfSender: 'SERVER' }));
         return;
       }
       try {
@@ -388,10 +388,10 @@ const commands = {
         p.respawn();
         p.ws.send(JSON.stringify({ type: 'chatMsg', msg: `sf set to ${sf} by ${this.player.name}`, nameOfSender: 'SERVER' }));
       } catch (err) {
-        this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Spec failed: ${err.message}`, nameOfSender: 'SERVER' }));
+        this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `sf failed: ${err.message}`, nameOfSender: 'SERVER' }));
       }
     },
-    description: 'set scale factor for a player /sf #'
+    description: 'set scale factor for a player /sf @s #'
   },
 
   '/listComps': {

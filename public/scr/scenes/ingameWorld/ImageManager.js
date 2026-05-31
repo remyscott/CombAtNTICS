@@ -1,6 +1,10 @@
+if (!localStorage.getItem('uiscale')) {
+  localStorage.setItem('uiScale', '1')
+}
+
 const style = {
   fontFamily: 'Arial',
-  fontSize: '14px',
+  fontSize: `${14*Number(localStorage.getItem('uiscale'))}px`,
   color: '#ffffff',
   stroke: '#000000',
   strokeThickness: 1
@@ -138,25 +142,49 @@ export class ImageManager {
     // bail if no image
     if (!fixture.image) return;
 
+    
+
+    // common world coords
+    let px = state.pos.x;
+    let py = state.pos.y;
+    if (fixture.position && (fixture.position.x != null || fixture.position.y != null)) {
+      // metadata.position provides a local offset in meters (or same units as state.pos)
+      const offX = (fixture.position.x != null) ? fixture.position.x : 0;
+      const offY = (fixture.position.y != null) ? fixture.position.y : 0;
+
+      // use body angle if present, otherwise 0
+      const a = (state.angle != null) ? state.angle : 0;
+
+      // rotate offset by angle: (rx,ry) = (offX * cos(a) - offY * sin(a), offX * sin(a) + offY * cos(a))
+      const ca = Math.cos(a);
+      const sa = Math.sin(a);
+      const rx = offX * ca - offY * sa;
+      const ry = offX * sa + offY * ca;
+
+      // add rotated offset to world position
+      px = state.pos.x + rx;
+      py = state.pos.y + ry;
+    }
+    
+
+    // common world coords (use px/py instead of state.pos.x/state.pos.y)
+    const wx = px * (this.scene.pixelsPerMeter || 50);
+    const wy = py * (this.scene.pixelsPerMeter || 50);
+
     // determine visibility using adaptive margins in a single-expression style
     let shouldBeVisible = (!!fixture._visibleState
-      ? this._isWorldPosInCameraWithMargin(state.pos.x, state.pos.y, 96 + Math.max(fixture.image.displayWidth, fixture.image.displayHeight) * 0.5 || 32 + 48)
-      : this._isWorldPosInCameraWithMargin(state.pos.x, state.pos.y, 96 + Math.max(fixture.image.displayWidth, fixture.image.displayHeight) * 0.5 || 32)
+      ? this._isWorldPosInCameraWithMargin(px, py, 96 + Math.max(fixture.image.displayWidth, fixture.image.displayHeight) * 0.5 || 32 + 48)
+      : this._isWorldPosInCameraWithMargin(px, py, 96 + Math.max(fixture.image.displayWidth, fixture.image.displayHeight) * 0.5 || 32)
     );
     if (fixture.metadata && fixture.metadata.alwaysVisible) shouldBeVisible = true;
     if (this.cameraFocusId === fixture.id) shouldBeVisible = true;
-
-    // common world coords
-    const wx = state.pos.x * (this.scene.pixelsPerMeter || 50);
-    const wy = state.pos.y * (this.scene.pixelsPerMeter || 50);
 
     // ON-SCREEN branch
     if (shouldBeVisible && this.scene.cameras && this.scene.cameras.main) {
       const img = fixture.image;
       if (!img.visible) img.setVisible(true);
       img.x = wx; img.y = wy;
-      if (state.angle != null) img.setRotation(state.angle);
-      if (state.scale != null) img.setScale(state.scale);
+      if (state.angle != null) img.setRotation(state.angle+fixture.angle);
 
       // hide edge marker if present
       if (fixture.edgeMarker) { fixture.edgeMarker.clear(); if (fixture.edgeMarker.visible) fixture.edgeMarker.setVisible(false); }
@@ -204,7 +232,7 @@ export class ImageManager {
 
     // ensure label exists and text up-to-date (create once)
     if (!fixture.nameImage) {
-      const s = (fixture.metadata && fixture.metadata.nameStyle) || { fontSize: '14px', color: '#ffffff', stroke: '#000000', strokeThickness: 3 };
+      const s = (fixture.metadata && fixture.metadata.nameStyle) || style;
       fixture.nameImage = this.scene.add.text(0, 0, name, s).setOrigin(0.5, 0.5);
     } else if (fixture.nameImage.text !== name) {
       fixture.nameImage.setText(name);

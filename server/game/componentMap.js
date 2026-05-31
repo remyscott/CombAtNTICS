@@ -22,6 +22,7 @@ export const componentMap = {
   UltraShotgun,
   UltraMinigun,
   THE_ULTRA_CANNON,
+  UltraUltraShotgun,
 };
 
 export const componentList = Object.keys(componentMap);

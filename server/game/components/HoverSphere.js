@@ -41,7 +41,7 @@ export class HoverSphere {
         type: "hoversphere",
         scale: this.opts.radius * 2,
         depth: PLAYER_RENDER_DEPTH,
-        health: 100*sf,
+        health: 100*sf*sf,
       }
     });
 

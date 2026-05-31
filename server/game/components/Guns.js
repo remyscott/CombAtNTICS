@@ -133,7 +133,7 @@ export class ShotgunBase {
         density: this.opts.projectileDensity,
         friction: 0.2,
         restitution: 0.0,
-        userData: { type: "bullet", scale: s, damageMultiplier: this.opts.projDmgMult|| 16, minDamage: this.opts.projMinDmg || 1 }
+        userData: { type: "bullet", scale: s, damageMultiplier: this.opts.projDmgMult|| 16, minDamage: this.opts.projMinDmg || 1 },
       });
 
       // impulse vector for this projectile
@@ -218,7 +218,7 @@ export class GunBasic extends ShotgunBase {
       kp: 18,
       kd: 0.4,
       projectileSize: 0.25,
-      projectileDensity: 0.25,
+      projectileDensity: 0.125,
       radius: 0.2,
       multiShotCount: 1,
       multiShotSpread: 0,
@@ -241,7 +241,7 @@ export class Shotgun extends ShotgunBase {
       kp: 18,
       kd: 0.4,
       projectileSize: 0.25,
-      projectileDensity: 0.25,
+      projectileDensity: 0.125,
       radius: 0.2,
       multiShotCount: 8,
       multiShotSpread: Math.PI / 8,
@@ -264,7 +264,7 @@ export class SawedOff extends ShotgunBase {
       kp: 18,
       kd: 0.4,
       projectileSize: 0.125,
-      projectileDensity: 0.25,
+      projectileDensity: 0.125,
       radius: 0.2,
       multiShotCount: 32,
       multiShotSpread: Math.PI / 2,
@@ -287,7 +287,7 @@ export class UltraShotgun extends ShotgunBase {
       kp: 18,
       kd: 0.4,
       projectileSize: 0.25,
-      projectileDensity: 0.25,
+      projectileDensity: 0.125,
       radius: 0.2,
       multiShotCount: 32,
       multiShotSpread: Math.PI / 8,
@@ -310,7 +310,7 @@ export class UltraUltraShotgun extends ShotgunBase {
       kp: 18,                   // P gain for aiming motor
       kd: 0.4,                  // D gain (damping)
       projectileSize: 0.25,
-      projectileDensity: 0.25,
+      projectileDensity: 0.125,
       radius: 0.2,
 
       // Multi-shot-specific
@@ -336,7 +336,7 @@ export class Minigun extends ShotgunBase {
       kp: 18,               // P gain
       kd: 0.4,              // D gain (damping)
       projectileSize: 0.25,
-      projectileDensity: 0.25,
+      projectileDensity: 0.125,
       radius: 0.25,
 
       multiShotCount: 1,            // number of projectiles per shot
@@ -360,7 +360,7 @@ export class UltraMinigun extends ShotgunBase {
       kp: 18,               // P gain
       kd: 0.4,              // D gain (damping)
       projectileSize: 0.25,
-      projectileDensity: 0.25,
+      projectileDensity: 0.125,
       radius: 0.25,
 
       multiShotCount: 2,            // number of projectiles per shot
@@ -385,7 +385,7 @@ export class Smg extends ShotgunBase {
       kp: 18,               // P gain
       kd: 0.4,              // D gain (damping)
       projectileSize: .176,
-      projectileDensity: 0.25,
+      projectileDensity: 0.125,
       radius: .3,
 
       multiShotCount: 1,            // number of projectiles per shot
@@ -410,7 +410,7 @@ export class Heavy extends ShotgunBase {
       kp: 18,               // P gain
       kd: 0.4,              // D gain (damping)
       projectileSize: .5,
-      projectileDensity: 0.25,
+      projectileDensity: 0.125,
       radius: .3,
 
       multiShotCount: 1,            // number of projectiles per shot
@@ -434,7 +434,7 @@ export class Cannon extends ShotgunBase {
       kp: 18,               // P gain
       kd: 0.4,              // D gain (damping)
       projectileSize: 1,
-      projectileDensity: 0.25,
+      projectileDensity: 0.125,
       radius: .75,
 
       multiShotCount: 1,            // number of projectiles per shot
@@ -458,7 +458,7 @@ export class THE_ULTRA_CANNON extends ShotgunBase {
       kp: 18,               // P gain
       kd: 0.4,              // D gain (damping)
       projectileSize: 2.5,
-      projectileDensity: 2,
+      projectileDensity: 1,
       radius: 1.5,
 
       multiShotCount: 2,            // number of projectiles per shot
@@ -482,10 +482,9 @@ export class Sniper extends ShotgunBase {
       kp: 16,               // P gain
       kd: 0.4,              // D gain (damping)
       projectileSize: 0.25,
-      projectileDensity: 0.5,
+      projectileDensity: 0.125,
       radius: .2,
-      projDmgMult: 64,
-      projMinDmg: 30,
+      projDmgMult: 128,
       multiShotCount: 1,            // number of projectiles per shot
       multiShotSpread: 0, // total spread angle (radians)
       multiShotRandomness: 0,    // fraction of spread for jitter (0..1)

@@ -9,8 +9,7 @@ const { SWORD_CW, SWORD_CCW, SWORD_SLOW } = configurableInputs;
 export class SwordBig {
   constructor(player) {
     const sf = player.sf || 1;
-    console.log(sf)
-    const defaultOpts = {density: 1, friction: 0.5, restitution: .6, torque: 100*sf*sf, angularDampingWhenSlow: 300 };
+    const defaultOpts = {density: 1, friction: 1, restitution: 0, torque: 100*sf*sf*sf, angularDampingWhenSlow: 300 };
     this.opts = defaultOpts;
     const playerBody = player.body;
 
@@ -39,7 +38,6 @@ export class SwordBig {
         minDamage: 2,
         health: 0,
       },
-      angularDamping: this.opts.angularDamping
     });
 
     player.world.createJoint(RevoluteJoint({
