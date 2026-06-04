@@ -2,49 +2,51 @@
 import { Box, Vec2, RevoluteJoint, Polygon } from "planck";
 import { configurableInputs } from "../../../shared/inputsListing.js";
 import { PLAYER_RENDER_DEPTH } from "../../../shared/consts.js";
+import { Component } from './Component.js';
 
 // destructure numeric indices once (cheap at module init)
 const { SWORD_CW, SWORD_CCW, SWORD_SLOW } = configurableInputs;
 
-export class SwordBig {
-  constructor(player) {
-    const sf = player.sf || 1;
-    const defaultOpts = {density: 1, friction: 1, restitution: 0, torque: 100*sf*sf*sf, angularDampingWhenSlow: 300 };
-    this.opts = defaultOpts;
+export class SwordBig extends Component {
+  constructor(player, opts = {}) {
+    super(player, opts);
+    const defaults = {
+      density: 1,
+      friction: 1,
+      restitution: 0,
+      torque: { value: 75, scaleOrder: 3 },
+      angularDampingWhenSlow: 300
+    };
+    this.opts = this.normalizeOpts(defaults, opts);
     const playerBody = player.body;
+    const s = this.opts.scaleFactor;
 
     this.body = player.world.createBody({
       type: "dynamic",
-      position: { x: 0.5*sf, y: 0 },
+      position: { x: 0.5 * s, y: 0 },
       userData: { owner: this },
       bullet: true
     });
 
-    this.body.createFixture({
-      shape: Polygon([
-        Vec2(-1.2*sf,0.5*sf),
-        Vec2(-1.2*sf,-0.5*sf),
-        Vec2(1.45*sf,-0.5*sf),
-        Vec2(1.7*sf, 0),
-        Vec2(1.45*sf,0.5*sf),
-      ]),
+    player.world.createFixtureFromType(this.body, 'swordBig', {
+      scale: s,
       density: this.opts.density,
       friction: this.opts.friction,
       restitution: this.opts.restitution,
-      userData: { 
-        id: this.body.getUserData().id, 
-        type: 'swordBig', scale: 1*sf, depth: PLAYER_RENDER_DEPTH-1,
+      userData: {
+        owner: this,
+        depth: PLAYER_RENDER_DEPTH - 1,
         damageMultiplier: 2,
         minDamage: 2,
         health: 0,
-      },
+      }
     });
 
     player.world.createJoint(RevoluteJoint({
       bodyA: playerBody,
       bodyB: this.body,
       localAnchorA: Vec2(0, 0),
-      localAnchorB: Vec2(-2*sf, 0),
+      localAnchorB: Vec2(-2 * s, 0),
       referenceAngle: this.body.getAngle() - playerBody.getAngle()
     }));
 

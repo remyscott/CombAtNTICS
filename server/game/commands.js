@@ -384,11 +384,11 @@ const commands = {
         return;
       }
       try {
-        p.sf = sf;
+        p.opts.scaleFactor = sf;
         p.respawn();
         p.ws.send(JSON.stringify({ type: 'chatMsg', msg: `sf set to ${sf} by ${this.player.name}`, nameOfSender: 'SERVER' }));
       } catch (err) {
-        this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `sf failed: ${err.message}`, nameOfSender: 'SERVER' }));
+        this.player.ws.send(JSON.swtringify({ type: 'chatMsg', msg: `sf failed: ${err.message}`, nameOfSender: 'SERVER' }));
       }
     },
     description: 'set scale factor for a player /sf @s #'

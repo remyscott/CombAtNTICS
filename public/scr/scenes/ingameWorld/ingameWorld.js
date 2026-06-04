@@ -1,16 +1,21 @@
 import { ImageManager } from "./ImageManager.js";
 import { InputManager } from "./inputManager.js";
+import objectTypes from '/shared/objectTypes.js';
 
 export class IngameWorld extends Phaser.Scene {
   constructor() {
     super({key: 'InWorldObjects', active: true});
     console.log('InWorldObjects initiated')
-    this.pixelsPerMeter = 50;
+    const ppmResolution = parseFloat(localStorage.getItem('ppmResolution'));
+    this.pixelsPerMeter = Number.isFinite(ppmResolution) ? ppmResolution : objectTypes.pixelsPerMeter || 50;
   }
 
   preload() {
-    const names = ['softbox','bullet','spark','sheild','dashCore','spider', 'spiderSensor','titaniumCore', 'swordBig','SawedOff', 'UltraMinigun', 'Smg', 'Heavy', 'Shinigun', 'THE_ULTRA_CANNON', 'Minigun','ball', 'hoversphere', 'redbox','missing','box','circle', 'lockbox', 'sword', 'Gun', 'Shotgun', 'UltraShotgun', 'UltraUltraShotgun', 'Cannon', 'Sniper'];
-    names.forEach(name => this.load.image(name, `../assets/img/${name}.png`));
+    const names = Object.keys(objectTypes.objects || {});
+    names.forEach(name => {
+      const imageFile = objectTypes.objects[name]?.imageFile || `${name}.png`;
+      this.load.image(name, `/shared/assets/img/${imageFile}`);
+    });
     this.images = new Map();
   }
 

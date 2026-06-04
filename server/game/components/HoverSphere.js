@@ -3,52 +3,54 @@ import { Circle, Vec2 } from "planck";
 import { length, mulScalar, normalize } from "../../utilities/vec2helpers.js";
 import { configurableInputs } from "../../../shared/inputsListing.js";
 import { PLAYER_RENDER_DEPTH } from "../../../shared/consts.js";
+import { Component } from './Component.js';
+import { buildFixtureOptions } from '../objectTypes.js';
 
 const { UP, DOWN, LEFT, RIGHT } = configurableInputs;
 
-export class HoverSphere {
+export class HoverSphere extends Component {
   constructor(player, opts = {}) {
-    const sf = player.sf || 1;
+    super(player, opts);
 
     const defaults = {
-      radius: 0.5*sf,
-      force: 20*sf*sf,
+      radius: { value: 0.5, scaleOrder: 1 },
+      force: { value: 20, scaleOrder: 2 },
       density: 1,
       friction: 0.5,
       restitution: 0.2,
+      health: { value: 100, scaleOrder: 2 },
 
       // upright controller (PD)
-      uprightKp: 80*sf*sf,         // proportional gain (torque per radian)
-      uprightKd: 1.5*sf*sf,         // derivative gain (torque per rad/s)
+      uprightKp: { value: 80, scaleOrder: 2 },         // proportional gain (torque per radian)
+      uprightKd: { value: 1.5, scaleOrder: 2 },         // derivative gain (torque per rad/s)
       uprightMaxTorque: 60.0, // clamp for applied torque
       uprightDeadzone: 0.01,   // radians below which we won't bother
 
       dampingFactor: 0.98
     };
-    this.opts = Object.assign({}, defaults, opts);
+    this.opts = this.normalizeOpts(defaults, opts);
     this.player = player;
     this.body = player.body;
 
     this.body.setGravityScale(0);
 
-    this.fixture = this.body.createFixture({
-      shape: new Circle(new Vec2(0, 0), this.opts.radius),
+    const hoverScale = this.opts.radius / 0.5;
+    const fixtureOpts = buildFixtureOptions(this.body.getWorld(), 'hoverSphere', {
+      scale: hoverScale,
       density: this.opts.density,
       friction: this.opts.friction,
       restitution: this.opts.restitution,
       userData: {
-        id: this.body.getUserData().id,
-        type: "hoversphere",
-        scale: this.opts.radius * 2,
+        type: "hoverSphere",
+        scale: hoverScale,
         depth: PLAYER_RENDER_DEPTH,
-        health: 100*sf*sf,
+        health: this.opts.health,
       }
     });
 
-    if (this.body.getWorld() && this.body.getWorld().registerBody) {
-      this.body.getWorld().registerBody(this.body);
-    }
-    player.body = this.body;
+    this.fixture = this.body.createFixture(fixtureOpts);
+
+    this.body.getWorld().registerBody(this.body);
 
     // small reusable temporaries to avoid allocations
     this._tmpDir = Vec2(0, 0);
@@ -103,6 +105,9 @@ export class HoverSphere {
     }
 
     this.body.setLinearVelocity(mulScalar(this.body.getLinearVelocity(), this.opts.dampingFactor))
+  }
+
+  update() {
     this.checkIfDead();
   }
 

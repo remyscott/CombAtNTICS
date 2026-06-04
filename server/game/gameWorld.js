@@ -1,4 +1,5 @@
 import { World, Box, Vec2, Circle} from 'planck';
+import { buildFixtureOptions } from './objectTypes.js';
 
 const sum = (...nums) => nums.reduce((a,b) => a + b, 0);
 
@@ -149,6 +150,10 @@ export class GameWorld extends World {
     return this._id++;
   }
 
+  createFixtureFromType(body, objectType, options = {}) {
+    const fixtureOpts = buildFixtureOptions(this, objectType, options);
+    return body.createFixture(fixtureOpts);
+  }
 
   newFxMetaId() {
     while (this._fmId in this.metadata.fixtures) {
@@ -170,16 +175,18 @@ export class GameWorld extends World {
       angle: config.angle || 0,
     });
 
-    body.createFixture({
-      shape: new Box(0.5*config.scale, 0.5*config.scale),
-      density: 0.25,
-      friction: .5,
-      restitution: .2,
-      userData: {id: this.newId(), type: config.objectType, scale: config.scale || 1, damageMultiplier: 1,
-      minDamage: 5,}
+    this.createFixtureFromType(body, config.objectType, {
+      scale: config.scale || 1,
+      userData: {
+        id: this.newId(),
+        type: config.objectType,
+        scale: config.scale || 1,
+        damageMultiplier: 1,
+        minDamage: 5,
+      }
     });
 
-    return(body);
+    return body;
   }
 
   createCircleBody(config) {
@@ -189,15 +196,12 @@ export class GameWorld extends World {
       angle: config.angle || 0,
     });
 
-    body.createFixture({
-      shape: new Circle(0.5*config.scale),
-      density: 1,
-      friction: .5,
-      restitution: .9,
+    this.createFixtureFromType(body, config.objectType, {
+      scale: config.scale || 1,
       userData: {id: this.newId(), type: config.objectType, scale: config.scale || 1}
     });
 
-    return(body);
+    return body;
   }
 
   createBallBody(config) {
@@ -207,15 +211,12 @@ export class GameWorld extends World {
       angle: config.angle || 0,
     });
 
-    body.createFixture({
-      shape: new Circle(0.5*config.scale),
-      density: 0.05,
-      friction: .5,
-      restitution: .5,
-      userData: {id: this.newId(), type: config.objectType, scale: config.scale || 1}
+    this.createFixtureFromType(body, config.objectType, {
+      scale: config.scale || 1,
+      userData: {id: this.newId(), type: config.objectType, scale: config.scale || 1},
     });
 
-    return(body);
+    return body;
   }
 
   createLockboxBody(config) {
@@ -228,12 +229,16 @@ export class GameWorld extends World {
     });
 
     // create fixture as usual
-    body.createFixture({
-      shape: new Box(0.5 * config.scale, 0.5 * config.scale),
-      friction: .5,
-      restitution: .2,
-      userData: { id: this.newId(), type: config.objectType, scale: config.scale || 1,  damageMultiplier: 1,
-      minDamage: 50,}
+    this.createFixtureFromType(body, config.objectType, {
+      scale: config.scale || 1,
+      filter: isMoving ? undefined : { categorybits: CATEGORY_STATIC, maskBits: MASK_STATIC },
+      userData: {
+        id: this.newId(),
+        type: config.objectType,
+        scale: config.scale || 1,
+        damageMultiplier: 1,
+        minDamage: 50,
+      }
     });
 
     // If moving, attach motion metadata to the body userData so step() can find it.

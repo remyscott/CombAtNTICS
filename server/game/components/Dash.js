@@ -2,10 +2,11 @@
 import { Vec2, Box } from 'planck';
 import { length, normalize } from '../../utilities/vec2helpers.js';
 import { configurableInputs } from '../../../shared/inputsListing.js';
+import { Component } from './Component.js';
 
 const { DASH, UP, DOWN, LEFT, RIGHT } = configurableInputs;
 
-export class Dash {
+export class Dash extends Component {
   /**
    * player: the Player instance (must have .body, .game)
    * opts:
@@ -16,22 +17,23 @@ export class Dash {
    *   onDash: optional callback (player, info)
    */
   constructor(player, opts = {}) {
-    const sf = player.sf || 1;
-    this.player = player;
-    this.opts = Object.assign({
-      impulse: 24*sf*sf,
+    super(player, opts);
+    const defaults = {
+      dashSize: { value: 0.2, scaleOrder: 1 },
+      impulse: { value: 24, scaleOrder: 2 },
       cooldown: 1000,
       directionPreference: 'input', // use inputs by default
       onDash: null
-    }, opts);
+    };
+    this.opts = this.normalizeOpts(defaults, opts);
 
     this._lastDash = 0;
     this._tmp = Vec2(0, 0);
 
     this.player.body.createFixture({
-      shape: Box(0.2*sf, 0.2*sf),
+      shape: Box(this.opts.dashSize, this.opts.dashSize),
       density: 1,
-      userData: {depth: 1000, id: this.player.game.world.newId(), type: 'dashCore', scale: sf },
+      userData: {depth: 1000, id: this.player.game.world.newId(), type: 'dashCore', scale: this.opts.scaleFactor },
     });
   }
 

@@ -1,17 +1,19 @@
 import { Box } from 'planck'
+import { Component } from './Component.js';
 
-export class TitaniumCore {
+export class TitaniumCore extends Component {
   constructor(player, opts = {}) {
-    const sf = player.sf || 1;
-    this.player = player;
-    this.opts = Object.assign({
+    super(player, opts);
+    const defaults = {
+      halfSize: { value: 0.1, scaleOrder: 1 },
       density: 80,
-    }, opts);
+    };
+    this.opts = this.normalizeOpts(defaults, opts);
 
     this.player.body.createFixture({
-      shape: Box(0.1*sf, 0.1*sf),
+      shape: Box(this.opts.halfSize, this.opts.halfSize),
       density: this.opts.density,
-      userData: {depth: 100000, id: this.player.game.world.newId(), type: 'titaniumCore', scale: sf },
+      userData: { depth: 100000, id: this.player.game.world.newId(), type: 'titaniumCore', scale: this.opts.scaleFactor },
     });
 
     this.player.game.world.registerBody(this.player.body);

@@ -4,12 +4,11 @@ import { HoverSphere } from "./components/HoverSphere.js";
 import { Sword } from "./components/Sword.js";
 import { configurableInputs } from "../../shared/inputsListing.js";
 import { Dash } from "./components/Dash.js";
-
-import { addRandomGunToComponentList } from "./components/Guns.js";
 import { SwordBig } from "./components/SwordBig.js";
 import { TitaniumCore } from "./components/TitaniumCore.js";
 import { componentMap, componentList } from "./componentMap.js";
 import { CommandInterpretor } from "./commands.js"
+
 function chance(chance) {
   return (Math.random() < chance);
 }
@@ -19,22 +18,16 @@ export function randomComponents() {
 
     components.push(HoverSphere);
 
-
-    if (chance(0.8)) {
-      if (chance(0.3)) {
-        components.push(SwordBig);
-        components.push(TitaniumCore);
-      } else {
-        components.push(Sword);
-      }
+    if (chance(0.3)) {
+      components.push(SwordBig);
+      components.push(TitaniumCore);
     } else {
-      addRandomGunToComponentList(components);
+      components.push(Sword);
     }
 
     if (chance(0.5)) {
       components.push(Dash);
     }
-
 
     return components;
 }
@@ -53,6 +46,7 @@ export class Player {
     this._disconnectTimer = 5;
     this.commandInterpretor = new CommandInterpretor(this);
     this.sf = 0.975 + Math.random()*0.05
+    this.opts = { scaleFactor: this.sf };
 
     if (ws) {
       this.attachWS(ws);

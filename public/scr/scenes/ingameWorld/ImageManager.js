@@ -1,3 +1,5 @@
+import { getObjectPixelsPerMeter } from '/shared/objectTypes.js';
+
 if (!localStorage.getItem('uiscale')) {
   localStorage.setItem('uiScale', '1')
 }
@@ -33,7 +35,9 @@ export class ImageManager {
     if (!bodyId || !this.scene.game.metadata || !this.scene.game.metadata.bodies) return null;
     const bodyMeta = this.scene.game.metadata.bodies[bodyId];
     if (!bodyMeta || !Array.isArray(bodyMeta.fixtures) || bodyMeta.fixtures.length === 0) return null;
-    return bodyMeta.fixtures[0].id;
+
+    const primaryFixture = this._getPrimaryFixtureForBody(bodyMeta);
+    return primaryFixture?.id || bodyMeta.fixtures[0].id;
   }
 
   updateImageFocusPos() {
@@ -56,6 +60,7 @@ export class ImageManager {
     if (!this.bodies.get(id)) {
       const meta = structuredClone(this.scene.game.metadata.bodies[id]);
       if (meta) {
+        this._tagPrimaryNameFixtures(meta);
         this.bodies.set(id, meta);
 
         for (const fixture of this.bodies.get(id).fixtures) {
@@ -64,10 +69,80 @@ export class ImageManager {
       } else {
         this.requestMetadata();
       }
-    } 
-    return (this.bodies.get(id));
+    }
+    return this.bodies.get(id);
   }
-  
+
+  _getLocalPpm() {
+    const raw = parseFloat(localStorage.getItem('ppmResolution'));
+    return Number.isFinite(raw) ? raw : (this.scene.pixelsPerMeter || 50);
+  }
+
+  _getFixtureImageScale(fxMeta) {
+    const localPpm = this._getLocalPpm();
+    const imagePpm = getObjectPixelsPerMeter(fxMeta.type);
+    const objectScale = (typeof fxMeta.scale === 'number') ? fxMeta.scale : 1;
+    return objectScale * (localPpm / imagePpm);
+  }
+
+  _resolveFixtureMeta(metaId) {
+    const fxMeta = this.scene.game.metadata?.fixtures?.[metaId] || null;
+    return fxMeta ? structuredClone(fxMeta) : null;
+  }
+
+  _estimateFixtureSizeScore(fxMeta) {
+    if (!fxMeta || typeof fxMeta.type !== 'string') return 0;
+    const objectPpm = getObjectPixelsPerMeter(fxMeta.type);
+    const scale = (typeof fxMeta.scale === 'number') ? fxMeta.scale : 1;
+    return objectPpm * scale;
+  }
+
+  _getPrimaryFixtureForBody(bodyMeta) {
+    if (!bodyMeta || !Array.isArray(bodyMeta.fixtures) || bodyMeta.fixtures.length === 0) return null;
+
+    let primary = null;
+    let bestScore = -Infinity;
+    for (const fixtureRef of bodyMeta.fixtures) {
+      const fxMeta = this._resolveFixtureMeta(fixtureRef.metaId);
+      const score = this._estimateFixtureSizeScore(fxMeta);
+      if (score > bestScore) {
+        bestScore = score;
+        primary = fixtureRef;
+      }
+    }
+
+    return primary || bodyMeta.fixtures[0];
+  }
+
+  _tagPrimaryNameFixtures(bodyMeta) {
+    if (!bodyMeta || !Array.isArray(bodyMeta.fixtures)) return;
+
+    const groups = new Map();
+    for (const fixture of bodyMeta.fixtures) {
+      const fxMeta = this._resolveFixtureMeta(fixture.metaId);
+      if (!fxMeta?.name) continue;
+
+      const name = fxMeta.name;
+      const score = this._estimateFixtureSizeScore(fxMeta);
+      const entry = groups.get(name) || { bestScore: -Infinity, primary: null };
+      if (score > entry.bestScore) {
+        entry.bestScore = score;
+        entry.primary = fixture;
+      }
+      groups.set(name, entry);
+    }
+
+    for (const fixture of bodyMeta.fixtures) {
+      fixture.isPrimaryLabel = false;
+    }
+    for (const entry of groups.values()) {
+      if (entry.primary) entry.primary.isPrimaryLabel = true;
+    }
+  }
+
+  _isPrimaryLabelAnchor(fixture) {
+    return fixture.isPrimaryLabel !== false;
+  }
 
   // Returns true if the given world position (meters) is within the camera view (with padding)
   _isWorldPosInCameraWithMargin(xMeters, yMeters, marginPx = 64) {
@@ -82,28 +157,30 @@ export class ImageManager {
 
     // JavaScript (Phaser-like)
   _ensureFixture(fixture) {
-    const fxMeta = structuredClone(this.scene.game.metadata.fixtures[fixture.metaId]);
+    const fxMeta = this._resolveFixtureMeta(fixture.metaId);
     if (!fxMeta) {
       this.requestMetadata();
       return fixture;
     }
 
     fixture.metadata = fxMeta;
-
-    this._createOrUpdateFixtureImage(fixture, fxMeta);
-    this._createOrUpdateNameImage(fixture, fxMeta);
+    this._ensureFixtureImage(fixture, fxMeta);
+    this._ensureFixtureNameImage(fixture, fxMeta);
 
     return fixture;
   }
 
-  _createOrUpdateFixtureImage(fixture, fxMeta) {
+  _ensureFixtureImage(fixture, fxMeta) {
     if (!fixture.image && fxMeta.type) {
       const image = this.scene.add.image(0, 0, fxMeta.type)
         .setOrigin(0.5, 0.5)
-        .setScale(fxMeta.scale || 1);
+        .setScale(this._getFixtureImageScale(fxMeta));
       image.id = fixture.id;
       fixture.image = image;
       this.scene.images.set(image.id, image);
+    }
+    if (fixture.image && fxMeta.type) {
+      fixture.image.setScale(this._getFixtureImageScale(fxMeta));
     }
     // apply depth if specified
     const metaDepth = (typeof fxMeta.depth === 'number') ? fxMeta.depth : null;
@@ -114,7 +191,7 @@ export class ImageManager {
     }
   }
 
-  _createOrUpdateNameImage(fixture, fxMeta) {
+  _ensureFixtureNameImage(fixture, fxMeta) {
     if (fxMeta.name) {
       if (!fixture.nameImage) {
         const s = fxMeta.nameStyle || style;
@@ -182,11 +259,9 @@ export class ImageManager {
     // hide edge marker if present
     if (fixture.edgeMarker) { fixture.edgeMarker.clear(); if (fixture.edgeMarker.visible) fixture.edgeMarker.setVisible(false); }
 
-    // name image handling (created in ensure step)
-    if (fixture.metadata && fixture.metadata.name) {
+    if (fixture.metadata && fixture.metadata.name && this._isPrimaryLabelAnchor(fixture)) {
       if (!fixture.nameImage) {
-        const s = fixture.metadata.nameStyle || style;
-        fixture.nameImage = this.scene.add.text(0, 0, fixture.metadata.name, s).setOrigin(0.5, 0.5);
+        this._ensureFixtureNameImage(fixture, fixture.metadata);
       } else if (fixture.nameImage.text !== fixture.metadata.name) {
         fixture.nameImage.setText(fixture.metadata.name);
       }
@@ -206,7 +281,7 @@ export class ImageManager {
 
     const name = (fixture.nameImage && fixture.nameImage.text) || (fixture.metadata && fixture.metadata.name);
     const cam = this.scene.cameras && this.scene.cameras.main;
-    if (!name || !cam) {
+    if (!name || !cam || !this._isPrimaryLabelAnchor(fixture)) {
       if (fixture.nameImage && fixture.nameImage.visible) fixture.nameImage.setVisible(false);
       if (fixture.edgeMarker) { fixture.edgeMarker.clear(); if (fixture.edgeMarker.visible) fixture.edgeMarker.setVisible(false); }
       fixture._visibleState = false;

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Settings - CombANTICS</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/lobby.css" />
+  <link href="assets/img/favicon.ico" rel="icon" />
+</head>
+<body>
+  <div id="lobby-container">
+    <div id="lobby-panel">
+      <a class="site-title">
+        <span class="title-main">CombA</span>
+        <span class="title-accent">N</span>
+        <span class="title-main">T</span>
+        <span class="title-accent">ICS</span>
+      </a>
+
+      <div class="input-group">
+        <a class="btn small" href="lobby.html">Back</a>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Settings</h2>
+        </div>
+        <div class="panel-body">
+          <label for="ppmInput">Render resolution (pixels per meter)</label>
+          <input id="ppmInput" type="number" min="1" step="1" />
+          <p class="note">Controls the local display scale applied to world images. Lower values shrink high-resolution sprites to the active renderer scale.</p>
+          <div class="input-group">
+            <button id="saveBtn">Save Settings</button>
+          </div>
+          <div id="status" class="note"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./settings.js"></script>
+</body>
+</html>
