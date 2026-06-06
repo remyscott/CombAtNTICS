@@ -144,3 +144,5 @@ vite.config.ts.timestamp-*
 .env
 /data/
 dev-emails.log
+
+.vscode
