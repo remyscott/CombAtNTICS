@@ -11,6 +11,8 @@ const config = {
     height: window.innerHeight
   },
   scene: [ IngameWorld, UI ],
+  backgroundColor: '#876672', 
+
 };
 
 const phaserGame = new Phaser.Game(config);

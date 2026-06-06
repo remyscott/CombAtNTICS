@@ -1,5 +1,6 @@
 import { Box } from 'planck'
 import { Component } from './Component.js';
+import { PLAYER_RENDER_DEPTH } from '../../../shared/consts.js';
 
 export class TitaniumCore extends Component {
   constructor(player, opts = {}) {
@@ -13,7 +14,7 @@ export class TitaniumCore extends Component {
     this.player.body.createFixture({
       shape: Box(this.opts.halfSize, this.opts.halfSize),
       density: this.opts.density,
-      userData: { depth: 100000, id: this.player.game.world.newId(), type: 'titaniumCore', scale: this.opts.scaleFactor },
+      userData: { depth: PLAYER_RENDER_DEPTH+1, id: this.player.game.world.newId(), type: 'titaniumCore', scale: this.opts.scaleFactor },
     });
 
     this.player.game.world.registerBody(this.player.body);

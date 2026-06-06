@@ -131,7 +131,8 @@ const objectTypes = {
       }
     },
     "dashCore": {
-      "imageFile": "dashCore.png",
+      "imageFile": "dash.png",
+      "pixelsPerMeter": 320,
       "planckConfig": {
         "shape": "box",
         "halfWidth": 0.2,

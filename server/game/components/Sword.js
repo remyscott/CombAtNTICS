@@ -13,7 +13,7 @@ export class Sword extends Component {
       density: 0.5,
       friction: 1,
       restitution: 0,
-      torque: { value: 50, scaleOrder: 3 },
+      torque: { value: 20, scaleOrder: 3 },
       angularDampingWhenSlow: 300
     };
     this.opts = this.normalizeOpts(defaults, opts);
@@ -34,7 +34,7 @@ export class Sword extends Component {
       restitution: this.opts.restitution,
       userData: {
         owner: this,
-        damageMultiplier: 2,
+        damageMultiplier: 2.5,
         minDamage: 1,
         health: 0,
       }
@@ -44,7 +44,7 @@ export class Sword extends Component {
       bodyA: playerBody,
       bodyB: this.body,
       localAnchorA: Vec2(0, 0),
-      localAnchorB: Vec2(-2 * s, 0),
+      localAnchorB: Vec2(-1.6 * s, 0),
     }));
 
     this.body.getWorld().registerBody(this.body);

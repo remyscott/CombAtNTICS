@@ -21,7 +21,7 @@ export class HoverSphere extends Component {
       health: { value: 100, scaleOrder: 2 },
 
       // upright controller (PD)
-      uprightKp: { value: 80, scaleOrder: 2 },         // proportional gain (torque per radian)
+      uprightKp: { value: 160, scaleOrder: 2 },         // proportional gain (torque per radian)
       uprightKd: { value: 1.5, scaleOrder: 2 },         // derivative gain (torque per rad/s)
       uprightMaxTorque: 60.0, // clamp for applied torque
       uprightDeadzone: 0.01,   // radians below which we won't bother

@@ -11,10 +11,10 @@ export class SwordBig extends Component {
   constructor(player, opts = {}) {
     super(player, opts);
     const defaults = {
-      density: 1,
+      density: 0.5,
       friction: 1,
       restitution: 0,
-      torque: { value: 75, scaleOrder: 3 },
+      torque: { value: 40, scaleOrder: 3 },
       angularDampingWhenSlow: 300
     };
     this.opts = this.normalizeOpts(defaults, opts);
@@ -36,7 +36,7 @@ export class SwordBig extends Component {
       userData: {
         owner: this,
         depth: PLAYER_RENDER_DEPTH - 1,
-        damageMultiplier: 2,
+        damageMultiplier: 2.5,
         minDamage: 2,
         health: 0,
       }
@@ -46,7 +46,7 @@ export class SwordBig extends Component {
       bodyA: playerBody,
       bodyB: this.body,
       localAnchorA: Vec2(0, 0),
-      localAnchorB: Vec2(-2 * s, 0),
+      localAnchorB: Vec2(-1.6 * s, 0),
       referenceAngle: this.body.getAngle() - playerBody.getAngle()
     }));
 
