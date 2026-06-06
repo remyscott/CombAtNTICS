@@ -221,7 +221,7 @@ const commands = {
         this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Player not found', nameOfSender: 'SERVER' }));
         return;
       }
-      this.player.game.disconnectPlayer(p.account.username);
+      this.player.game.removePlayer(p.account.username);
       this.player.game.broadcast({ type: 'chatMsg', msg: `Player ${p.account.username} was kicked by ${this.player.name}`, nameOfSender: 'SERVER' });
     },
     description: 'Disconnect a player from the game (mod+)'
@@ -265,6 +265,7 @@ const commands = {
       }
       p.chatBanned = true;
       try { if (p.ws) p.ws.close(4003, 'banned by admin'); } catch (e) {}
+      this.player.game.removePlayer(p.account.username);
       this.player.game.broadcast({ type: 'chatMsg', msg: `Player ${p.account.username} was banned by ${this.player.name}`, nameOfSender: 'SERVER' });
     },
     description: 'Ban a player (disconnect) (admin only)'
