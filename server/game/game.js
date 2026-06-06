@@ -1,4 +1,4 @@
-import {IDEAL_TICK_RATE, TICKS_PER_SNAPSHOT, TIMESTEP} from '../../shared/settings.js';
+import {IDEAL_TICK_RATE, TICKS_PER_FULL_SNAPSHOT, TIMESTEP} from '../../shared/settings.js';
 import { World, Circle, Vec2, Edge, Box } from 'planck';
 import { Player } from './player.js';
 import { GameWorld } from './gameWorld.js';
@@ -15,7 +15,7 @@ export class Game {
     this._stopped = false;
     this.players = new Map();
     this._tickTimeout = null;
-    this._ticksSinceSnapshot = 0;
+    this._ticksSinceFullSnapshot = 0;
 
     this.startTickLoop();
     this.startTickRateTracker();
@@ -100,10 +100,9 @@ export class Game {
     const dtMs = performance.now() - t0;
     if (dtMs > TIMESTEP*1000) console.log('long step:', dtMs);
 
-    this._ticksSinceSnapshot += 1;
     
     const t1 = performance.now();
-    this.broadcastSnapshotDecision();
+    this.broadcastSnapshot();
     const dtMs2 = performance.now() - t1;
     if (dtMs2 > TIMESTEP*1000) console.log('long broadcast:', dtMs2);
   }
@@ -130,55 +129,53 @@ export class Game {
     return { overallState, newMeta };
   }
 
-  makePartialState(overallState, newMeta) {
-    if (!newMeta || !newMeta.bodies) return {};
-    const partial = {};
-    for (const idStr of Object.keys(newMeta.bodies)) {
-      // metadata keys may be strings; ensure consistent lookup
-      const id = Number(idStr);
-      if (overallState[id] !== undefined) {
-        partial[id] = overallState[id];
+  getChangedState(state, prevState = this.lastFrameState) {
+    const changed = {};
+    for (const [id, entity] of Object.entries(state)) {
+      const prevEntity = prevState?.[id];
+      if (!prevEntity || !this._isStateEqual(entity, prevEntity)) {
+        changed[id] = entity;
       }
     }
-    return partial;
+    return changed;
   }
 
-  broadcastSnapshotDecision() {
+  _isStateEqual(state1, state2) {
+    return (
+      state1.state.pos.x === state2.state.pos.x &&
+      state1.state.pos.y === state2.state.pos.y &&
+      state1.state.angle === state2.state.angle
+    );
+  }
+
+  broadcastSnapshot() {
     const { overallState, newMeta } = this.collectTickState();
-
-    const partialState = this.makePartialState(overallState, newMeta);
-
+    
     if (Object.keys(newMeta.bodies).length > 0 || Object.keys(newMeta.fixtures).length > 0) {
       this.broadcast({ type: 'newMetadata', newMetadata: newMeta });
-    }
-
-    // If it's the snapshot tick, send the full encoded snapshot; otherwise send only partial
-    if (this._ticksSinceSnapshot >= TICKS_PER_SNAPSHOT) {
-      // full snapshot
-      this._ticksSinceSnapshot = 0;
-      const buf = this.encodeState(overallState);
-      for (const client of this.players.values()) {
-        if (client.ws) {
-          client.ws.send(buf);
-        }
-      }
-
-      // update lastFrameMeta after full snapshot so next partials use correct baseline
       this._lastFrameMeta = structuredClone(this.world.metadata);
+    }
+    
+
+    let buf;
+    if (this._ticksSinceFullSnapshot >= TICKS_PER_FULL_SNAPSHOT) {
+      buf = this.encodeState(overallState);
+      this._ticksSinceFullSnapshot = 0;
     } else {
-      // partial snapshot optimization: only send if there is anything to send
-      if (Object.keys(partialState).length > 0) {
-        const buf = this.encodeState(partialState, true);
-        for (const client of this.players.values()) {
-          if (client.ws) {
-            client.ws.send(buf);
-          }
-        }
+      const changedState = this.getChangedState(overallState);
+      buf = this.encodeState(changedState);
+    }
+    for (const client of this.players.values()) {
+      if (client.ws) {
+        client.ws.send(buf);
       }
     }
+
+    this.lastFrameState = overallState;
+    this._ticksSinceFullSnapshot++;
   }
 
-  encodeState(stateObj, isPartial = false, serverTimeMs = Date.now()) {
+  encodeState(stateObj, isPartial = true, serverTimeMs = Date.now()) {
     const entries = Object.values(stateObj);
     const N = entries.length;
     const BYTES_PER_ENTITY = 4 + 4 + 4 + 4; // id + x + y + angle
@@ -200,14 +197,10 @@ export class Game {
     if (typeof dv.setBigUint64 === 'function') {
       dv.setBigUint64(offset, tsBig, true); // little-endian
     } else {
-      // fallback for environments without BigInt support in DataView:
-      // split into low/high uint32
       const low = Number(tsBig & 0xFFFFFFFFn);
       const high = Number((tsBig >> 32n) & 0xFFFFFFFFn);
       dv.setUint32(offset, low, true); offset += 4;
-      dv.setUint32(offset, high, true); offset -= 4; // offset corrected below
-      // we will advance offset by 8 below in unified way
-      // (this branch is only for very old runtimes; prefer modern runtime)
+      dv.setUint32(offset, high, true); offset -= 4;
     }
     offset += 8;
 
@@ -238,7 +231,7 @@ export class Game {
     return {
       id: meta.id,
       state: {
-        pos: {x: pos.x, y: pos.y}, // invert y for client
+        pos: {x: pos.x, y: pos.y},
         angle
       } 
     };

@@ -22,6 +22,7 @@ export class ImageManager {
     this.playerImagePos = { x: 0, y: 0 };
     this.cameraFocusPos = { x: 0, y: 0 };
     this.requestedMetadata = false;
+    
     console.log('ImageManager initiated');
   }
 
@@ -197,6 +198,7 @@ export class ImageManager {
   applyBodyStates(bodyStates) {
     for (const { id, state } of bodyStates) {
       const body = this._ensureBody(id);
+
       if (!body) continue;
       for (const fixture of body.fixtures || []) {
         this._ensureFixture(fixture);

@@ -1,5 +1,5 @@
 
-import { IDEAL_TICK_RATE, TICKS_PER_SNAPSHOT } from '../../shared/settings.js';
+import { IDEAL_TICK_RATE } from '../../shared/settings.js';
 import wsClient from '../ws-client.js';
 import { lerpStatesFast } from './statelerper.js';
 import { StateManager } from './stateManager.js';
@@ -235,7 +235,7 @@ export class Client{
       })();
   
       // use p90 (scaled) as the network buffer, keep a minimum floor
-      this.networkBuffer = Math.max(50,Math.ceil(p90), TICKS_PER_SNAPSHOT*1000/IDEAL_TICK_RATE);
+      this.networkBuffer = Math.max(50,Math.ceil(p90));
       this.clockOffset = medianOffset;  
       return { rtts, offsets, validRtts, p90, medianOffset, networkBuffer: this.networkBuffer, clockOffset: this.clockOffset };
     };
