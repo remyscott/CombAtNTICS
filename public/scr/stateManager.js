@@ -38,7 +38,6 @@ export class StateManager {
     // Flatten and filter valid events
     const toInsert = events
       .flat()
-      .map(e => ({ type: e.type, serverTimeMs: Number(e.serverTimeMs), details: e.details }))
       .filter(e => Number.isFinite(e.serverTimeMs));
 
     if (toInsert.length === 0) return;
@@ -68,18 +67,12 @@ export class StateManager {
     if (!ev || !ev.type) return;
     switch (ev.type) {
       case 'destroy':
-        // Expect details = { id: number }
-        if (ev.details && Number.isFinite(ev.details.id)) {
-          const id = Number(ev.details.id);
-          this._destroyBody(id);
+        if (ev.id) {
+          this._destroyBody(ev.id);
         }
         break;
 
-      // future event types go here
-      // case 'spawn': ...
       default:
-        // unknown event type -- could emit/log
-        // console.warn('Unhandled event type', ev.type, ev);
         break;
     }
   }

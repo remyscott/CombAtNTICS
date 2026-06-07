@@ -276,9 +276,16 @@ export class Client{
   }
 
   handleMessage(msg) {
+    if (msg.type === 'events') {
+      if (Array.isArray(msg.events)) {
+        this.stateManager.pushEvents(...msg.events);
+      }
+    }
+
     if (msg.type === 'chatMsg') {
       this.game.scene.getScene('UI').displayMessage(msg.msg, msg.nameOfSender, msg.senderRoles)
     }
+
     if (msg.type === 'init') {
       this.init(msg)
     }
@@ -303,6 +310,7 @@ export class Client{
       const id = msg.id === null ? null : msg.id;
       this.game.playerBodyId = id;
     }
+    
   }
 
   handleNewMetadata(msg) {

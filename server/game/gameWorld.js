@@ -9,7 +9,7 @@ const ALL = CATEGORY_STATIC | CATEGORY_DEFAULT
 const MASK_STATIC = ALL & ~CATEGORY_STATIC; // collide with everything except static
 
 export class GameWorld extends World {
-  constructor(map) {
+  constructor(map, game) {
     super({...map.planckConfig, allowSleep: true});
     this._id = 0;
     this._fId = 0;
@@ -18,12 +18,13 @@ export class GameWorld extends World {
     this.ttlBodyIds = new Set();
     this.metadata = {bodies: {}, fixtures: {}};
     this._fixtureMetaCache = new Map();
+    this.game = game;
     this._time = 0;
     this.loadMapObjects(map.objects);
     this.setUpDamageListeners();
     this.setUpBulletDecayListener();
     this.pendingSparks = [];
-    this._pendingDestroys = []
+    this._pendingDestroys = [];
   }
 
   setUpDamageListeners() {
@@ -313,9 +314,8 @@ export class GameWorld extends World {
   destroyBody(body) {
     const id = body.getUserData().id;
     delete this.metadata.bodies[id];
-    // if you keep fixture metadata keyed by fixture id, remove those entries too
-    // then call super.destroyBody
     super.destroyBody(body);
+    this.game.pushEvent({ type: 'destroy', id });
     this.idToBody.delete(id);
     this.ttlBodyIds.delete(id);
   }
@@ -348,12 +348,7 @@ export class GameWorld extends World {
     if (this._pendingDestroys && this._pendingDestroys.length) {
       for (const b of this._pendingDestroys) {
         if (b && typeof b.getUserData === 'function') {
-          const id = b.getUserData().id;
-          super.destroyBody(b);  // call world destroy
-          this.idToBody.delete(id);
-          this.ttlBodyIds.delete(id);
-          delete this.metadata.bodies[id];
-          // also remove any fixture meta cache entries referring to this body
+          this.destroyBody(b);
         }
       }
       this._pendingDestroys.length = 0;

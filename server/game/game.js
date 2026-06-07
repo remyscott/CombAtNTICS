@@ -9,18 +9,23 @@ export class Game {
     this.map = map;
     this.id = id;
     this.onClose = onClose;
-    this.world = new GameWorld(map);
+    this.world = new GameWorld(map, this);
     this.chatFilter = new Filter();
     this._lastFrameMeta = {bodies: {}, fixtures: {}};
     this._stopped = false;
     this.players = new Map();
     this._tickTimeout = null;
     this._ticksSinceFullSnapshot = 0;
+    this.events = [];
 
     this.startTickLoop();
     this.startTickRateTracker();
   }
 
+  pushEvent(event) {
+    this.events.push({...event, serverTimeMs: Date.now()});
+  }
+ 
   onClientChat(payload, username) {
     if (!payload || payload.type !== 'chatMsg') return;
 
@@ -71,6 +76,8 @@ export class Game {
       this.stop();
     }
   }
+
+
 
   broadcast(msg) {
     const data = JSON.stringify(msg);
@@ -155,8 +162,12 @@ export class Game {
       this.broadcast({ type: 'newMetadata', newMetadata: newMeta });
       this._lastFrameMeta = structuredClone(this.world.metadata);
     }
-    
 
+    if (this.events.length > 0) {
+      this.broadcast({ type: 'events', events: this.events });
+      this.events = [];
+    }
+    
     let buf;
     if (this._ticksSinceFullSnapshot >= TICKS_PER_FULL_SNAPSHOT) {
       buf = this.encodeState(overallState);
