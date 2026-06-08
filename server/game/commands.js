@@ -355,9 +355,7 @@ const commands = {
         return;
       }
       try {
-        this.player.ws.send(JSON.stringify({ type: 'cameraFocusId', id: p.getBodyId() }));
-        this.player.ws.send(JSON.stringify({ type: 'playerBodyId', id: p.getBodyId() }));
-
+        p.ws.send(JSON.stringify({ type: 'events', events: [{ type: 'cameraFocusId', id: p.getBodyId(), serverTimeMs: Date.now() }] }));
         this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Camera focus on ${p.name}`, nameOfSender: 'SERVER' }));
       } catch (err) {
         this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Spec failed: ${err.message}`, nameOfSender: 'SERVER' }));

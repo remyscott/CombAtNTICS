@@ -63,9 +63,9 @@ export class StateManager {
   }
 
   _handleEvent(ev) {
-    // Basic event dispatch. Add more types as needed.
-    if (!ev || !ev.type) return;
-    this.game.scene.getScene('InWorldObjects')?.imageManager?.handleEvent(ev);
+    if (this.game && this.game.events && typeof this.game.events.emit === 'function') {
+      this.game.events.emit('event', ev);
+    }
     switch (ev.type) {
       case 'destroy':
         if (ev.id) {
@@ -79,12 +79,7 @@ export class StateManager {
   }
 
   _destroyBody(id) {
-    // Remove history and any other state tied to the body
     this.history.delete(id);
-    // Optionally notify game or other listeners:
-    if (this.game && this.game.events && typeof this.game.events.emit === 'function') {
-      this.game.events.emit('bodyDestroyed', id);
-    }
   }
 
   handleBinarySnapshot(buffer) {

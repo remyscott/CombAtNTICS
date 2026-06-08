@@ -8,15 +8,15 @@ const DEFAULT_BUFFER = 100;
 const inputInterval = 1000/60;
 
 export class Client{
-  constructor(game) {
-    this.game = game;
-    this.game.metadata = {bodies: {}, fixtures: {}};
-    this.game.client = this;
-
+  constructor() {
     this.timeSinceInputs = 0;
     this.lastInputsSent = null;
     this.start();
 
+  }
+
+  setGame(game) {
+    this.game = game;
     this.game.events.on('step', (time, delta) => this._onStep(time, delta));
   }
 
@@ -297,20 +297,6 @@ export class Client{
     if (msg.type === 'metadataResponse') {
       this.handleMetadataResponse(msg)
     }
-
-    if (msg.type === 'cameraFocusId') {
-      const id = msg.id === null ? null : msg.id;
-      if (id === this.game.playerBodyId) {
-        this.game.scene.getScene('InWorldObjects').setCameraFocusId(null);
-      }
-      this.game.scene.getScene('InWorldObjects').setCameraFocusId(id);
-    }
-
-    if (msg.type === 'playerBodyId') {
-      const id = msg.id === null ? null : msg.id;
-      this.game.playerBodyId = id;
-    }
-    
   }
 
   handleNewMetadata(msg) {

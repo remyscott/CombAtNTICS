@@ -15,8 +15,25 @@ const config = {
 
 };
 
-const phaserGame = new Phaser.Game(config);
-const client = new Client(phaserGame);
+class CustomGame extends Phaser.Game {
+  constructor(config) {
+    super(config);
+    this.client = null;
+  }
+
+  setClient(client) {
+    this.client = client;
+  }
+
+  onStep() {
+
+  }
+}
+
+const client = new Client();
+const phaserGame = new CustomGame(config);
+client.setGame(phaserGame);
+phaserGame.setClient(client);
 
 window.__GAME = phaserGame;
 window.__CLIENT = client;

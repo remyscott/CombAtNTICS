@@ -1,5 +1,4 @@
 import { getObjectPixelsPerMeter } from '/shared/objectTypes.js';
-
 const uiScale = Number(localStorage.getItem('uiScale') || '1');
 if (!localStorage.getItem('uiScale')) {
   localStorage.setItem('uiScale', '1');
@@ -12,6 +11,8 @@ const style = {
   stroke: '#000000',
   strokeThickness: 1
 };
+
+
 
 export class ImageManager {
   constructor(scene) {
@@ -26,31 +27,7 @@ export class ImageManager {
     console.log('ImageManager initiated');
   }
 
-  setImageFocusId(id) {
-    this.cameraFocusId = id;
-    this.updateImageFocusPos();
-  }
-
-  updateImageFocusPos() {
-    const bodyId = this.scene.game.playerBodyId;
-    const bodyMeta = bodyId && this.scene.game.metadata?.bodies?.[bodyId];
-    const fixtureId = bodyMeta?.fixtures?.[0]?.id;
-
-    if (fixtureId) {
-      this.playerImageId = fixtureId;
-    }
-    if (!this.cameraFocusId) {
-      this.cameraFocusId = this.playerImageId;
-    }
-
-    const playerImage = this.scene.images.get(this.playerImageId);
-    const focusImage = this.scene.images.get(this.cameraFocusId);
-
-    this.playerImagePos.x = playerImage?.x || 0;
-    this.playerImagePos.y = playerImage?.y || 0;
-    this.cameraFocusPos.x = focusImage?.x ?? this.playerImagePos.x;
-    this.cameraFocusPos.y = focusImage?.y ?? this.playerImagePos.y;
-  }
+  
 
   _ensureBody(id) {
     let body = this.bodies.get(id);
@@ -100,6 +77,7 @@ export class ImageManager {
       image.id = fixture.id;
       fixture.image = image;
       this.scene.images.set(image.id, image);
+      this.scene.events.emit('image-created', image);
     }
 
     if (fixture.image && typeof meta.depth === 'number') {
@@ -107,6 +85,8 @@ export class ImageManager {
       else if (typeof fixture.image.setZ === 'function') fixture.image.setZ(meta.depth);
       else fixture.image.depth = meta.depth;
     }
+
+
   }
 
   _ensureFixtureNameImage(fixture, meta) {
@@ -172,7 +152,7 @@ export class ImageManager {
     if (shouldBeVisible) {
       this._updateOnscreenFixture(fixture, state, wx, wy);
     } else {
-      this._hideFixture(fixture);
+      this._updateOffscreenFixture(fixture, state, wx, wy);
     }
   }
 
@@ -190,9 +170,13 @@ export class ImageManager {
     }
   }
 
-  _hideFixture(fixture) {
+  _updateOffscreenFixture(fixture, state, wx, wy) {
     if (fixture.image) fixture.image.setVisible(false);
-    if (fixture.nameImage) fixture.nameImage.setVisible(false);
+    if (fixture.nameImage) {
+      fixture.nameImage.x = Math.max(Math.min(wx, this.scene.cameras.main.worldView.right - fixture.nameImage.width), this.scene.cameras.main.worldView.left + fixture.nameImage.width); 
+      fixture.nameImage.y = Math.max(Math.min(wy, this.scene.cameras.main.worldView.bottom - fixture.nameImage.height), this.scene.cameras.main.worldView.top + fixture.nameImage.height);
+      fixture.nameImage.setVisible(true);
+    }
   }
 
   applyBodyStates(bodyStates) {
@@ -238,42 +222,17 @@ export class ImageManager {
     }
   }
 
-  handleEvent(evt) {
-    if (!evt) return;
-    switch (evt.type) {
-      case 'damage':
-        this._handleDamageEvent(evt);
-        break;
-      case 'playerBodyId':
-        if (evt.id) {
-          this.scene.game.playerBodyId = evt.id;
-          this.updateImageFocusPos();
-        }
-        break;
 
-      default:
-        break;
-    }
-  }
+  handleDamageEvent(ev) {
+    if (!(ev.id && ev.amount)) return;
 
-  _handleDamageEvent(evt) {
-    const bodyId = evt.id;            // damagedBodyId / id in your event
-    const amount = Number(evt.amount) || 0;
+    
 
-    // If the damage applies to the player, trigger camera effects
-    const playerBodyId = this.scene.game.playerBodyId;
-    if (bodyId === playerBodyId) {
-      this._playerDamageCameraEffect(amount);
-      console.log('handling event', evt);
-
-    }
-
-    // still apply sprite-level effects for the damaged fixtures if desired
-    const body = this._ensureBody(bodyId);
+    const body = this._ensureBody(ev.id);
     if (!body) return;
     for (const fixture of body.fixtures || []) {
       if (fixture.image) {
-        this._applyDamageTintToImage(fixture.image, amount);
+        this._applyDamageTintToImage(fixture.image, ev.amount);
       }
     }
   }
@@ -307,32 +266,5 @@ export class ImageManager {
         }
       });
     }
-  }
-
-  _playerDamageCameraEffect(amount) {
-    const cam = this.scene.cameras?.main;
-    if (!cam) return;
-
-    // Tune these mapping values to taste:
-    // Map damage amount -> intensity range (0..0.02 or 0..0.05 etc).
-    const maxDamageForFullEffect = 100;         // damage that gives full intensity
-    const normalized = Phaser.Math.Clamp(amount / maxDamageForFullEffect, 0, 1);
-
-    // Camera shake intensity parameter in Phaser is a "shake intensity" (not px).
-    // Use a small base intensity multiplied by normalized damage.
-    const baseIntensity = 0.01;                 // small shake
-    const intensity = baseIntensity + normalized * 0.04; // final intensity
-
-    // Duration in ms
-    const minDuration = 150;
-    const maxExtraDuration = 400;
-    const duration = Math.round(minDuration + normalized * maxExtraDuration);
-
-    // Trigger the shake
-    cam.shake(duration, intensity);
-
-    // Optionally add a flash (white-ish) for impact
-    const flashAlpha = 0.4 + normalized * 0.6;  // not a direct API param, but choose color + duration
-    cam.flash(Math.round(80 + normalized * 220), 255, 200, 200); // short colored flash
   }
 }

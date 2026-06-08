@@ -7,14 +7,14 @@
   <style> html,body { margin:0; height:100%; } canvas { display:block; } </style>
   <script>
     // Try to load CDN first
-    document.write('<script src="//cdn.jsdelivr.net/npm/phaser@3.86.0/dist/phaser.js"><\/script>');
+    document.write('<script src="//cdn.jsdelivr.net/npm/phaser@4.0.0/dist/phaser.js"><\/script>');
   </script>
   <script>
     window.addEventListener('error', function onScriptError(e){
       // Only act on script loading errors
       if (e.target && e.target.tagName === 'SCRIPT') {
         if (typeof Phaser === 'undefined') {
-          document.write('https://unpkg.com/phaser@3.86.0/dist/phaser.js');
+          document.write('https://unpkg.com/phaser@4.0.0/dist/phaser.js');
         }
       }
       window.removeEventListener('error', onScriptError, true);
