@@ -91,7 +91,6 @@ const objectTypes = {
         "userData": {
           "damageMultiplier": 2,
           "minDamage": 1,
-          "health": 0
         }
       }
     },
@@ -113,7 +112,6 @@ const objectTypes = {
         "userData": {
           "damageMultiplier": 2,
           "minDamage": 2,
-          "health": 0
         }
       }
     },

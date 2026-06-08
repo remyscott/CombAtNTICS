@@ -65,6 +65,7 @@ export class StateManager {
   _handleEvent(ev) {
     // Basic event dispatch. Add more types as needed.
     if (!ev || !ev.type) return;
+    this.game.scene.getScene('InWorldObjects')?.imageManager?.handleEvent(ev);
     switch (ev.type) {
       case 'destroy':
         if (ev.id) {

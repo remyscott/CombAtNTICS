@@ -36,7 +36,6 @@ export class Sword extends Component {
         owner: this,
         damageMultiplier: 2.5,
         minDamage: 1,
-        health: 0,
       }
     });
 

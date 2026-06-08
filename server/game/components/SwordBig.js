@@ -38,7 +38,6 @@ export class SwordBig extends Component {
         depth: PLAYER_RENDER_DEPTH - 1,
         damageMultiplier: 2.5,
         minDamage: 2,
-        health: 0,
       }
     });
 

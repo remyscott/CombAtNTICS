@@ -43,9 +43,12 @@ export class GameWorld extends World {
       const totalImpulse = sum(...impulse.normalImpulses);
 
       
-
-      this.createSparks(contact, this.tryApplyDamage(dataA, dataB, totalImpulse))
-      this.createSparks(contact, this.tryApplyDamage(dataB, dataA, totalImpulse))
+      const damageA = this.tryApplyDamage(dataA, dataB, totalImpulse);
+      const damageB = this.tryApplyDamage(dataB, dataA, totalImpulse);
+      if (damageA) this.createSparks(contact, damageA);
+      if (damageB) this.createSparks(contact, damageB);
+      if (damageA) this.game.pushEvent({ type: 'damage', id: fA.getBody().getUserData().id, amount: damageA });
+      if (damageB) this.game.pushEvent({ type: 'damage', id: fB.getBody().getUserData().id, amount: damageB });
     });
   }
 

@@ -237,4 +237,102 @@ export class ImageManager {
       this.bodies.delete(bodyId);
     }
   }
+
+  handleEvent(evt) {
+    if (!evt) return;
+    switch (evt.type) {
+      case 'damage':
+        this._handleDamageEvent(evt);
+        break;
+      case 'playerBodyId':
+        if (evt.id) {
+          this.scene.game.playerBodyId = evt.id;
+          this.updateImageFocusPos();
+        }
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  _handleDamageEvent(evt) {
+    const bodyId = evt.id;            // damagedBodyId / id in your event
+    const amount = Number(evt.amount) || 0;
+
+    // If the damage applies to the player, trigger camera effects
+    const playerBodyId = this.scene.game.playerBodyId;
+    if (bodyId === playerBodyId) {
+      this._playerDamageCameraEffect(amount);
+      console.log('handling event', evt);
+
+    }
+
+    // still apply sprite-level effects for the damaged fixtures if desired
+    const body = this._ensureBody(bodyId);
+    if (!body) return;
+    for (const fixture of body.fixtures || []) {
+      if (fixture.image) {
+        this._applyDamageTintToImage(fixture.image, amount);
+      }
+    }
+  }
+
+  _applyDamageTintToImage(image, amount) {
+    const maxDamageForFullEffect = 100; 
+    const normalized = Phaser.Math.Clamp(amount / maxDamageForFullEffect, 0, 1);
+
+    if (image) {
+      // Avoid overlapping tweens by clearing previous tween on this image
+      if (this._playerTintTween) {
+        this._playerTintTween.stop();
+        image.clearTint();
+      }
+
+      image.setTint(0xff8888);
+      this._playerTintTween = this.scene.tweens.add({
+        targets: image,
+        alpha: { from: 1, to: 0.7 },
+        duration: 120 + normalized * 200,
+        yoyo: true,
+        onComplete: () => {
+          image.clearTint();
+          image.setAlpha(1);
+          this._playerTintTween = null;
+        },
+        onStop: () => {
+          image.clearTint();
+          image.setAlpha(1);
+          this._playerTintTween = null;
+        }
+      });
+    }
+  }
+
+  _playerDamageCameraEffect(amount) {
+    const cam = this.scene.cameras?.main;
+    if (!cam) return;
+
+    // Tune these mapping values to taste:
+    // Map damage amount -> intensity range (0..0.02 or 0..0.05 etc).
+    const maxDamageForFullEffect = 100;         // damage that gives full intensity
+    const normalized = Phaser.Math.Clamp(amount / maxDamageForFullEffect, 0, 1);
+
+    // Camera shake intensity parameter in Phaser is a "shake intensity" (not px).
+    // Use a small base intensity multiplied by normalized damage.
+    const baseIntensity = 0.01;                 // small shake
+    const intensity = baseIntensity + normalized * 0.04; // final intensity
+
+    // Duration in ms
+    const minDuration = 150;
+    const maxExtraDuration = 400;
+    const duration = Math.round(minDuration + normalized * maxExtraDuration);
+
+    // Trigger the shake
+    cam.shake(duration, intensity);
+
+    // Optionally add a flash (white-ish) for impact
+    const flashAlpha = 0.4 + normalized * 0.6;  // not a direct API param, but choose color + duration
+    cam.flash(Math.round(80 + normalized * 220), 255, 200, 200); // short colored flash
+  }
 }

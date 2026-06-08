@@ -62,7 +62,7 @@ export class Player {
   }
 
   sendBodyId() {
-    this.ws.send(JSON.stringify({ type: 'playerBodyId', id: this.getBodyId() }));
+    this.ws.send(JSON.stringify({ type: 'events', events: [{ type: 'playerBodyId', id: this.getBodyId(), serverTimeMs: Date.now() }] }));
   }
 
   destroyComponents() {
