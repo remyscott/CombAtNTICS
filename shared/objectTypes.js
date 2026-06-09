@@ -130,7 +130,7 @@ const objectTypes = {
         "halfHeight": 0.1,
         "density": 80,
         "userData": {
-          "depth": 100000
+          "depth": PLAYER_RENDER_DEPTH + 1
         }
       }
     },

@@ -71,16 +71,22 @@ export class ImageManager {
   }
 
   _sortBodyFixtures(body) {
-    body.container.sort((a, b) => {
-      const fa = body.fixtures.find(f => f.id === a.id);
-      const fb = body.fixtures.find(f => f.id === b.id);
-
-      const da = fa ? fa.depth || 0 : 0;
-      const db = fb ? fb.depth || 0 : 0;
-
-      // lower depth behind, higher depth in front
-      return da - db;
+    // 1. Sort fixtures by depth
+    const sorted = [...body.fixtures].sort((a, b) => {
+        const da = a.depth || 0;
+        const db = b.depth || 0;
+        return da - db;
     });
+
+    // 2. Remove all images from container
+    body.container.removeAll(false);
+
+    // 3. Re-add in sorted order
+    for (const fixture of sorted) {
+        if (fixture.image) {
+            body.container.add(fixture.image);
+        }
+    }
   }
 
   _ensureFixture(body, fixture) {

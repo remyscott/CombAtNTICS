@@ -18,7 +18,7 @@ export function randomComponents() {
 
     components.push(HoverSphere);
 
-    if (chance(0.3)) {
+    if (chance(0.9)) {
       components.push(SwordBig);
       components.push(TitaniumCore);
     } else {
@@ -100,7 +100,7 @@ export class Player {
       }
     }
   }
-  
+
   attachWS(ws) {
     if (!ws) return;
 
