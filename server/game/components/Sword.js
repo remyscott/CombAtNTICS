@@ -13,7 +13,7 @@ export class Sword extends Component {
       density: 0.5,
       friction: 1,
       restitution: 0,
-      torque: { value: 20, scaleOrder: 3 },
+      torque: { value: 30, scaleOrder: 3 },
       angularDampingWhenSlow: 300
     };
     this.opts = this.normalizeOpts(defaults, opts);

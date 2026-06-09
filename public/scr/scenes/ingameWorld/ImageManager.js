@@ -21,34 +21,46 @@ export class ImageManager {
 
     const meta = this.scene.game.metadata?.bodies?.[id];
     if (!meta) {
-      this.requestMetadata();
-      return null;
+        this.requestMetadata();
+        return null;
     }
 
     const container = this.scene.add.container(0, 0);
     container.id = id;
 
     body = {
-      id,
-      meta,
-      container,
-      fixtures: meta.fixtures.map(f => ({
-        id: f.id,
-        metaId: f.metaId,
-        position: f.position,
-        angle: f.angle,
-        image: null
-      }))
+        id,
+        meta,
+        container,
+        fixtures: meta.fixtures.map(f => ({
+            id: f.id,
+            metaId: f.metaId,
+            position: f.position,
+            angle: f.angle,
+            depth: f.depth || 0,
+            image: null
+        }))
     };
 
     this.bodies.set(id, body);
 
-    // Lazily ensure fixtures
     for (const fixture of body.fixtures) {
-      this._ensureFixture(body, fixture);
+        this._ensureFixture(body, fixture);
     }
 
+    // 🔥 NEW: sort fixtures after creation
+    this._sortBodyFixtures(body);
+
     return body;
+  }
+
+  _sortBodyFixtures(body) {
+    body.container.sort((a, b) => {
+        const fa = body.fixtures.find(f => f.id === a.id);
+        const fb = body.fixtures.find(f => f.id === b.id);
+
+        return (fa?.depth ?? 0) - (fb?.depth ?? 0);
+    });
   }
 
   _ensureFixture(body, fixture) {
