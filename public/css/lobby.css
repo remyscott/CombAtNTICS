@@ -29,6 +29,28 @@ body{
   overflow:hidden;
 }
 
+.lobby-bg {
+  background: url("../assets/img/lobby-bg.png") no-repeat center center fixed;
+  background-size: cover;
+  margin: 0;
+  font-family: 'Arial', sans-serif;
+}
+
+#lobby-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  backdrop-filter: blur(2px);
+}
+
+#lobby-panel {
+  background-color: rgba(30, 30, 30, 0.8);
+  border-radius: 8px;
+  padding: 20px;
+  color: #fff;
+}
+
 /* center container */
 #lobby-container{
   position:fixed;

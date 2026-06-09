@@ -8,7 +8,7 @@ export const configurableInputs = {
   SWORD_SLOW: 6,
   FIRE_GUN: 7,
   DASH: 8,
-  GUN_SLOW: 6,
+  GUN_SLOW: 9,
 }
 
 export const defaultBindings = {

@@ -17,7 +17,16 @@ export class Client{
 
   setGame(game) {
     this.game = game;
+
+    // NOW we can safely create StateManager
+    this.stateManager = new StateManager(this.ws, this.game);
+
     this.game.events.on('step', (time, delta) => this._onStep(time, delta));
+
+    // Listen for deltas and forward to ImageManager
+    this.game.events.on('state-delta', deltas => {
+      this.game.imageManager.applyBodyStateDeltas(deltas);
+    });
   }
 
   _onStep(time, delta) {
@@ -37,7 +46,6 @@ export class Client{
   async start() {
     await wsClient.connect();
     this.ws = wsClient.ws;
-    this.stateManager = new StateManager(this.ws, this.game);
 
     // Wait briefly for auth result (auto-auth on connect). If you need to require auth:
     const auth = await wsClient.waitForAuth(500);

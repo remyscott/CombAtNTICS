@@ -30,9 +30,9 @@ export class InputManager {
       this.scene.game.mousePos.x = p.worldX / ppm;
       this.scene.game.mousePos.y = p.worldY / ppm;
 
-      const playerScreenPos = this.scene.imageManager && this.scene.imageManager.playerImagePos;
-      this.scene.game.mousePosRel.x = p.worldX - playerScreenPos.x;
-      this.scene.game.mousePosRel.y = p.worldY - playerScreenPos.y;
+      const playerScreenPos = this.scene.game.bodies.get(this.scene.game.playerBodyId)?.container;
+      this.scene.game.mousePosRel.x = p.worldX - (playerScreenPos?.x || 0);
+      this.scene.game.mousePosRel.y = p.worldY - (playerScreenPos?.y || 0);
     });
  
     console.log('InputManager initiated (typed array size =', this.size, ')');

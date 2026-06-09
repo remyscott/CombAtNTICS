@@ -64,15 +64,22 @@ export class StateManager {
 
   _handleEvent(ev) {
     if (this.game && this.game.events && typeof this.game.events.emit === 'function') {
-      this.game.events.emit('event', ev);
     }
     switch (ev.type) {
       case 'destroy':
         if (ev.id) {
           this._destroyBody(ev.id);
+          this.game.events.emit('destroyBody', ev.id);
         }
         break;
-
+      case 'playerBodyId':
+        if (ev.id) {
+          this.game.events.emit('playerBodyId', ev.id);
+        }
+        break;
+      case 'damage':
+        this.game.events.emit('damage', ev.id, ev.amount);
+        break;
       default:
         break;
     }

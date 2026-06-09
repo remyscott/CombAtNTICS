@@ -1,3 +1,5 @@
+import { PLAYER_RENDER_DEPTH } from "./consts.js";
+
 const objectTypes = {
   pixelsPerMeter: 50,
   objects: {
@@ -9,7 +11,8 @@ const objectTypes = {
         "radius": 0.5,
         "density": 0.25,
         "friction": 0.5,
-        "restitution": 0.2
+        "restitution": 0.2,
+        "depth": PLAYER_RENDER_DEPTH,
       }
     },
     "box": {
@@ -91,6 +94,7 @@ const objectTypes = {
         "userData": {
           "damageMultiplier": 2,
           "minDamage": 1,
+          "depth": PLAYER_RENDER_DEPTH - 1,
         }
       }
     },
@@ -112,6 +116,8 @@ const objectTypes = {
         "userData": {
           "damageMultiplier": 2,
           "minDamage": 2,
+          "depth": PLAYER_RENDER_DEPTH - 1,
+          
         }
       }
     },

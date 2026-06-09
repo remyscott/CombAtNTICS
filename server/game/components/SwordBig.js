@@ -35,7 +35,6 @@ export class SwordBig extends Component {
       restitution: this.opts.restitution,
       userData: {
         owner: this,
-        depth: PLAYER_RENDER_DEPTH - 1,
         damageMultiplier: 2.5,
         minDamage: 2,
       }

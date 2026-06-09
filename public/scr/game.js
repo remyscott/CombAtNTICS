@@ -18,6 +18,7 @@ const config = {
 class CustomGame extends Phaser.Game {
   constructor(config) {
     super(config);
+    this.metadata = {bodies: {}, fixtures:{}};
     this.client = null;
   }
 
@@ -25,8 +26,13 @@ class CustomGame extends Phaser.Game {
     this.client = client;
   }
 
-  onStep() {
-
+  handleEvent(ev) {
+    switch (ev.type) {
+      case 'playerBodyId':
+        console.log('hey')
+        this.playerBodyId = ev.id;
+        break;
+    }
   }
 }
 

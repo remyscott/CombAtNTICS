@@ -14,7 +14,7 @@
       // Only act on script loading errors
       if (e.target && e.target.tagName === 'SCRIPT') {
         if (typeof Phaser === 'undefined') {
-          document.write('https://unpkg.com/phaser@4.0.0/dist/phaser.js');
+          document.write('<script src="https://unpkg.com/phaser@4.0.0/dist/phaser.js"><\/script>');
         }
       }
       window.removeEventListener('error', onScriptError, true);

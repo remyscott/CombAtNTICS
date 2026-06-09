@@ -8,13 +8,10 @@ export class IngameWorld extends Phaser.Scene {
     console.log('InWorldObjects initiated')
     const ppmResolution = parseFloat(localStorage.getItem('ppmResolution'));
     this.pixelsPerMeter = Number.isFinite(ppmResolution) ? ppmResolution : objectTypes.pixelsPerMeter || 50;
-  
-    this.environmentCompositeTexture = null;
-    this.environmentCompositeImage = null;
-    this.environmentSky = null;
-    this.environmentTrees = null;
-    this.environmentObjects = []; // extra objects to render in composite (e.g., particles)
-    this.environmentCompositeSize = { w: 1280, h: 720 };
+
+    // NEW: running damage accumulator
+    this.recentDamage = 0;
+    this.recentDamageDecay = 0.995; 
   }
 
   preload() {
@@ -30,30 +27,23 @@ export class IngameWorld extends Phaser.Scene {
     this.input.mouse.disableContextMenu(); 
     this.inputManager = new InputManager(this);
     this.imageManager = new ImageManager(this);
-    this.cameras.main.filters.external.addVignette(0.5, 0.5, 0.7);
 
-    this.game.events.on('event', (ev) => 
-      {
-        switch (ev.type) {
-          case 'damage':
-            if (ev.id === this.game.playerBodyId) {
-              this._playerDamageCameraEffect(ev.amount);
-            }
-            this.imageManager.handleDamageEvent(ev);
-            break;
-          case 'playerBodyId':
-            this.game.playerBodyId = ev.id;
-            break;
-          default:
-            break;
-        }
+    // Store vignette reference
+    this.vignette = this.cameras.main.filters.external.addVignette(0.5, 0.5, 1, 0.3);
+
+    this.game.events.on('damage', (id, amount) => {
+      if (id === this.game.playerBodyId) {
+        this._playerDamageCameraEffect(amount);
       }
-    );
+      this.imageManager.handleDamageEvent(id, amount);
+    });
+
+    this.game.events.on('playerBodyId', (id) => this.game.playerBodyId = id);
   }
   
 
   applyState(state) {
-    if (state && state.objects) this.imageManager.applyBodyStates(state.objects);
+    if (state && state.objects) this.imageManager.applyBodyStateDeltas(state.objects);
   }
 
   update() {
@@ -61,37 +51,53 @@ export class IngameWorld extends Phaser.Scene {
     
     this.centerCamera();
     this.inputManager.tick();
+
+    // NEW: update vignette + background shake
+    this._updateRecentDamageEffects();
   }
 
   centerCamera() {
-    const playerBodyId = this.game.playerBodyId;
-    const bodyMeta = playerBodyId && this.game.metadata?.bodies?.[playerBodyId];
-    const playerImageId = bodyMeta?.fixtures?.[0]?.image?.id;
+    const playerBodyContainer = this.game.bodies.get(this.game.playerBodyId)?.container;
 
-    const playerImage = this.images.get(playerImageId);
-    if (playerImage) {
-      this.cameras.main.centerOn(playerImage.x, playerImage.y);
+    if (playerBodyContainer) {
+      this.cameras.main.centerOn(playerBodyContainer.x, playerBodyContainer.y);
     }
   }
 
-  setCameraFocusId(id) {
-    this.imageManager.setImageFocusId(id);
+  // NEW: smooth vignette + background shake based on recentDamage
+  _updateRecentDamageEffects() {
+    if (!this.vignette) return;
+
+    // decay
+    this.recentDamage *= this.recentDamageDecay;
+
+    const t = Phaser.Math.Clamp(this.recentDamage / 100, 0, 1);
+
+    // Adjust vignette subtly
+    this.vignette.strength = Math.min(0.3 + t * 0.7,1); // 0.3 → 0.7
+
+    // Background shake when damage is high
+    if (t > 0.2) {
+      this.cameras.main.shake(800, 0.001);
+    }
   }
 
   _playerDamageCameraEffect(amount) {
     const cam = this.cameras?.main;
     if (!cam) return;
 
-    const maxDamageForFullEffect = 100;         // damage that gives full intensity
+    // NEW: add to recentDamage pool
+    this.recentDamage = Math.min(100, this.recentDamage + amount);
+
+    const maxDamageForFullEffect = 100;
     const normalized = Phaser.Math.Clamp(amount / maxDamageForFullEffect, 0, 1);
 
-    
     const intensity = normalized * 0.05; // final intensity
     const maxDuration = 600;
     const duration = Math.round(maxDuration * normalized);
     cam.shake(duration, intensity);
 
-    const flashAlpha = normalized;  // not a direct API param, but choose color + duration
-    cam.flash(Math.round(normalized * 300), 255, 200, 200); // short colored flash
+    cam.flash(Math.round(100 + normalized * 1000), 0, 0, 0, true);
+
   }
 }
