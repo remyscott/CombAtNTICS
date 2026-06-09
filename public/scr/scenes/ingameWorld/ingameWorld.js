@@ -76,10 +76,6 @@ export class IngameWorld extends Phaser.Scene {
     // Adjust vignette subtly
     this.vignette.strength = Math.min(0.3 + t * 0.7,1); // 0.3 → 0.7
 
-    // Background shake when damage is high
-    if (t > 0.2) {
-      this.cameras.main.shake(800, 0.001);
-    }
   }
 
   _playerDamageCameraEffect(amount) {
