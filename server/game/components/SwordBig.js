@@ -37,6 +37,8 @@ export class SwordBig extends Component {
         owner: this,
         damageMultiplier: 2.5,
         minDamage: 2,
+        depth: PLAYER_RENDER_DEPTH-1,
+
       }
     });
 

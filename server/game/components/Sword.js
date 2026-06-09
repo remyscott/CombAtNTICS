@@ -2,6 +2,7 @@
 import { Polygon, Vec2, RevoluteJoint } from "planck";
 import { configurableInputs } from "../../../shared/inputsListing.js";
 import { Component } from './Component.js';
+import { PLAYER_RENDER_DEPTH } from "../../../shared/consts.js";
 
 // destructure numeric indices once (cheap at module init)
 const { SWORD_CW, SWORD_CCW, SWORD_SLOW } = configurableInputs;
@@ -36,6 +37,7 @@ export class Sword extends Component {
         owner: this,
         damageMultiplier: 2.5,
         minDamage: 1,
+        depth: PLAYER_RENDER_DEPTH-1,
       }
     });
 

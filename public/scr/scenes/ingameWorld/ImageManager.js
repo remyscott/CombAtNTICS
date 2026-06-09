@@ -1,13 +1,14 @@
 import { getObjectPixelsPerMeter } from '/shared/objectTypes.js';
 
 function getUiScale() {
-  return localStorage.getItem('uiscale') || 1;
+  return Number(localStorage.getItem('uiscale') || 1);
 }
 
-const elementOrder = ['health', 'name']
+const elementOrder = ['health', 'name'];
 function getPaddingFor(key) {
   return 12 * elementOrder.indexOf(key) * getUiScale();
 }
+
 export class ImageManager {
   constructor(scene) {
     this.scene = scene;
@@ -51,7 +52,6 @@ export class ImageManager {
         metaId: f.metaId,
         position: f.position,
         angle: f.angle,
-        depth: f.depth || 0,
         image: null,
         uiContainer: null,
         vars: f.vars || {},
@@ -66,6 +66,7 @@ export class ImageManager {
     }
 
     this._sortBodyFixtures(body);
+    this._updateBodyDepth(body);
     return body;
   }
 
@@ -73,7 +74,12 @@ export class ImageManager {
     body.container.sort((a, b) => {
       const fa = body.fixtures.find(f => f.id === a.id);
       const fb = body.fixtures.find(f => f.id === b.id);
-      return (fb?.depth ?? 0) - (fa?.depth ?? 0);
+
+      const da = fa ? fa.depth || 0 : 0;
+      const db = fb ? fb.depth || 0 : 0;
+
+      // lower depth behind, higher depth in front
+      return da - db;
     });
   }
 
@@ -105,17 +111,29 @@ export class ImageManager {
       img.setRotation(fixture.angle);
     }
 
+    // depth comes from FIXTURE METADATA, not body fixture info
+    fixture.depth = typeof meta.depth === 'number' ? meta.depth : 0;
+
     body.container.add(img);
     fixture.body = body;
     fixture.image = img;
     this.fixtures.set(fixture.id, fixture);
 
     if (fixture.vars && Object.keys(fixture.vars).length) {
-      console.log(fixture.vars);
       this.applyFixtureVars(fixture, fixture.vars);
     }
 
     return img;
+  }
+
+  _updateBodyDepth(body) {
+    if (!body.fixtures.length) {
+      body.container.setDepth(0);
+      return;
+    }
+
+    const maxFixtureDepth = Math.max(...body.fixtures.map(f => f.depth || 0));
+    body.container.setDepth(maxFixtureDepth);
   }
 
   // UI container per fixture, follows position but not rotation
@@ -130,7 +148,6 @@ export class ImageManager {
     fixture.uiContainer = ui;
     return ui;
   }
-
 
   _getFixtureScale(meta) {
     const localPpm =
@@ -158,6 +175,10 @@ export class ImageManager {
       body.container.x = state.pos.x * ppm;
       body.container.y = state.pos.y * ppm;
       body.container.rotation = state.angle || 0;
+
+      // depth might depend on vars/metadata changes, so keep it fresh
+      this._sortBodyFixtures(body);
+      this._updateBodyDepth(body);
     }
 
     this._updateFixtureUI();
@@ -226,6 +247,13 @@ export class ImageManager {
     if (!fixture) return;
 
     this.applyFixtureVars(fixture, vars);
+
+    // vars might affect depth via metadata changes; keep body sorted
+    const body = fixture.body;
+    if (body) {
+      this._sortBodyFixtures(body);
+      this._updateBodyDepth(body);
+    }
   }
 
   applyFixtureVars(fixture, vars = {}) {
@@ -255,7 +283,7 @@ export class ImageManager {
         fontSize: `${12 * getUiScale()}px`,
         color: "#fff",
         align: "center",
-        stroke: '#000000',      
+        stroke: '#000000',
         strokeThickness: 2
       }).setOrigin(0.5, 0.5);
 
@@ -289,17 +317,14 @@ export class ImageManager {
     const maxHealth = fixture.vars.maxHealth || 100;
     const ratio = Phaser.Math.Clamp(health / maxHealth, 0, 1);
 
-    // --- Smooth color blend: green → yellow → red ---
-    // Green (0,255,0) → Yellow (255,255,0) → Red (255,0,0)
+    // Smooth color blend: green → yellow → red
     let r, g;
 
     if (ratio > 0.5) {
-      // Green → Yellow
       const t = (ratio - 0.5) * 2;
       r = 255 * (1 - t);
       g = 255;
     } else {
-      // Yellow → Red
       const t = ratio * 2;
       r = 255;
       g = 255 * t;
@@ -308,7 +333,7 @@ export class ImageManager {
     const color = (r << 16) | (g << 8) | 0;
 
     fixture.healthBar.fillColor = color;
-    fixture.healthBar.scaleX = Math.max(health/100,0);
+    fixture.healthBar.scaleX = ratio;
 
     fixture.healthBar._offsetY = -(img.displayHeight / 2) - getPaddingFor('health');
   }
@@ -317,40 +342,37 @@ export class ImageManager {
     const ppm = this.scene.pixelsPerMeter || 50;
 
     for (const fixture of this.fixtures.values()) {
-        const img = fixture.image;
-        if (!img) continue;
+      const img = fixture.image;
+      if (!img) continue;
 
-        const body = fixture.body;
-        if (!body) continue;
+      const body = fixture.body;
+      if (!body) continue;
 
-        const ui = fixture.uiContainer;
-        if (!ui) continue;
+      const ui = fixture.uiContainer;
+      if (!ui) continue;
 
-        // --- Compute fixture world position exactly like the physics engine ---
-        const fx = fixture.position?.x || 0;
-        const fy = fixture.position?.y || 0;
+      const fx = fixture.position?.x || 0;
+      const fy = fixture.position?.y || 0;
 
-        const cos = Math.cos(body.container.rotation);
-        const sin = Math.sin(body.container.rotation);
+      const cos = Math.cos(body.container.rotation);
+      const sin = Math.sin(body.container.rotation);
 
-        const worldX = body.container.x + (fx * ppm * cos - fy * ppm * sin);
-        const worldY = body.container.y + (fx * ppm * sin + fy * ppm * cos);
+      const worldX = body.container.x + (fx * ppm * cos - fy * ppm * sin);
+      const worldY = body.container.y + (fx * ppm * sin + fy * ppm * cos);
 
-        // --- Apply world position, but no rotation ---
-        ui.x = worldX;
-        ui.y = worldY;
-        ui.rotation = 0;
+      ui.x = worldX;
+      ui.y = worldY;
+      ui.rotation = 0;
 
-        // --- Apply offsets for name + health bar ---
-        if (fixture.nameText) {
-            fixture.nameText.x = 0;
-            fixture.nameText.y = fixture.nameText._offsetY || 0;
-        }
+      if (fixture.nameText) {
+        fixture.nameText.x = 0;
+        fixture.nameText.y = fixture.nameText._offsetY || 0;
+      }
 
-        if (fixture.healthBar) {
-            fixture.healthBar.x = 0;
-            fixture.healthBar.y = fixture.healthBar._offsetY || 0;
-        }
+      if (fixture.healthBar) {
+        fixture.healthBar.x = 0;
+        fixture.healthBar.y = fixture.healthBar._offsetY || 0;
+      }
     }
   }
 }
