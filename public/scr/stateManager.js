@@ -79,6 +79,7 @@ export class StateManager {
         break;
       case 'damage':
         this.game.events.emit('damage', ev.id, ev.amount);
+        this.game.events.emit('fixtureVarsUpdate', ev.id, {health: ev.health});
         break;
       default:
         break;

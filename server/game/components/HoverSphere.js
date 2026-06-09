@@ -45,11 +45,14 @@ export class HoverSphere extends Component {
         scale: hoverScale,
         depth: PLAYER_RENDER_DEPTH,
         health: this.opts.health,
+        vars: {name: player.name, health: this.opts.health, maxHealth: this.opts.health},
+        owner: player
       }
     });
 
-    this.fixture = this.body.createFixture(fixtureOpts);
+    
 
+    this.fixture = this.body.createFixture(fixtureOpts);
     this.body.getWorld().registerBody(this.body);
 
     // small reusable temporaries to avoid allocations

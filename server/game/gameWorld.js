@@ -37,7 +37,7 @@ export class GameWorld extends World {
       const dataA = fA.getUserData();
       const dataB = fB.getUserData();
 
-      // defensive checks
+      if (!(dataA.damageMultiplier > 0) && (dataB.damageMultiplier > 0)) return;
       if (!impulse || !impulse.normalImpulses) return;
 
       const totalImpulse = sum(...impulse.normalImpulses);
@@ -45,11 +45,24 @@ export class GameWorld extends World {
       
       const damageA = this.tryApplyDamage(dataA, dataB, totalImpulse);
       const damageB = this.tryApplyDamage(dataB, dataA, totalImpulse);
-      if (damageA) this.createSparks(contact, damageA);
-      if (damageB) this.createSparks(contact, damageB);
-      if (damageA) this.game.pushEvent({ type: 'damage', id: fA.getBody().getUserData().id, amount: damageA });
-      if (damageB) this.game.pushEvent({ type: 'damage', id: fB.getBody().getUserData().id, amount: damageB });
+      if (damageA) {
+        this.createSparks(contact, damageA); 
+        this.game.pushEvent({ type: 'damage', id: dataA.id, amount: damageA, health: dataA.health });}
+      if (damageB) {
+        this.createSparks(contact, damageB); 
+        this.game.pushEvent({ type: 'damage', id: dataB.id, amount: damageB, health: dataB.health });
+      }
     });
+  }
+
+  tryApplyDamage(targetData, sourceData, impulse) {
+    if (impulse <= 0.2) return
+    if (!targetData || typeof targetData.health !== 'number') return;
+    if (!sourceData || typeof sourceData.damageMultiplier !== 'number') return;
+    const damage = impulse * sourceData.damageMultiplier - sourceData.minDamage;
+    if (damage <= 0) return;
+    targetData.health -= damage;
+    if (damage >= 0) return damage;
   }
 
   setUpBulletDecayListener() {
@@ -115,15 +128,7 @@ export class GameWorld extends World {
     }
   }
 
-  tryApplyDamage(targetData, sourceData, impulse) {
-    if (impulse <= 0.2) return
-    if (!targetData || typeof targetData.health !== 'number') return;
-    if (!sourceData || typeof sourceData.damageMultiplier !== 'number') return;
-    const damage = impulse * sourceData.damageMultiplier - sourceData.minDamage;
-    if (damage <= 0) return;
-    targetData.health -= damage;
-    if (damage >= 0) return damage;
-  }
+  
 
   loadMapObjects(objects) {
     this.createBodyForType = {'ball': this.createBallBody, 'box': this.createBoxBody, 'lockbox': this.createLockboxBody, 'circle': this.createCircleBody};
@@ -245,30 +250,6 @@ export class GameWorld extends World {
       }
     });
 
-    // If moving, attach motion metadata to the body userData so step() can find it.
-    if (isMoving) {
-      const ud = body.getUserData();
-      // motion config: frequency (hz), phase (radians), magnitude (use scale)
-      // allow optional overrides on config: freq, phase, axisMask
-      const freq = typeof config.freq === 'number' ? config.freq : 1.0;       // 1 Hz default
-      const phase = typeof config.phase === 'number' ? config.phase : 0.0;    // 0 rad default
-      const mag = typeof config.mag === 'number' ? config.mag * config.scale : config.scale;      // magnitude == scale
-      // axisMask optionally controls which axes move: 'xy', 'x', 'y'
-      const axis = (typeof config.axis === 'string') ? config.axis.toLowerCase() : 'xy';
-
-      // store original base position so movement is relative to spawn point
-      ud.motion = {
-        moving: true,
-        baseX: ud.position ? ud.position.x : (config.position && config.position.x) || 0,
-        baseY: ud.position ? ud.position.y : (config.position && config.position.y) || 0,
-        freq,
-        phase,
-        mag,
-        axis
-      };
-    }
-
-
     return body;
   }
 
@@ -286,20 +267,16 @@ export class GameWorld extends World {
       ? (() => { const { owner, ...withoutOwner } = bodyMetadata; return withoutOwner; })()
       : bodyMetadata;
 
-    // Ensure fixtures array exists so pushes won't fail
     storedMeta.fixtures = [];
 
-    // Save to canonical store
     this.metadata.bodies[bodyMetadata.id] = storedMeta;
 
-    // Iterate fixtures on the body and create/reuse fixture meta ids
     let fixture = body.getFixtureList();
     while (fixture) {
       const fixtureMetadata = fixture.getUserData() || {}; 
       const metaId = this._findOrCreateFixtureMeta(fixtureMetadata);
+      this.metadata.bodies[bodyMetadata.id].fixtures.push({ metaId, id: fixtureMetadata.id, angle: fixtureMetadata.angle || 0, position: fixtureMetadata.position || null, vars: fixtureMetadata.vars || null});
 
-      // Keep instance-level fixture info within body metadata (if needed)
-      this.metadata.bodies[bodyMetadata.id].fixtures.push({ metaId, id: fixtureMetadata.id, angle: fixtureMetadata.angle || 0, position: fixtureMetadata.position || null });
 
       fixture = fixture.getNext();
     }

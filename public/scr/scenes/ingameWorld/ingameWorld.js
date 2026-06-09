@@ -31,12 +31,11 @@ export class IngameWorld extends Phaser.Scene {
     // Store vignette reference
     this.vignette = this.cameras.main.filters.external.addVignette(0.5, 0.5, 1, 0.3);
 
-    this.game.events.on('damage', (id, amount) => {
-      if (id === this.game.playerBodyId) {
-        this._playerDamageCameraEffect(amount);
-      }
-      this.imageManager.handleDamageEvent(id, amount);
+    this.game.events.on('damage', (id,amount) => {
+      if (this.imageManager.fixtures.get(id).bodyId === this.game.playerBodyId)
+      this._playerDamageCameraEffect(amount);
     });
+    
 
     this.game.events.on('playerBodyId', (id) => this.game.playerBodyId = id);
   }
