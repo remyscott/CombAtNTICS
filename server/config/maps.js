@@ -187,7 +187,7 @@ export function makeBallPit() {
     planckConfig: { gravity: { x: 0, y: 9.8 } },
     objects: [
       ...makeScatter(10, 250, 0, { objectType: 'ball', scaleMin: 0.8, scaleMax: 1.2 }),
-      ...makeCircleArc(15, 36, 0, 360, { objectType: 'lockbox', scale: 3})
+      ...makeCircleArc(150, 36, 0, 360, { objectType: 'lockbox', scale: 30})
     ]
   };
 

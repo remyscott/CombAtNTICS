@@ -92,6 +92,15 @@ export class Player {
     this.sendBodyId();
   }
 
+  tp(destPos) {
+    for (const component of this.components) {
+      if (component.body) {
+        component.body.setPosition(destPos);
+        component.body.setLinearVelocity({ x: 0, y: 0 });
+      }
+    }
+  }
+  
   attachWS(ws) {
     if (!ws) return;
 

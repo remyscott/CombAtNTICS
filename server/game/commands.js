@@ -308,9 +308,17 @@ const commands = {
     description: 'Get account details of player'
   },
 
+  '/s': {
+    function: function () {
+  this.player.respawn()    
+},
+    description: 'spawn'
+  },
+
   '/setComps': {
     requiredRole: 'mod',
     function: function (targetId, ...componentNames) {
+      if (!targetId) targetId = '@s';
       const p = this.resolvePlayer(targetId);
       if (!p) {
         this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Player not found', nameOfSender: 'SERVER' }));
@@ -318,7 +326,9 @@ const commands = {
       }
       if (componentNames.length === 0) {
         p.componentClasses = randomComponents();
+        const originalPos = p.body.getPosition();
         p.respawn();
+        p.tp(originalPos);
         p.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Your components have been randomized`, nameOfSender: 'SERVER' }));
 
         return;
@@ -342,7 +352,7 @@ const commands = {
         this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Failed to set components: ${err.message}`, nameOfSender: 'SERVER' }));
       }
     },
-    description: 'Set components for a player (mod+). Example: /setComponents username HoverSphere,Dash,Sword'
+    description: 'Set components for a player (mod+). Example: /setComponents username HoverSphere Dash Sword'
   },
 
   '/spec': {
@@ -378,13 +388,15 @@ const commands = {
         return;
       }
       sf = Number(sf)
-      if (sf < 0.25 || sf > 4) {
-        this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'too small or too big, sf @s E[0.25,4]', nameOfSender: 'SERVER' }));
+      if (sf < 0.25 || sf > 16) {
+        this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'too small or too big, sf @s E[0.25,16]', nameOfSender: 'SERVER' }));
         return;
       }
       try {
         p.opts.scaleFactor = sf;
+        const originalPos = p.body.getPosition()
         p.respawn();
+        p.tp(originalPos)
         p.ws.send(JSON.stringify({ type: 'chatMsg', msg: `sf set to ${sf} by ${this.player.name}`, nameOfSender: 'SERVER' }));
       } catch (err) {
         this.player.ws.send(JSON.swtringify({ type: 'chatMsg', msg: `sf failed: ${err.message}`, nameOfSender: 'SERVER' }));
@@ -421,19 +433,11 @@ const commands = {
       }
 
       try {
-        if (p.body) {
-          const destPos = dest.body.getPosition();
-          for (const component of p.components) {
-            if (component.body) {
-              component.body.setPosition(destPos);
-              component.body.setLinearVelocity({ x: 0, y: 0 });
-
-            }
-          }
-          p.ws.send(JSON.stringify({ type: 'chatMsg', msg: `You were teleported by ${this.player.name}`, nameOfSender: 'SERVER' }));
-          this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Teleported ${p.account.username} to ${dest.account.username}`, nameOfSender: 'SERVER' }));
-          this.player.game.broadcast({ type: 'chatMsg', msg: `${p.account.username} was teleported to ${dest.account.username}`, nameOfSender: 'SERVER' });
-        }
+        const destPos = dest.body.getPosition();
+        p.tp(destPos)
+        p.ws.send(JSON.stringify({ type: 'chatMsg', msg: `You were teleported by ${this.player.name}`, nameOfSender: 'SERVER' }));
+        this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Teleported ${p.account.username} to ${dest.account.username}`, nameOfSender: 'SERVER' }));
+        this.player.game.broadcast({ type: 'chatMsg', msg: `${p.account.username} was teleported to ${dest.account.username}`, nameOfSender: 'SERVER' });
       } catch (err) {
         this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Teleport failed: ${err.message}`, nameOfSender: 'SERVER' }));
       }
@@ -441,7 +445,3 @@ const commands = {
     description: 'Teleport a player to another player. Usage: /tp player destination (use @s for self)'
   }
 };
-
-function teleportPlayerTo() {
-
-}

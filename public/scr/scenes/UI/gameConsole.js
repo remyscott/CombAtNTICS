@@ -3,7 +3,7 @@ export class GameConsole {
   constructor(scene, opts = {}) {
     this.scene = scene;
     this.opts = Object.assign({
-      maxMessages: 30,
+      maxMessages: 50,
       ttl: 15000,
       spacing: 6,
       padding: 12,
