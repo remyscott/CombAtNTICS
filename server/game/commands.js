@@ -1,7 +1,7 @@
 import { componentList, componentMap } from "./componentMap.js";
 import { randomComponents } from "./player.js";
 import accounts from '../accounts-sqlite.js';
-
+import {Vec2} from 'planck';
 export class CommandInterpretor {
   constructor(player) {
     if (!player) throw new Error('CommandInterpretor requires a player instance');
@@ -345,7 +345,10 @@ const commands = {
 
       try {
         p.componentClasses = validComponents;
+        const originalPos = p.body.getPosition();
         p.respawn();
+        p.tp(originalPos);
+
         this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `${p.account.username}'s components set to ${validComponents.map(c => c.name).join(', ')}`, nameOfSender: 'SERVER' }));
         p.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Your components have been changed to ${validComponents.map(c => c.name).join(', ')}`, nameOfSender: 'SERVER' }));
       } catch (err) {
@@ -416,32 +419,41 @@ const commands = {
 
   '/tp': {
     requiredRole: 'mod',
-    function: function (targetId, destinationId) {
-      if (!targetId || !destinationId) {
+    function: function (targetId, ...args) {
+      if (!targetId) {
         this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Usage: /tp player destination (use @s for self)', nameOfSender: 'SERVER' }));
         return;
       }
       const p = this.resolvePlayer(targetId);
-      const dest = this.resolvePlayer(destinationId);
       if (!p) {
         this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Target player not found', nameOfSender: 'SERVER' }));
         return;
       }
-      if (!dest || !dest.body) {
-        this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Destination player not found or has no body', nameOfSender: 'SERVER' }));
+      if (!args) {
+        this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'destination required dumbass', nameOfSender: 'SERVER' }));
+        return
+      }
+      let destPos = null;
+      if (args.length === 1) {
+        destPos = this.resolvePlayer(args[0])?.body?.getPosition();
+      } else {
+        destPos = Vec2(Number(args[0]), Number(args[1]))
+      }
+      
+      if (!destPos || (!destPos.x) || (!destPos.y)) {
+        this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Destination not found', nameOfSender: 'SERVER' }));
         return;
       }
 
       try {
-        const destPos = dest.body.getPosition();
         p.tp(destPos)
         p.ws.send(JSON.stringify({ type: 'chatMsg', msg: `You were teleported by ${this.player.name}`, nameOfSender: 'SERVER' }));
-        this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Teleported ${p.account.username} to ${dest.account.username}`, nameOfSender: 'SERVER' }));
-        this.player.game.broadcast({ type: 'chatMsg', msg: `${p.account.username} was teleported to ${dest.account.username}`, nameOfSender: 'SERVER' });
+        this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Teleported ${p.account.username} to ${destPos}`, nameOfSender: 'SERVER' }));
+        this.player.game.broadcast({ type: 'chatMsg', msg: `${p.account.username} was teleported to ${destPos}`, nameOfSender: 'SERVER' });
       } catch (err) {
         this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Teleport failed: ${err.message}`, nameOfSender: 'SERVER' }));
       }
     },
-    description: 'Teleport a player to another player. Usage: /tp player destination (use @s for self)'
+    description: 'Teleport a player to another player or to coords. Usage: /tp player {player2 OR 15 15}'
   }
 };

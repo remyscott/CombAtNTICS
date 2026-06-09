@@ -39,7 +39,7 @@ export class Dash extends Component {
         type: 'dynamic',
         position: this.player.body.getPosition(),
         angle: 0,
-        userData: { owner: this, type: 'dashCore', scale: this.opts.scaleFactor, depth: PLAYER_RENDER_DEPTH + 50000000 }
+        userData: { owner: this }
       });
 
       this.fixture = this.body.createFixture({
@@ -47,7 +47,7 @@ export class Dash extends Component {
         density: 0.01,
         isSensor: true,
         filter: { categoryBits: 0, maskBits: 0 },
-        userData: { id: world.newId(), type: 'dashCore', scale: this.opts.scaleFactor, depth: PLAYER_RENDER_DEPTH + 50000000000 }
+        userData: { id: world.newId(), type: 'dashCore', scale: this.opts.scaleFactor, depth: PLAYER_RENDER_DEPTH + 5 }
       });
 
       this.body.setGravityScale(0);
@@ -63,7 +63,7 @@ export class Dash extends Component {
         motorSpeed: 0,
       }));
 
-      this.registerBody(this.body);
+      player.game.world.registerBody(this.body);
     }
   }
 

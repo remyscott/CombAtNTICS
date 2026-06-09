@@ -94,7 +94,7 @@ const objectTypes = {
         "userData": {
           "damageMultiplier": 2,
           "minDamage": 1,
-          "depth": PLAYER_RENDER_DEPTH - 1,
+          "depth": PLAYER_RENDER_DEPTH - 5,
         }
       }
     },
@@ -116,7 +116,7 @@ const objectTypes = {
         "userData": {
           "damageMultiplier": 2,
           "minDamage": 2,
-          "depth": PLAYER_RENDER_DEPTH - 1,
+          "depth": PLAYER_RENDER_DEPTH - 5,
           
         }
       }
@@ -145,7 +145,7 @@ const objectTypes = {
         "friction": 0.5,
         "restitution": 0,
         "userData": {
-          "depth": 1000
+          "depth": PLAYER_RENDER_DEPTH + 500
         }
       }
     },

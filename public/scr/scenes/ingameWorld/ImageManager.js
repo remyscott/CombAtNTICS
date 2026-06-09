@@ -63,10 +63,11 @@ export class ImageManager {
 
     for (const fixture of body.fixtures) {
       this._ensureFixture(body, fixture);
+      body.container.setDepth(fixture.depth)
+      console.log(body.container.depth);
     }
 
     this._sortBodyFixtures(body);
-    this._updateBodyDepth(body);
     return body;
   }
 
@@ -118,7 +119,8 @@ export class ImageManager {
     }
 
     // depth comes from FIXTURE METADATA, not body fixture info
-    fixture.depth = typeof meta.depth === 'number' ? meta.depth : 0;
+    fixture.depth = meta.depth || 0;
+    if (fixture.depth) {console.log(fixture); console.log(meta.type);}
 
     body.container.add(img);
     fixture.body = body;
@@ -130,16 +132,6 @@ export class ImageManager {
     }
 
     return img;
-  }
-
-  _updateBodyDepth(body) {
-    if (!body.fixtures.length) {
-      body.container.setDepth(0);
-      return;
-    }
-
-    const maxFixtureDepth = Math.max(...body.fixtures.map(f => f.depth || 0));
-    body.container.setDepth(maxFixtureDepth);
   }
 
   // UI container per fixture, follows position but not rotation
@@ -181,10 +173,6 @@ export class ImageManager {
       body.container.x = state.pos.x * ppm;
       body.container.y = state.pos.y * ppm;
       body.container.rotation = state.angle || 0;
-
-      // depth might depend on vars/metadata changes, so keep it fresh
-      this._sortBodyFixtures(body);
-      this._updateBodyDepth(body);
     }
 
     this._updateFixtureUI();
@@ -240,6 +228,7 @@ export class ImageManager {
       }
       if (fixture.uiContainer) {
         fixture.uiContainer.destroy();
+        this.scene.uiLayer.remove(fixture.uiContainer);
       }
       this.fixtures.delete(fixture.id);
     }
@@ -253,13 +242,6 @@ export class ImageManager {
     if (!fixture) return;
 
     this.applyFixtureVars(fixture, vars);
-
-    // vars might affect depth via metadata changes; keep body sorted
-    const body = fixture.body;
-    if (body) {
-      this._sortBodyFixtures(body);
-      this._updateBodyDepth(body);
-    }
   }
 
   applyFixtureVars(fixture, vars = {}) {

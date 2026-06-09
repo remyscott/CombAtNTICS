@@ -1,6 +1,6 @@
 import { lerpStatesFast } from './statelerper.js'; // unused here for now, kept for future use
 
-const MIN_HISTORY_VALUES = 15;
+const MIN_HISTORY_VALUES = 5;
 
 export class StateManager {
   constructor(ws, game) {
@@ -15,7 +15,7 @@ export class StateManager {
 
     this.networkBuffer = 100;
     this.clockOffset = 0;
-    this.HISTORY_TIME = 1000;
+    this.HISTORY_TIME = 300;
     this.game.events.on('step', (time, delta) => this._onStep(time, delta));
   }
 

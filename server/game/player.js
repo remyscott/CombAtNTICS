@@ -18,7 +18,7 @@ export function randomComponents() {
 
     components.push(HoverSphere);
 
-    if (chance(0.9)) {
+    if (chance(0.5)) {
       components.push(SwordBig);
       components.push(TitaniumCore);
     } else {
