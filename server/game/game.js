@@ -99,7 +99,7 @@ export class Game {
 
     for (const player of this.players.values()) {
       player.applyInputs();
-      player.update();
+      player.update(TIMESTEP);
     }
     
     const t0 = performance.now();

@@ -291,7 +291,7 @@ export class Player {
     }
   }
 
-  update() {
+  update(TIMESTEP) {
     if (!this.ws) {
       this._disconnectTimer -= 1/60;
       if (this._disconnectTimer <= 0) {
@@ -303,7 +303,7 @@ export class Player {
   
     for (const component of this.components) {
       if (typeof component.update === 'function') {
-        component.update();
+        component.update(TIMESTEP);
       }
     }
   }

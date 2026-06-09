@@ -321,14 +321,14 @@ export class ImageManager {
     }
 
     const maxHealth = fixture.vars.maxHealth || 100;
-    const ratio = Phaser.Math.Clamp(health / maxHealth, 0, 1);
+    const ratio = Math.max(health / maxHealth, 0);
 
     // Smooth color blend: green → yellow → red
     let r, g;
 
     if (ratio > 0.5) {
       const t = (ratio - 0.5) * 2;
-      r = 255 * (1 - t);
+      r = Math.max(255 * (1 - t),127);
       g = 255;
     } else {
       const t = ratio * 2;
@@ -339,7 +339,7 @@ export class ImageManager {
     const color = (r << 16) | (g << 8) | 0;
 
     fixture.healthBar.fillColor = color;
-    fixture.healthBar.scaleX = ratio;
+    fixture.healthBar.scaleX = ratio * maxHealth/100;
 
     fixture.healthBar._offsetY = -(img.displayHeight / 2) - getPaddingFor('health');
   }

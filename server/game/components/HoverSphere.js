@@ -110,7 +110,7 @@ export class HoverSphere extends Component {
     this.body.setLinearVelocity(mulScalar(this.body.getLinearVelocity(), this.opts.dampingFactor))
   }
 
-  update() {
+  update(TIMESTEP) {
     this.checkIfDead();
   }
 
@@ -119,6 +119,8 @@ export class HoverSphere extends Component {
       this.body.getWorld().destroyBody(this.body);
     }
   }
+
+
 
   checkIfDead() {
     if (this.fixture.getUserData().health <= 0) {
