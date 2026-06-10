@@ -11,10 +11,10 @@ export class SwordBig extends Component {
   constructor(player, opts = {}) {
     super(player, opts);
     const defaults = {
-      density: 0.5,
+      density: 0.75,
       friction: 1,
       restitution: 0,
-      torque: { value: 40, scaleOrder: 3 },
+      torque: { value: 50, scaleOrder: 3 },
       angularDampingWhenSlow: 300
     };
     this.opts = this.normalizeOpts(defaults, opts);
