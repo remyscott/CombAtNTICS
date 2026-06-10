@@ -4,7 +4,7 @@ function getUiScale() {
   return Number(localStorage.getItem('uiscale') || 1);
 }
 
-const elementOrder = ['name', 'health', 'energy', ];
+const elementOrder = ['name', 'health', 'energy'];
 function getPaddingFor(key) {
   return 10 * elementOrder.indexOf(key) * getUiScale();
 }
@@ -12,10 +12,10 @@ function getPaddingFor(key) {
 export class ImageManager {
   constructor(scene) {
     this.scene = scene;
-    this.bodies = new Map();
-    this.fixtures = new Map();
-    this.scene.game.bodies = this.bodies;
-    this.requestedMetadata = false;
+
+    // Render-only maps
+    this.renderBodies = new Map();   // bodyId -> { id, container, fixtures: [] }
+    this.renderFixtures = new Map(); // fixtureId -> { id, bodyId, image, ui, vars, depth }
 
     // UI layer for names / health bars that should not rotate
     if (!this.scene.uiLayer) {
@@ -23,89 +23,152 @@ export class ImageManager {
       this.scene.uiLayer.setDepth(99999);
     }
 
-    this.scene.game.events.on('destroyBody', (bodyId) => this.destroyBody(bodyId));
-    this.scene.game.events.on('fixtureVarsUpdate', (id, vars) => this.handleVarsUpdate(id, vars));
+    // Listen for batched state updates
+    this.scene.game.events.on('stateUpdated', payload => this._onStateUpdated(payload));
+
+    // Damage tint animation
     this.scene.game.events.on('damage', (id, amount) => {
-      this.handleDamageEvent(id, amount);
+      this._handleDamageEvent(id, amount);
     });
   }
 
-  _ensureBody(id) {
-    let body = this.bodies.get(id);
-    if (body) return body;
+  /* ---------------------------------------------------------
+   *  MAIN UPDATE HANDLER
+   * --------------------------------------------------------- */
+  _onStateUpdated({ movedBodies, changedFixtures, destroyedBodies, newBodies, newFixtures }) {
+    const ppm = this.scene.pixelsPerMeter || 50;
+    const game = this.scene.game;
 
-    const meta = this.scene.game.metadata?.bodies?.[id];
-    if (!meta) {
-      this.requestMetadata();
-      return null;
+    // 1. Destroy bodies (render-only)
+    for (const bodyId of destroyedBodies || []) {
+      this._destroyBodyRender(bodyId);
     }
 
-    const container = this.scene.add.container(0, 0);
-    container.id = id;
+    // ⭐ Remove any fixture IDs that belong to destroyed bodies
+    const destroyedSet = new Set(destroyedBodies || []);
 
-    body = {
-      id,
-      meta,
-      container,
-      fixtures: meta.fixtures.map(f => ({
-        id: f.id,
-        metaId: f.metaId,
-        position: f.position,
-        angle: f.angle,
-        image: null,
-        uiContainer: null,
-        vars: f.vars || {},
-        bodyId: id
-      }))
+    const filterOutDestroyedFixtures = (fixtureIds) => {
+      return fixtureIds.filter(id => {
+        const fs = game.fixtures.get(id);
+        return fs && !destroyedSet.has(fs.bodyId);
+      });
     };
 
-    this.bodies.set(id, body);
+    newFixtures = filterOutDestroyedFixtures(newFixtures || []);
+    changedFixtures = filterOutDestroyedFixtures(changedFixtures || []);
 
-    
+    // ⭐ Remove destroyed bodies from movedBodies
+    movedBodies = (movedBodies || []).filter(id => !destroyedSet.has(id));
 
-    this._sortBodyFixtures(body);
-    return body;
+    // 2. Create containers for new bodies
+    for (const bodyId of newBodies || []) {
+      const bodyState = game.bodies.get(bodyId);
+      if (!bodyState) continue;
+      this._ensureRenderBody(bodyState);
+    }
+
+    // 3. Create images for new fixtures
+    for (const fixtureId of newFixtures) {
+      const fixtureState = game.fixtures.get(fixtureId);
+      if (!fixtureState) continue;
+
+      const renderFixture = this._ensureRenderFixture(fixtureState);
+      if (!renderFixture) continue; // ⭐ skip if creation failed
+
+      this.applyFixtureVars(renderFixture, renderFixture.vars || {});
+    }
+
+    // 4. Update transforms for moved bodies
+    for (const bodyId of movedBodies) {
+      const bodyState = game.bodies.get(bodyId);
+      if (!bodyState) continue;
+
+      const renderBody = this.renderBodies.get(bodyId);
+      if (!renderBody) continue;
+
+      const container = renderBody.container;
+      container.x = bodyState.interpolatedPos.x * ppm;
+      container.y = bodyState.interpolatedPos.y * ppm;
+      container.rotation = bodyState.interpolatedAngle;
+
+      this._updateFixtureUIForBody(renderBody, ppm);
+    }
+
+    // 5. Vars changes
+    for (const fixtureId of changedFixtures) {
+      const fixtureState = game.fixtures.get(fixtureId);
+      if (!fixtureState) continue;
+
+      const renderFixture = this._ensureRenderFixture(fixtureState);
+      if (!renderFixture) continue; // ⭐ skip if fixture was destroyed
+
+      this.applyFixtureVars(renderFixture, renderFixture.vars || {});
+    }
   }
 
-  _sortBodyFixtures(body) {
-    // 1. Sort fixtures by depth
-    const sorted = [...body.fixtures].sort((a, b) => {
-        const da = a.depth || 0;
-        const db = b.depth || 0;
-        return da - db;
-    });
 
-    // 2. Remove all images from container
-    body.container.removeAll(false);
+  /* ---------------------------------------------------------
+   *  RENDER BODY
+   * --------------------------------------------------------- */
+  _ensureRenderBody(bodyState) {
+    let renderBody = this.renderBodies.get(bodyState.id);
+    if (renderBody) return renderBody;
 
-    // 3. Re-add in sorted order
-    for (const fixture of sorted) {
-        if (fixture.image) {
-            body.container.add(fixture.image);
-        }
-    }
+    const container = this.scene.add.container(0, 0);
+    container.id = bodyState.id;
 
-    for (const fixture of body.fixtures) {
-      this._ensureFixture(body, fixture);
-      body.container.setDepth(fixture.depth)
-    }
+    renderBody = {
+      id: bodyState.id,
+      container,
+      fixtures: [] // array of renderFixtures
+    };
+
+    this.renderBodies.set(bodyState.id, renderBody);
+    return renderBody;
   }
 
-  _ensureFixture(body, fixture) {
-    const meta = this.scene.game.metadata?.fixtures?.[fixture.metaId];
+  /* ---------------------------------------------------------
+   *  RENDER FIXTURE
+   * --------------------------------------------------------- */
+  _ensureRenderFixture(fixtureState) {
+    let renderFixture = this.renderFixtures.get(fixtureState.id);
+    if (renderFixture) return renderFixture;
 
-    if ((!fixture?.depth) && meta?.depth && fixture?.image) {
-      fixture.depth = meta.depth;
-      fixture.image.setDepth(fixture.depth)
-      this._sortBodyFixtures(body);
-    }
+    const game = this.scene.game;
+    const meta = game.metadata?.fixtures?.[fixtureState.metaId];
+    if (!meta) return null;
 
-    if (fixture.image) return fixture.image;
+    const renderBody = this._ensureRenderBody(game.bodies.get(fixtureState.bodyId));
+    if (!renderBody) return null;
 
-    if (!meta) {
-      this.requestMetadata();
-      return null;
-    }
+    renderFixture = {
+      id: fixtureState.id,
+      bodyId: fixtureState.bodyId,
+      metaId: fixtureState.metaId,
+      position: fixtureState.position,
+      angle: fixtureState.angle,
+      image: null,
+      ui: {
+        container: null,
+        nameText: null,
+        healthBar: null,
+        energyBar: null
+      },
+      vars: fixtureState.vars || {},
+      depth: meta.depth ?? 1
+    };
+
+    this.renderFixtures.set(fixtureState.id, renderFixture);
+    renderBody.fixtures.push(renderFixture);
+
+    this._createFixtureImage(renderBody, renderFixture, meta);
+    this._sortBodyFixtures(renderBody);
+
+    return renderFixture;
+  }
+
+  _createFixtureImage(renderBody, renderFixture, meta) {
+    if (renderFixture.image) return renderFixture.image;
 
     const scale = this._getFixtureScale(meta);
 
@@ -113,88 +176,79 @@ export class ImageManager {
       .setOrigin(0.5)
       .setScale(scale);
 
-    img.id = fixture.id;
+    img.id = renderFixture.id;
+    img.setDepth(renderFixture.depth);
 
-    if (fixture.position) {
+    const ppm = this.scene.pixelsPerMeter || 50;
+    if (renderFixture.position) {
       img.setPosition(
-        (fixture.position.x * this.scene.pixelsPerMeter) || 0,
-        (fixture.position.y * this.scene.pixelsPerMeter) || 0
+        (renderFixture.position.x * ppm) || 0,
+        (renderFixture.position.y * ppm) || 0
       );
     }
 
-    if (fixture.angle) {
-      img.setRotation(fixture.angle);
+    if (renderFixture.angle) {
+      img.setRotation(renderFixture.angle);
     }
 
-    // depth comes from FIXTURE METADATA, not body fixture info
-
-    body.container.add(img);
-    fixture.body = body;
-    fixture.image = img;
-    this.fixtures.set(fixture.id, fixture);
-
-
-    if (fixture.vars && Object.keys(fixture.vars).length) {
-      this.applyFixtureVars(fixture, fixture.vars);
-    }
+    renderBody.container.add(img);
+    renderFixture.image = img;
 
     return img;
   }
 
-  // UI container per fixture, follows position but not rotation
-  _ensureFixtureUIContainer(fixture) {
-    if (fixture.uiContainer) return fixture.uiContainer;
+  _sortBodyFixtures(renderBody) {
+    const container = renderBody.container;
 
-    const ui = this.scene.add.container(0, 0);
-    ui.id = `${fixture.id}-ui`;
-    ui.setDepth(99999); // always above gameplay
-    this.scene.uiLayer.add(ui);
+    const sorted = [...renderBody.fixtures].sort((a, b) => {
+      const da = a.depth ?? 0;
+      const db = b.depth ?? 0;
+      return da - db;
+    });
 
-    fixture.uiContainer = ui;
-    return ui;
-  }
+    container.removeAll(false);
 
-  _getFixtureScale(meta) {
-    const localPpm =
-      parseFloat(localStorage.getItem('ppmResolution')) ||
-      this.scene.pixelsPerMeter ||
-      50;
-
-    const imagePpm = getObjectPixelsPerMeter(meta.type) || localPpm;
-    const objectScale = typeof meta.scale === 'number' ? meta.scale : 1;
-
-    return objectScale * (localPpm / imagePpm);
-  }
-
-  applyBodyStateDeltas(bodyStateDeltas) {
-    for (const { id, state } of bodyStateDeltas) {
-      const body = this._ensureBody(id);
-      if (!body) continue;
-
-      for (const fixture of body.fixtures) {
-        this._ensureFixture(body, fixture);
-      }
-
-      const ppm = this.scene.pixelsPerMeter || 50;
-
-      body.container.x = state.pos.x * ppm;
-      body.container.y = state.pos.y * ppm;
-      body.container.rotation = state.angle || 0;
+    for (const f of sorted) {
+      if (f.image) container.add(f.image);
     }
 
-    this._updateFixtureUI();
-    this.requestedMetadata = false;
+    const maxDepth = sorted.reduce((max, f) => Math.max(max, f.depth ?? 0), 0);
+    container.setDepth(maxDepth);
   }
 
-  handleDamageEvent(id, amt) {
-    if (!(id && amt)) return;
-
-    const fixture = this.fixtures.get(id);
-    if (!fixture) return;
-
-    if (fixture.image) {
-      this._applyDamageTintToImage(fixture.image, amt);
+  /* ---------------------------------------------------------
+   *  FIXTURE UI CONTAINER
+   * --------------------------------------------------------- */
+  _ensureFixtureUI(renderFixture) {
+    if (!renderFixture.ui) {
+      renderFixture.ui = {
+        container: null,
+        nameText: null,
+        healthBar: null,
+        energyBar: null
+      };
     }
+
+    if (!renderFixture.ui.container) {
+      const ui = this.scene.add.container(0, 0);
+      ui.id = `${renderFixture.id}-ui`;
+      ui.setDepth(99999);
+      this.scene.uiLayer.add(ui);
+
+      renderFixture.ui.container = ui;
+    }
+
+    return renderFixture.ui;
+  }
+
+  /* ---------------------------------------------------------
+   *  DAMAGE TINT
+   * --------------------------------------------------------- */
+  _handleDamageEvent(id, amt) {
+    const renderFixture = this.renderFixtures.get(id);
+    if (!renderFixture?.image) return;
+
+    this._applyDamageTintToImage(renderFixture.image, amt);
   }
 
   _applyDamageTintToImage(image, amount) {
@@ -215,70 +269,56 @@ export class ImageManager {
     });
   }
 
-  requestMetadata() {
-    if (this.requestedMetadata) return;
-    this.requestedMetadata = true;
-    this.scene.game.client.requestMetadata();
-    console.log('metareq');
-  }
+  /* ---------------------------------------------------------
+   *  DESTROY BODY RENDER (RENDER-ONLY)
+   * --------------------------------------------------------- */
+  _destroyBodyRender(bodyId) {
+    const renderBody = this.renderBodies.get(bodyId);
+    if (!renderBody) return;
 
-  destroyBody(bodyId) {
-    const body = this.bodies.get(bodyId);
-    if (!body) return;
+    for (const renderFixture of renderBody.fixtures) {
+      const ui = renderFixture.ui;
 
-    for (const fixture of body.fixtures) {
-      if (fixture.nameText) {
-        fixture.nameText.destroy();
-      }
-      if (fixture.healthBar) {
-        fixture.healthBar.destroy();
-      }
-      if (fixture.uiContainer) {
-        fixture.uiContainer.destroy();
-        this.scene.uiLayer.remove(fixture.uiContainer);
-      }
-      this.fixtures.delete(fixture.id);
+      if (ui?.nameText) ui.nameText.destroy();
+      if (ui?.healthBar) ui.healthBar.destroy();
+      if (ui?.energyBar) ui.energyBar.destroy();
+      if (ui?.container) ui.container.destroy();
+
+      if (renderFixture.image) renderFixture.image.destroy();
+
+      this.renderFixtures.delete(renderFixture.id);
     }
 
-    body.container.destroy();
-    this.bodies.delete(bodyId);
+    renderBody.container.destroy();
+    this.renderBodies.delete(bodyId);
   }
 
-  handleVarsUpdate(id, vars) {
-    const fixture = this.fixtures.get(id);
-    if (!fixture) return;
+  /* ---------------------------------------------------------
+   *  APPLY VARS (NAME / HEALTH / ENERGY)
+   * --------------------------------------------------------- */
+  applyFixtureVars(renderFixture, vars = {}) {
+    renderFixture.vars = { ...renderFixture.vars, ...vars };
 
-    this.applyFixtureVars(fixture, vars);
-  }
-
-  applyFixtureVars(fixture, vars = {}) {
-    fixture.vars = { ...fixture.vars, ...vars };
-
-    this._ensureFixtureUIContainer(fixture);
-
-    if (vars.name) {
-      this._applyFixtureName(fixture);
+    this._applyFixtureName(renderFixture);
+    if (vars.health !== undefined || vars.maxHealth !== undefined) {
+      this._applyFixtureHealth(renderFixture);
     }
-
-    if (vars.health !== undefined) {
-      this._applyFixtureHealth(fixture);
-    }
-
     if (vars.energy !== undefined) {
-      this._applyFixtureEnergy(fixture)
+      this._applyFixtureEnergy(renderFixture);
     }
   }
 
-  _applyFixtureName(fixture) {
-    const img = fixture.image;
+  /* ---------------- NAME ---------------- */
+  _applyFixtureName(renderFixture) {
+    const img = renderFixture.image;
     if (!img) return;
 
-    const uiContainer = this._ensureFixtureUIContainer(fixture);
+    const ui = this._ensureFixtureUI(renderFixture);
 
     const yOffset = -(img.displayHeight / 2) - getPaddingFor('name');
 
-    if (!fixture.nameText) {
-      fixture.nameText = this.scene.add.text(0, 0, fixture.vars.name, {
+    if (!ui.nameText) {
+      ui.nameText = this.scene.add.text(0, 0, renderFixture.vars.name || '', {
         fontSize: `${12 * getUiScale()}px`,
         color: "#fff",
         align: "center",
@@ -286,42 +326,40 @@ export class ImageManager {
         strokeThickness: 2
       }).setOrigin(0.5, 0.5);
 
-      uiContainer.add(fixture.nameText);
+      ui.container.add(ui.nameText);
     } else {
-      fixture.nameText.setText(fixture.vars.name);
+      ui.nameText.setText(renderFixture.vars.name || '');
     }
 
-    fixture.nameText._offsetY = yOffset;
+    ui.nameText._offsetY = yOffset;
   }
 
-  _applyFixtureHealth(fixture) {
-    const img = fixture.image;
+  /* ---------------- HEALTH ---------------- */
+  _applyFixtureHealth(renderFixture) {
+    const img = renderFixture.image;
     if (!img) return;
 
-    const uiContainer = this._ensureFixtureUIContainer(fixture);
+    const ui = this._ensureFixtureUI(renderFixture);
 
-    if (!fixture.healthBar) {
-      const bar = this.scene.add.rectangle(
+    if (!ui.healthBar) {
+      ui.healthBar = this.scene.add.rectangle(
         0,
         0,
         30 * getUiScale(),
         4 * getUiScale(),
-        0x00ff00 // initial color (green)
+        0x00ff00
       ).setOrigin(0.5, 0.5);
 
-      uiContainer.add(bar);
-      fixture.healthBar = bar;
+      ui.container.add(ui.healthBar);
     }
 
-    const maxHealth = fixture.vars.maxHealth || 100;
-    const ratio = Math.max(fixture.vars.health / maxHealth, 0);
+    const maxHealth = renderFixture.vars.maxHealth || 100;
+    const ratio = Math.max((renderFixture.vars.health ?? maxHealth) / maxHealth, 0);
 
-    // Smooth color blend: green → yellow → red
     let r, g;
-
     if (ratio > 0.5) {
       const t = (ratio - 0.5) * 2;
-      r = Math.max(255 * (1 - t),127);
+      r = Math.max(255 * (1 - t), 127);
       g = 255;
     } else {
       const t = ratio * 2;
@@ -329,80 +367,91 @@ export class ImageManager {
       g = 255 * t;
     }
 
-    const color = (r << 16) | (g << 8) | 0;
+    ui.healthBar.fillColor = (r << 16) | (g << 8) | 0;
+    ui.healthBar.scaleX = ratio * maxHealth / 100;
 
-    fixture.healthBar.fillColor = color;
-    fixture.healthBar.scaleX = ratio * maxHealth/100;
-
-    fixture.healthBar._offsetY = -(img.displayHeight / 2) - getPaddingFor('health');
+    ui.healthBar._offsetY = -(img.displayHeight / 2) - getPaddingFor('health');
   }
 
-
-  _applyFixtureEnergy(fixture) {
-    const img = fixture.image;
+  /* ---------------- ENERGY ---------------- */
+  _applyFixtureEnergy(renderFixture) {
+    const img = renderFixture.image;
     if (!img) return;
 
-    const uiContainer = this._ensureFixtureUIContainer(fixture);
+    const ui = this._ensureFixtureUI(renderFixture);
 
-    if (!fixture.energyBar) {
-      const bar = this.scene.add.rectangle(
+    if (!ui.energyBar) {
+      ui.energyBar = this.scene.add.rectangle(
         0,
         0,
         30 * getUiScale(),
         4 * getUiScale(),
-        0x00AEEF //blue
+        0x00AEEF
       ).setOrigin(0.5, 1);
 
-      uiContainer.add(bar);
-      fixture.energyBar = bar;
+      ui.container.add(ui.energyBar);
     }
 
-
-    fixture.energyBar.scaleX = fixture.vars.energy/100;
-
-    fixture.energyBar._offsetY = -(img.displayHeight / 2) - getPaddingFor('energy');
+    ui.energyBar.scaleX = (renderFixture.vars.energy ?? 0) / 100;
+    ui.energyBar._offsetY = -(img.displayHeight / 2) - getPaddingFor('energy');
   }
 
-  _updateFixtureUI() {
-    const ppm = this.scene.pixelsPerMeter || 50;
+  /* ---------------------------------------------------------
+   *  UPDATE UI POSITIONS FOR A BODY (RENDER-ONLY)
+   * --------------------------------------------------------- */
+  _updateFixtureUIForBody(renderBody, ppm) {
+    const container = renderBody.container;
+    if (!container) return;
 
-    for (const fixture of this.fixtures.values()) {
-      const img = fixture.image;
-      if (!img) continue;
+    const cos = Math.cos(container.rotation);
+    const sin = Math.sin(container.rotation);
 
-      const body = fixture.body;
-      if (!body) continue;
+    for (const renderFixture of renderBody.fixtures) {
+      const img = renderFixture.image;
+      const uiContainer = renderFixture.ui?.container;
+      if (!img || !uiContainer) continue;
 
-      const ui = fixture.uiContainer;
-      if (!ui) continue;
+      const fx = renderFixture.position?.x || 0;
+      const fy = renderFixture.position?.y || 0;
 
-      const fx = fixture.position?.x || 0;
-      const fy = fixture.position?.y || 0;
+      const worldX = container.x + (fx * ppm * cos - fy * ppm * sin);
+      const worldY = container.y + (fx * ppm * sin + fy * ppm * cos);
 
-      const cos = Math.cos(body.container.rotation);
-      const sin = Math.sin(body.container.rotation);
+      uiContainer.x = worldX;
+      uiContainer.y = worldY;
+      uiContainer.rotation = 0;
 
-      const worldX = body.container.x + (fx * ppm * cos - fy * ppm * sin);
-      const worldY = body.container.y + (fx * ppm * sin + fy * ppm * cos);
+      const { nameText, healthBar, energyBar } = renderFixture.ui;
 
-      ui.x = worldX;
-      ui.y = worldY;
-      ui.rotation = 0;
-
-      if (fixture.nameText) {
-        fixture.nameText.x = 0;
-        fixture.nameText.y = fixture.nameText._offsetY || 0;
+      if (nameText) {
+        nameText.x = 0;
+        nameText.y = nameText._offsetY || 0;
       }
 
-      if (fixture.healthBar) {
-        fixture.healthBar.x = 0;
-        fixture.healthBar.y = fixture.healthBar._offsetY || 0;
+      if (healthBar) {
+        healthBar.x = 0;
+        healthBar.y = healthBar._offsetY || 0;
       }
 
-      if (fixture.energyBar) {
-        fixture.energyBar.x = 0;
-        fixture.energyBar.y = fixture.energyBar._offsetY || 0;
+      if (energyBar) {
+        energyBar.x = 0;
+        energyBar.y = energyBar._offsetY || 0;
       }
     }
+  }
+
+  /* ---------------------------------------------------------
+   *  SCALE HELPERS
+   * --------------------------------------------------------- */
+  _getFixtureScale(meta) {
+    const localPpm =
+      parseFloat(localStorage.getItem('ppmResolution')) ||
+      this.scene.pixelsPerMeter ||
+      50;
+
+    const imagePpm = getObjectPixelsPerMeter(meta.type) || localPpm;
+    const objectScale = typeof meta.scale === 'number' ? meta.scale : 1;
+
+    return objectScale * (localPpm / imagePpm);
   }
 }

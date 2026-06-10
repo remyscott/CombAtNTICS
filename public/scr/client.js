@@ -17,16 +17,9 @@ export class Client{
 
   setGame(game) {
     this.game = game;
-
-    // NOW we can safely create StateManager
     this.stateManager = new StateManager(this.ws, this.game);
 
     this.game.events.on('step', (time, delta) => this._onStep(time, delta));
-
-    // Listen for deltas and forward to ImageManager
-    this.game.events.on('state-delta', deltas => {
-      this.game.imageManager.applyBodyStateDeltas(deltas);
-    });
   }
 
   _onStep(time, delta) {

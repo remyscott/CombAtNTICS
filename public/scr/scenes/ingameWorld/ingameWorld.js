@@ -33,7 +33,7 @@ export class IngameWorld extends Phaser.Scene {
 
     this.game.events.on('damage', (id,amount) => {
 
-      if (this.imageManager.fixtures.get(id)?.bodyId === this.game.playerBodyId)
+      if (this.game.fixtures.get(id)?.bodyId === this.game.playerBodyId)
       this._playerDamageCameraEffect(amount);
     });
     
@@ -47,17 +47,14 @@ export class IngameWorld extends Phaser.Scene {
   }
 
   update() {
-    this.applyState(this.game.currentState);
-    
     this.centerCamera();
     this.inputManager.tick();
 
-    // NEW: update vignette + background shake
     this._updateRecentDamageEffects();
   }
 
   centerCamera() {
-    const playerBodyContainer = this.game.bodies.get(this.game.playerBodyId)?.container;
+    const playerBodyContainer = this.imageManager.renderBodies.get(this.game.playerBodyId)?.container;
 
     if (playerBodyContainer) {
       this.cameras.main.centerOn(playerBodyContainer.x, playerBodyContainer.y);
