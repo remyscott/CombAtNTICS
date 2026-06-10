@@ -4,9 +4,9 @@ function getUiScale() {
   return Number(localStorage.getItem('uiscale') || 1);
 }
 
-const elementOrder = ['health', 'name'];
+const elementOrder = ['name', 'health', 'energy', ];
 function getPaddingFor(key) {
-  return 12 * elementOrder.indexOf(key) * getUiScale();
+  return 10 * elementOrder.indexOf(key) * getUiScale();
 }
 
 export class ImageManager {
@@ -61,11 +61,7 @@ export class ImageManager {
 
     this.bodies.set(id, body);
 
-    for (const fixture of body.fixtures) {
-      this._ensureFixture(body, fixture);
-      body.container.setDepth(fixture.depth)
-      console.log(body.container.depth);
-    }
+    
 
     this._sortBodyFixtures(body);
     return body;
@@ -88,12 +84,25 @@ export class ImageManager {
             body.container.add(fixture.image);
         }
     }
+
+    for (const fixture of body.fixtures) {
+      this._ensureFixture(body, fixture);
+      body.container.setDepth(fixture.depth)
+      console.log(body.container.depth);
+    }
   }
 
   _ensureFixture(body, fixture) {
+    const meta = this.scene.game.metadata?.fixtures?.[fixture.metaId];
+
+    if ((!fixture?.depth) && meta?.depth && fixture?.image) {
+      fixture.depth = meta.depth;
+      fixture.image.setDepth(fixture.depth)
+      this._sortBodyFixtures(body);
+    }
+
     if (fixture.image) return fixture.image;
 
-    const meta = this.scene.game.metadata?.fixtures?.[fixture.metaId];
     if (!meta) {
       this.requestMetadata();
       return null;
@@ -119,13 +128,12 @@ export class ImageManager {
     }
 
     // depth comes from FIXTURE METADATA, not body fixture info
-    fixture.depth = meta.depth || 0;
-    if (fixture.depth) {console.log(fixture); console.log(meta.type);}
 
     body.container.add(img);
     fixture.body = body;
     fixture.image = img;
     this.fixtures.set(fixture.id, fixture);
+
 
     if (fixture.vars && Object.keys(fixture.vars).length) {
       this.applyFixtureVars(fixture, fixture.vars);
@@ -250,15 +258,19 @@ export class ImageManager {
     this._ensureFixtureUIContainer(fixture);
 
     if (vars.name) {
-      this._applyFixtureName(fixture, vars.name);
+      this._applyFixtureName(fixture);
     }
 
     if (vars.health !== undefined) {
-      this._applyFixtureHealth(fixture, vars.health);
+      this._applyFixtureHealth(fixture);
+    }
+
+    if (vars.energy !== undefined) {
+      this._applyFixtureEnergy(fixture)
     }
   }
 
-  _applyFixtureName(fixture, name) {
+  _applyFixtureName(fixture) {
     const img = fixture.image;
     if (!img) return;
 
@@ -267,7 +279,7 @@ export class ImageManager {
     const yOffset = -(img.displayHeight / 2) - getPaddingFor('name');
 
     if (!fixture.nameText) {
-      fixture.nameText = this.scene.add.text(0, 0, name, {
+      fixture.nameText = this.scene.add.text(0, 0, fixture.vars.name, {
         fontSize: `${12 * getUiScale()}px`,
         color: "#fff",
         align: "center",
@@ -277,13 +289,13 @@ export class ImageManager {
 
       uiContainer.add(fixture.nameText);
     } else {
-      fixture.nameText.setText(name);
+      fixture.nameText.setText(fixture.vars.name);
     }
 
     fixture.nameText._offsetY = yOffset;
   }
 
-  _applyFixtureHealth(fixture, health) {
+  _applyFixtureHealth(fixture) {
     const img = fixture.image;
     if (!img) return;
 
@@ -296,14 +308,14 @@ export class ImageManager {
         30 * getUiScale(),
         4 * getUiScale(),
         0x00ff00 // initial color (green)
-      ).setOrigin(0.5, 1);
+      ).setOrigin(0.5, 0.5);
 
       uiContainer.add(bar);
       fixture.healthBar = bar;
     }
 
     const maxHealth = fixture.vars.maxHealth || 100;
-    const ratio = Math.max(health / maxHealth, 0);
+    const ratio = Math.max(fixture.vars.health / maxHealth, 0);
 
     // Smooth color blend: green → yellow → red
     let r, g;
@@ -324,6 +336,32 @@ export class ImageManager {
     fixture.healthBar.scaleX = ratio * maxHealth/100;
 
     fixture.healthBar._offsetY = -(img.displayHeight / 2) - getPaddingFor('health');
+  }
+
+
+  _applyFixtureEnergy(fixture) {
+    const img = fixture.image;
+    if (!img) return;
+
+    const uiContainer = this._ensureFixtureUIContainer(fixture);
+
+    if (!fixture.energyBar) {
+      const bar = this.scene.add.rectangle(
+        0,
+        0,
+        30 * getUiScale(),
+        4 * getUiScale(),
+        0x00AEEF //blue
+      ).setOrigin(0.5, 1);
+
+      uiContainer.add(bar);
+      fixture.energyBar = bar;
+    }
+
+
+    fixture.energyBar.scaleX = fixture.vars.energy/100;
+
+    fixture.energyBar._offsetY = -(img.displayHeight / 2) - getPaddingFor('energy');
   }
 
   _updateFixtureUI() {
@@ -360,6 +398,11 @@ export class ImageManager {
       if (fixture.healthBar) {
         fixture.healthBar.x = 0;
         fixture.healthBar.y = fixture.healthBar._offsetY || 0;
+      }
+
+      if (fixture.energyBar) {
+        fixture.energyBar.x = 0;
+        fixture.energyBar.y = fixture.energyBar._offsetY || 0;
       }
     }
   }
