@@ -88,7 +88,6 @@ export class ImageManager {
     for (const fixture of body.fixtures) {
       this._ensureFixture(body, fixture);
       body.container.setDepth(fixture.depth)
-      console.log(body.container.depth);
     }
   }
 
