@@ -18,6 +18,8 @@ const config = {
 class CustomGame extends Phaser.Game {
   constructor(config) {
     super(config);
+    this.bodies = new Map();
+    this.fixtures = new Map();
     this.metadata = {bodies: {}, fixtures:{}};
     this.client = null;
   }

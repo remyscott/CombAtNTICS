@@ -12,6 +12,7 @@ function getPaddingFor(key) {
 export class ImageManager {
   constructor(scene) {
     this.scene = scene;
+    this.game = this.scene.game;
 
     // Render-only maps
     this.renderBodies = new Map();   // bodyId -> { id, container, fixtures: [] }
@@ -24,67 +25,32 @@ export class ImageManager {
     }
 
     // Listen for batched state updates
-    this.scene.game.events.on('stateUpdated', payload => this._onStateUpdated(payload));
+    this.game.events.on('stateUpdated', payload => this._onStateUpdated(payload));
 
     // Damage tint animation
-    this.scene.game.events.on('damage', (id, amount) => {
+    this.game.events.on('damage', (id, amount) => {
       this._handleDamageEvent(id, amount);
     });
+
+    this._metadataRequested = false;
   }
 
   /* ---------------------------------------------------------
    *  MAIN UPDATE HANDLER
    * --------------------------------------------------------- */
-  _onStateUpdated({ movedBodies, changedFixtures, destroyedBodies, newBodies, newFixtures }) {
+  
+  _onStateUpdated({ movedBodies, changedFixtures, destroyedBodies}) {
     const ppm = this.scene.pixelsPerMeter || 50;
-    const game = this.scene.game;
 
-    // 1. Destroy bodies (render-only)
-    for (const bodyId of destroyedBodies || []) {
+    for (const bodyId of destroyedBodies) {
       this._destroyBodyRender(bodyId);
     }
 
-    // ⭐ Remove any fixture IDs that belong to destroyed bodies
-    const destroyedSet = new Set(destroyedBodies || []);
-
-    const filterOutDestroyedFixtures = (fixtureIds) => {
-      return fixtureIds.filter(id => {
-        const fs = game.fixtures.get(id);
-        return fs && !destroyedSet.has(fs.bodyId);
-      });
-    };
-
-    newFixtures = filterOutDestroyedFixtures(newFixtures || []);
-    changedFixtures = filterOutDestroyedFixtures(changedFixtures || []);
-
-    // ⭐ Remove destroyed bodies from movedBodies
-    movedBodies = (movedBodies || []).filter(id => !destroyedSet.has(id));
-
-    // 2. Create containers for new bodies
-    for (const bodyId of newBodies || []) {
-      const bodyState = game.bodies.get(bodyId);
-      if (!bodyState) continue;
-      this._ensureRenderBody(bodyState);
-    }
-
-    // 3. Create images for new fixtures
-    for (const fixtureId of newFixtures) {
-      const fixtureState = game.fixtures.get(fixtureId);
-      if (!fixtureState) continue;
-
-      const renderFixture = this._ensureRenderFixture(fixtureState);
-      if (!renderFixture) continue; // ⭐ skip if creation failed
-
-      this.applyFixtureVars(renderFixture, renderFixture.vars || {});
-    }
-
-    // 4. Update transforms for moved bodies
     for (const bodyId of movedBodies) {
-      const bodyState = game.bodies.get(bodyId);
-      if (!bodyState) continue;
+      const renderBody = this._ensureRenderBody(bodyId);
 
-      const renderBody = this.renderBodies.get(bodyId);
       if (!renderBody) continue;
+      const bodyState = this.game.bodies?.get(bodyId);
 
       const container = renderBody.container;
       container.x = bodyState.interpolatedPos.x * ppm;
@@ -94,59 +60,84 @@ export class ImageManager {
       this._updateFixtureUIForBody(renderBody, ppm);
     }
 
-    // 5. Vars changes
-    for (const fixtureId of changedFixtures) {
-      const fixtureState = game.fixtures.get(fixtureId);
-      if (!fixtureState) continue;
-
-      const renderFixture = this._ensureRenderFixture(fixtureState);
-      if (!renderFixture) continue; // ⭐ skip if fixture was destroyed
-
-      this.applyFixtureVars(renderFixture, renderFixture.vars || {});
+    // 3. Vars changes
+    for (const fixtureId of changedFixtures || []) {
+      console.log('something tried to change')
+      this.applyFixtureVars(fixtureId);
     }
+
+    this._metadataRequested = false;
+
   }
 
 
   /* ---------------------------------------------------------
    *  RENDER BODY
    * --------------------------------------------------------- */
-  _ensureRenderBody(bodyState) {
-    let renderBody = this.renderBodies.get(bodyState.id);
+  _ensureRenderBody(id) {
+    let renderBody = this.renderBodies.get(id);
+    const body = this.game?.bodies?.get(id);
+    
+    if (!body) {        //THIS IS A SAFEGUARD, RENDER BODIES ARE SUPPOSED TO BE DELETED IN APPLY CHANGES
+      if (renderBody) {
+        this._destroyBodyRender(id)
+      }
+      return;
+    }
+    for (const fixtureId of body.fixtureIds) {
+      const renderFixture = this._ensureRenderFixture(fixtureId);
+      if (renderFixture) this.applyFixtureVars(fixtureId);
+    }
     if (renderBody) return renderBody;
-
     const container = this.scene.add.container(0, 0);
-    container.id = bodyState.id;
+    container.id = id;
 
     renderBody = {
-      id: bodyState.id,
+      id,
       container,
       fixtures: [] // array of renderFixtures
     };
 
-    this.renderBodies.set(bodyState.id, renderBody);
+    this.renderBodies.set(id, renderBody);
     return renderBody;
   }
 
   /* ---------------------------------------------------------
    *  RENDER FIXTURE
    * --------------------------------------------------------- */
-  _ensureRenderFixture(fixtureState) {
-    let renderFixture = this.renderFixtures.get(fixtureState.id);
+  _ensureRenderFixture(id) {
+    const fixture = this.game.fixtures?.get(id);
+    let renderFixture = this.renderFixtures.get(id);
+
+    if (!fixture) {
+      if (renderFixture) {
+        this._destroyBodyRender(renderFixture.bodyId);
+      }
+      return;
+    }
+
     if (renderFixture) return renderFixture;
 
-    const game = this.scene.game;
-    const meta = game.metadata?.fixtures?.[fixtureState.metaId];
-    if (!meta) return null;
+    const meta = this.game.metadata?.fixtures?.[fixture.metaId];
 
-    const renderBody = this._ensureRenderBody(game.bodies.get(fixtureState.bodyId));
+    if (!meta) {
+      if (!this._metadataRequested) {
+        console.log('metareq');
+        this._metadataRequested = true;
+        this.game.client.requestMetadata();
+      }
+      return;
+    }
+
+    const renderBody = this.renderBodies.get(fixture.bodyId);
     if (!renderBody) return null;
 
     renderFixture = {
-      id: fixtureState.id,
-      bodyId: fixtureState.bodyId,
-      metaId: fixtureState.metaId,
-      position: fixtureState.position,
-      angle: fixtureState.angle,
+      id,
+      bodyId: fixture.bodyId,
+      metaId: fixture.metaId,
+      position: fixture.position,
+      angle: fixture.angle,
       image: null,
       ui: {
         container: null,
@@ -154,16 +145,15 @@ export class ImageManager {
         healthBar: null,
         energyBar: null
       },
-      vars: fixtureState.vars || {},
+      vars: fixture.vars || {},
       depth: meta.depth ?? 1
     };
 
-    this.renderFixtures.set(fixtureState.id, renderFixture);
+    this.renderFixtures.set(id, renderFixture);
     renderBody.fixtures.push(renderFixture);
 
     this._createFixtureImage(renderBody, renderFixture, meta);
     this._sortBodyFixtures(renderBody);
-
     return renderFixture;
   }
 
@@ -296,15 +286,24 @@ export class ImageManager {
   /* ---------------------------------------------------------
    *  APPLY VARS (NAME / HEALTH / ENERGY)
    * --------------------------------------------------------- */
-  applyFixtureVars(renderFixture, vars = {}) {
-    renderFixture.vars = { ...renderFixture.vars, ...vars };
 
-    this._applyFixtureName(renderFixture);
-    if (vars.health !== undefined || vars.maxHealth !== undefined) {
-      this._applyFixtureHealth(renderFixture);
-    }
-    if (vars.energy !== undefined) {
-      this._applyFixtureEnergy(renderFixture);
+  applyFixtureVars(id) {
+    const renderFixture = this.renderFixtures.get(id);
+    if (!renderFixture) return;
+    console.log('there is a renderfixture')
+    renderFixture.vars = this.game.fixtures.get(id).vars;
+
+    const vars = renderFixture.vars;
+    if (renderFixture.vars) {
+      console.log('it has vars')
+
+      this._applyFixtureName(renderFixture);
+      if (vars.health !== undefined || vars.maxHealth !== undefined) {
+        this._applyFixtureHealth(renderFixture);
+      }
+      if (vars.energy !== undefined) {
+        this._applyFixtureEnergy(renderFixture);
+      }
     }
   }
 
@@ -403,14 +402,16 @@ export class ImageManager {
     const container = renderBody.container;
     if (!container) return;
 
-    const cos = Math.cos(container.rotation);
-    const sin = Math.sin(container.rotation);
+    
 
     for (const renderFixture of renderBody.fixtures) {
+
       const img = renderFixture.image;
       const uiContainer = renderFixture.ui?.container;
       if (!img || !uiContainer) continue;
 
+      const cos = Math.cos(container.rotation);
+      const sin = Math.sin(container.rotation);
       const fx = renderFixture.position?.x || 0;
       const fy = renderFixture.position?.y || 0;
 

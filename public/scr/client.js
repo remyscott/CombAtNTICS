@@ -1,7 +1,6 @@
 
 import { IDEAL_TICK_RATE } from '../../shared/settings.js';
 import wsClient from '../ws-client.js';
-import { lerpStatesFast } from './statelerper.js';
 import { StateManager } from './stateManager.js';
 
 const DEFAULT_BUFFER = 100;

@@ -1,6 +1,5 @@
-import { lerpStatesFast } from './statelerper.js'; // unused for now
-
 const MIN_HISTORY_VALUES = 5;
+const FRAMES_PER_FORCED_UPDATE = 120; // tweak as you like
 
 export class StateManager {
   constructor(ws, game) {
@@ -25,10 +24,11 @@ export class StateManager {
     // per-frame change tracking
     this._changedFixtures = new Set();
     this._destroyedBodies = new Set();
-    this._newBodies = new Set();
-    this._newFixtures = new Set();
-    
+
     this._metadataRequested = false;
+
+    // forced update tracking
+    this._frameIndex = 0;
 
     this.game.events.on('step', (time, delta) => this._onStep(time, delta));
   }
@@ -105,12 +105,10 @@ export class StateManager {
       interpolatedAngle: 0,
       _lastPos: { x: 0, y: 0 },
       _lastAngle: 0,
-      render: body?.render || null
+      render: null
     };
 
     this.game.bodies.set(id, body);
-    this._newBodies.add(id);
-
     for (const f of meta.fixtures || []) {
       this._ensureFixture(f.id, id, f);
     }
@@ -130,7 +128,8 @@ export class StateManager {
       return fixture;
     }
 
-    const meta = metaFixture || this.game.metadata?.fixtures?.[fixtureId];
+    const meta = metaFixture;
+
     if (!meta) {
       this._requestMetadata();
       return null;
@@ -153,13 +152,12 @@ export class StateManager {
       body.fixtureIds.push(fixtureId);
     }
 
-    this._newFixtures.add(fixtureId);
-
     return fixture;
   }
 
   _requestMetadata() {
     if (!this._metadataRequested && this.game.client?.requestMetadata) {
+      console.log('metareq');
       this._metadataRequested = true;
       this.game.client.requestMetadata();
     }
@@ -267,25 +265,45 @@ export class StateManager {
    * --------------------------------------------------------- */
 
   _onStep() {
-  const serverNow = Date.now() + this.clockOffset;
-  this._processEventsUpTo(serverNow);
+    this._frameIndex++;
 
-  const interpolated = this._interpolateCurrentState();
-  const movedBodies = this._applyInterpolatedState(interpolated);
+    const serverNow = Date.now() + this.clockOffset;
+    this._processEventsUpTo(serverNow);
 
-  this.game.events.emit('stateUpdated', {
-    movedBodies,
-    changedFixtures: Array.from(this._changedFixtures),
-    destroyedBodies: Array.from(this._destroyedBodies),
-    newBodies: Array.from(this._newBodies),
-    newFixtures: Array.from(this._newFixtures)
-  });
+    const interpolated = this._interpolateCurrentState();
+    const movedBodies = this._applyInterpolatedState(interpolated);
 
-  this._changedFixtures.clear();
-  this._destroyedBodies.clear();
-  this._newBodies.clear();
-  this._newFixtures.clear();
-}
+    // Forced staggered updates: fixtures
+    for (const [fixtureId, fixture] of this.game.fixtures.entries()) {
+      const hasVars =
+        fixture?.vars &&
+        typeof fixture.vars === 'object' &&
+        Object.keys(fixture.vars).length > 0;
+
+      if (hasVars && (this._frameIndex + fixtureId) % FRAMES_PER_FORCED_UPDATE === 0) {
+        this._changedFixtures.add(fixtureId);
+      }
+    }
+
+    // Forced staggered updates: bodies
+    const forcedMovedBodies = [];
+    for (const [bodyId] of this.game.bodies.entries()) {
+      if ((this._frameIndex + bodyId) % FRAMES_PER_FORCED_UPDATE === 0) {
+        forcedMovedBodies.push(bodyId);
+      }
+    }
+
+    const allMovedBodies = Array.from(new Set([...movedBodies, ...forcedMovedBodies]));
+
+    this.game.events.emit('stateUpdated', {
+      movedBodies: allMovedBodies,
+      changedFixtures: Array.from(this._changedFixtures),
+      destroyedBodies: Array.from(this._destroyedBodies)
+    });
+
+    this._changedFixtures.clear();
+    this._destroyedBodies.clear();
+  }
 
   _interpolateCurrentState() {
     const renderTime = Date.now() + this.clockOffset - this.networkBuffer;
