@@ -51,7 +51,7 @@ export class IngameWorld extends Phaser.Scene {
   update() {
     this.inputManager.tick();
     this._updateRecentDamageEffects();
-    
+    this.centerCamera();
   }
 
   centerCamera() {

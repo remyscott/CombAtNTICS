@@ -34,7 +34,6 @@ export class ImageManager {
    *  MAIN UPDATE HANDLER
    * --------------------------------------------------------- */
   _onStateUpdated({ movedBodies, changedFixtures, destroyedBodies }) {
-    this.scene.centerCamera();
 
     this._tryCreateAll();
     for (const bodyId of destroyedBodies) {
