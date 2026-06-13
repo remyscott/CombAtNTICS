@@ -358,25 +358,6 @@ const commands = {
     description: 'Set components for a player (mod+). Example: /setComponents username HoverSphere Dash Sword'
   },
 
-  '/spec': {
-    requiredRole: 'player',
-    function: function (targetId) {
-      if (!targetId) targetId = '@s';
-      const p = this.resolvePlayer(targetId);
-      if (!p || !p.body) {
-        this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: 'Player not found or has no body', nameOfSender: 'SERVER' }));
-        return;
-      }
-      try {
-        p.ws.send(JSON.stringify({ type: 'events', events: [{ type: 'cameraFocusId', id: p.getBodyId(), serverTimeMs: Date.now() }] }));
-        this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Camera focus on ${p.name}`, nameOfSender: 'SERVER' }));
-      } catch (err) {
-        this.player.ws.send(JSON.stringify({ type: 'chatMsg', msg: `Spec failed: ${err.message}`, nameOfSender: 'SERVER' }));
-      }
-    },
-    description: 'Focus your camera on a player. No input = @s'
-  },
-
   '/sf' : {
     requiredRole: 'mod',
     function: function (targetId, sf) {

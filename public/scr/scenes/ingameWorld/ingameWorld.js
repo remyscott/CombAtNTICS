@@ -21,6 +21,8 @@ export class IngameWorld extends Phaser.Scene {
       this.load.image(name, `/shared/assets/img/${imageFile}`);
     });
     this.images = new Map();
+    this.load.image('arrowIcon', `/assets/img/arrowIcon.png`);
+
   }
 
   create() {
@@ -47,10 +49,9 @@ export class IngameWorld extends Phaser.Scene {
   }
 
   update() {
-    this.centerCamera();
     this.inputManager.tick();
-
     this._updateRecentDamageEffects();
+    
   }
 
   centerCamera() {

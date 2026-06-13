@@ -1,5 +1,4 @@
 const MIN_HISTORY_VALUES = 5;
-const FRAMES_PER_FORCED_UPDATE = 120; // tweak as you like
 
 export class StateManager {
   constructor(ws, game) {
@@ -26,9 +25,6 @@ export class StateManager {
     this._destroyedBodies = new Set();
 
     this._metadataRequested = false;
-
-    // forced update tracking
-    this._frameIndex = 0;
 
     this.game.events.on('step', (time, delta) => this._onStep(time, delta));
   }
@@ -105,6 +101,7 @@ export class StateManager {
       interpolatedAngle: 0,
       _lastPos: { x: 0, y: 0 },
       _lastAngle: 0,
+      _isNew: true,          // 🔹 mark as new
       render: null
     };
 
@@ -116,10 +113,10 @@ export class StateManager {
     return body;
   }
 
+
   _ensureFixture(fixtureId, bodyId, metaFixture = null) {
     let fixture = this.game.fixtures.get(fixtureId);
     if (fixture) {
-      // link to body if needed
       if (fixture.bodyId !== bodyId) fixture.bodyId = bodyId;
       const body = this.game.bodies.get(bodyId);
       if (body && !body.fixtureIds.includes(fixtureId)) {
@@ -265,38 +262,14 @@ export class StateManager {
    * --------------------------------------------------------- */
 
   _onStep() {
-    this._frameIndex++;
-
     const serverNow = Date.now() + this.clockOffset;
     this._processEventsUpTo(serverNow);
 
     const interpolated = this._interpolateCurrentState();
     const movedBodies = this._applyInterpolatedState(interpolated);
 
-    // Forced staggered updates: fixtures
-    for (const [fixtureId, fixture] of this.game.fixtures.entries()) {
-      const hasVars =
-        fixture?.vars &&
-        typeof fixture.vars === 'object' &&
-        Object.keys(fixture.vars).length > 0;
-
-      if (hasVars && (this._frameIndex + fixtureId) % FRAMES_PER_FORCED_UPDATE === 0) {
-        this._changedFixtures.add(fixtureId);
-      }
-    }
-
-    // Forced staggered updates: bodies
-    const forcedMovedBodies = [];
-    for (const [bodyId] of this.game.bodies.entries()) {
-      if ((this._frameIndex + bodyId) % FRAMES_PER_FORCED_UPDATE === 0) {
-        forcedMovedBodies.push(bodyId);
-      }
-    }
-
-    const allMovedBodies = Array.from(new Set([...movedBodies, ...forcedMovedBodies]));
-
     this.game.events.emit('stateUpdated', {
-      movedBodies: allMovedBodies,
+      movedBodies,
       changedFixtures: Array.from(this._changedFixtures),
       destroyedBodies: Array.from(this._destroyedBodies)
     });
@@ -361,10 +334,11 @@ export class StateManager {
       body.interpolatedPos = { x, y };
       body.interpolatedAngle = angle;
 
-      if (changed) {
+      if (changed || body._isNew) {   // 🔹 include new bodies
         moved.push(id);
         body._lastPos = { x, y };
         body._lastAngle = angle;
+        body._isNew = false;
       }
     }
 
